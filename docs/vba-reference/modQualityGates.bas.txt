@@ -1,0 +1,253 @@
+Option Explicit
+
+' ================================================================
+' SETUP_APPROVAL_LOG layout (redesigned to link to detail readings):
+' A=Date | B=Time | C=Machine | D=Part No | E=Approved By |
+' F=Result | G=Consumed | H=Overall Remarks | I=ApprovalID
+' ================================================================
+
+Public Function IsSetupApproved(ByVal MachineNo As String, ByVal PartNo As String, _
+                                 ByVal EntryDate As Date) As Boolean
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("SETUP_APPROVAL_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(MachineNo) And _
+           Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           IsDate(ws.Cells(r, "A").Value) Then
+
+            If DateValue(ws.Cells(r, "A").Value) = DateValue(EntryDate) And _
+               UCase(Trim(ws.Cells(r, "F").Value)) = "APPROVED" And _
+               UCase(Trim(ws.Cells(r, "G").Value)) <> "YES" Then
+
+                IsSetupApproved = True
+                Exit Function
+
+            End If
+
+        End If
+
+    Next r
+
+    IsSetupApproved = False
+
+End Function
+
+Public Sub MarkSetupApprovalConsumed(ByVal MachineNo As String, ByVal PartNo As String, _
+                                      ByVal EntryDate As Date)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("SETUP_APPROVAL_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(MachineNo) And _
+           Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           IsDate(ws.Cells(r, "A").Value) Then
+
+            If DateValue(ws.Cells(r, "A").Value) = DateValue(EntryDate) And _
+               UCase(Trim(ws.Cells(r, "F").Value)) = "APPROVED" And _
+               UCase(Trim(ws.Cells(r, "G").Value)) <> "YES" Then
+
+                ws.Cells(r, "G").Value = "Yes"
+                Exit Sub
+
+            End If
+
+        End If
+
+    Next r
+
+End Sub
+
+
+' ================================================================
+' Last Shot Inspection - unchanged from before.
+' ================================================================
+
+Public Function IsLastShotInspected(ByVal MachineNo As String, ByVal PartNo As String, _
+                                     ByVal EntryDate As Date) As Boolean
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("LAST_SHOT_INSPECTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(MachineNo) And _
+           Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           IsDate(ws.Cells(r, "A").Value) Then
+
+            If DateValue(ws.Cells(r, "A").Value) = DateValue(EntryDate) And _
+               UCase(Trim(ws.Cells(r, "G").Value)) = "PASS" And _
+               UCase(Trim(ws.Cells(r, "H").Value)) <> "YES" Then
+
+                IsLastShotInspected = True
+                Exit Function
+
+            End If
+
+        End If
+
+    Next r
+
+    IsLastShotInspected = False
+
+End Function
+
+Public Sub MarkLastShotInspectionConsumed(ByVal MachineNo As String, ByVal PartNo As String, _
+                                           ByVal EntryDate As Date)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("LAST_SHOT_INSPECTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(MachineNo) And _
+           Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           IsDate(ws.Cells(r, "A").Value) Then
+
+            If DateValue(ws.Cells(r, "A").Value) = DateValue(EntryDate) And _
+               UCase(Trim(ws.Cells(r, "G").Value)) = "PASS" And _
+               UCase(Trim(ws.Cells(r, "H").Value)) <> "YES" Then
+
+                ws.Cells(r, "H").Value = "Yes"
+                Exit Sub
+
+            End If
+
+        End If
+
+    Next r
+
+End Sub
+
+
+' ================================================================
+' Parameter/Dimension standards lookup - used by frmSetupApproval
+' ================================================================
+
+' Returns a Collection of arrays: (ParameterName, CheckType, Min,
+' Max, Unit, MethodOfCheck, Criteria, Category) for every process
+' parameter defined for this Part+Machine. Empty Collection if
+' nothing's been defined yet.
+Public Function GetProcessParameters(ByVal PartNo As String, ByVal MachineNo As String) As Collection
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim Result As New Collection
+
+    Set ws = Sheets("PROCESS_PARAMETER_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) And Trim(ws.Cells(r, "B").Value) = Trim(MachineNo) Then
+
+            Result.Add Array( _
+                ws.Cells(r, "C").Value, _
+                UCase(Trim(ws.Cells(r, "D").Value)), _
+                val(ws.Cells(r, "E").Value), _
+                val(ws.Cells(r, "F").Value), _
+                ws.Cells(r, "G").Value, _
+                ws.Cells(r, "H").Value, _
+                ws.Cells(r, "I").Value, _
+                ws.Cells(r, "J").Value) ' Category
+
+        End If
+    Next r
+
+    Set GetProcessParameters = Result
+
+End Function
+
+
+' Returns a Collection of arrays: (ItemName, CheckType, Min, Max,
+' Unit, MethodOfCheck, Criteria) for every dimension/product
+' parameter defined for this Part. Empty Collection if nothing's
+' been defined yet.
+Public Function GetDimensionStandards(ByVal PartNo As String) As Collection
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim Result As New Collection
+
+    Set ws = Sheets("DIMENSION_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+
+            Result.Add Array( _
+                ws.Cells(r, "B").Value, _
+                UCase(Trim(ws.Cells(r, "C").Value)), _
+                val(ws.Cells(r, "D").Value), _
+                val(ws.Cells(r, "E").Value), _
+                ws.Cells(r, "F").Value, _
+                ws.Cells(r, "G").Value, _
+                ws.Cells(r, "H").Value)
+
+        End If
+    Next r
+
+    Set GetDimensionStandards = Result
+
+End Function
+
+
+' Cavity count for a part - used to know how many times each
+' dimension needs checking during Setup Approval.
+Public Function GetCavitiesForSetup(ByVal PartNo As String) As Long
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            GetCavitiesForSetup = val(ws.Cells(r, "J").Value)
+            Exit Function
+        End If
+    Next r
+
+    GetCavitiesForSetup = 0
+
+End Function
+
+
+' Generates a unique ApprovalID to link a SETUP_APPROVAL_LOG row to
+' its detail readings in SETUP_PARAMETER_READINGS_LOG /
+' SETUP_DIMENSION_READINGS_LOG.
+Public Function GetNextApprovalID() As String
+
+    GetNextApprovalID = "SA-" & Format(Now, "yyyymmdd-hhmmss")
+
+End Function

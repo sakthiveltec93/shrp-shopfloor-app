@@ -1,0 +1,142 @@
+Option Explicit
+
+' Run this once to set everything up, and again any time new sheets
+' get added - it's fully safe to re-run, since it clears and rebuilds
+' its own content/buttons each time rather than duplicating them.
+Public Sub SetupSheetNavigation()
+
+    Call BuildHomeSheet
+    Call AddNavButtonsToAllSheets
+
+    MsgBox "Sheet navigation set up - HOME sheet created, " & _
+           "and Back-to-Home / Back-to-Form buttons added to every other sheet.", _
+           vbInformation, "Navigation Setup Complete"
+
+End Sub
+
+
+' Builds/rebuilds the HOME sheet - one hyperlink per sheet in the
+' workbook, safe to re-run any time sheets are added or removed.
+Public Sub BuildHomeSheet()
+
+    Dim wsHome As Worksheet
+    Dim ws As Worksheet
+    Dim r As Long
+
+    On Error Resume Next
+    Set wsHome = Sheets("HOME")
+    If wsHome.FilterMode Then wsHome.ShowAllData
+    On Error GoTo 0
+
+    If wsHome Is Nothing Then
+        Set wsHome = Sheets.Add(Before:=Sheets(1))
+        wsHome.Name = "HOME"
+    Else
+        wsHome.Cells.Clear
+        Dim oldShp As Shape
+        For Each oldShp In wsHome.Shapes
+            oldShp.Delete
+        Next oldShp
+    End If
+
+    wsHome.Range("A1").Value = "Sheet Navigator"
+    wsHome.Range("A1").Font.Bold = True
+    wsHome.Range("A1").Font.Size = 16
+
+    wsHome.Range("A2").Value = "Click any sheet name below to go there."
+    wsHome.Range("A2").Font.Italic = True
+
+    r = 4
+
+    For Each ws In ThisWorkbook.Worksheets
+
+        If ws.Name <> "HOME" Then
+
+            wsHome.Hyperlinks.Add _
+                Anchor:=wsHome.Cells(r, 1), _
+                Address:="", _
+                SubAddress:="'" & ws.Name & "'!A1", _
+                TextToDisplay:=ws.Name
+
+            r = r + 1
+
+        End If
+
+    Next ws
+
+    wsHome.Columns("A").ColumnWidth = 35
+
+    wsHome.Activate
+
+End Sub
+
+
+' Adds "<< Home" and "<< Forms" buttons (floating shapes, never
+' touch cell values) to every sheet except HOME itself. Safe to
+' re-run - existing buttons are removed and recreated fresh each time.
+Public Sub AddNavButtonsToAllSheets()
+
+    Dim ws As Worksheet
+
+    For Each ws In ThisWorkbook.Worksheets
+
+        If ws.Name <> "HOME" Then
+            Call AddNavButtonsToSheet(ws)
+        End If
+
+    Next ws
+
+End Sub
+
+
+Private Sub AddNavButtonsToSheet(ws As Worksheet)
+
+    On Error Resume Next
+    ws.Shapes("btnBackHome").Delete
+    ws.Shapes("btnBackForm").Delete
+    On Error GoTo 0
+
+    Dim shpHome As Shape
+    Set shpHome = ws.Shapes.AddShape(msoShapeRoundedRectangle, 2, 2, 85, 18)
+    shpHome.Name = "btnBackHome"
+    shpHome.TextFrame2.TextRange.Text = "<< Home"
+    shpHome.TextFrame2.TextRange.Font.Size = 9
+    shpHome.TextFrame2.TextRange.Font.Bold = msoTrue
+    shpHome.Fill.ForeColor.RGB = RGB(78, 107, 120)
+    shpHome.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+    shpHome.Line.Visible = msoFalse
+    shpHome.OnAction = "GoToHome"
+    shpHome.Placement = xlMove ' stays put if rows/cols are inserted elsewhere, moves if THIS area shifts
+
+    If ws.Name <> "Forms" Then
+
+        Dim shpForm As Shape
+        Set shpForm = ws.Shapes.AddShape(msoShapeRoundedRectangle, 92, 2, 85, 18)
+        shpForm.Name = "btnBackForm"
+        shpForm.TextFrame2.TextRange.Text = "<< Forms"
+        shpForm.TextFrame2.TextRange.Font.Size = 9
+        shpForm.TextFrame2.TextRange.Font.Bold = msoTrue
+        shpForm.Fill.ForeColor.RGB = RGB(217, 98, 43)
+        shpForm.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+        shpForm.Line.Visible = msoFalse
+        shpForm.OnAction = "GoToForms"
+        shpForm.Placement = xlMove
+
+    End If
+
+End Sub
+
+
+Public Sub GoToHome()
+    Sheets("HOME").Activate
+    Sheets("HOME").Range("A1").Select
+End Sub
+
+
+Public Sub GoToForms()
+
+    On Error Resume Next
+    Sheets("Forms").Activate
+    On Error GoTo 0
+
+End Sub

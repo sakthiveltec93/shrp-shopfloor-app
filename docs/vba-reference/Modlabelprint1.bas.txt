@@ -1,0 +1,85 @@
+Option Explicit
+
+Private packSlotsUsed As Integer
+
+' Writes one Packing label into the next free slot on
+' PACKING_LABEL_SHEET_12UP. Does NOT print - call FlushPackingLabels
+' once every packet in this save has been queued.
+Public Sub PrintPackingLabel( _
+        PacketNo As String, _
+        BatchNo As String, _
+        PartNo As String, _
+        Qty As Long, _
+        PackedBy As String, _
+        InspectedBy As String)
+
+    Const SHEET_NAME As String = "PACKING_LABEL_SHEET_12UP"
+
+    If packSlotsUsed = 0 Then
+        Call SetupLabelSheet12Up(SHEET_NAME)
+    ElseIf packSlotsUsed >= 12 Then
+        Call FlushPackingLabels("NONE") ' sheet full mid-save - just clear and start a new page, no output prompt here
+    End If
+
+    packSlotsUsed = packSlotsUsed + 1
+
+    Dim ws As Worksheet
+    Set ws = Sheets(SHEET_NAME)
+    If ws.FilterMode Then ws.ShowAllData
+
+    Dim tl As Variant
+    tl = SlotTopLeft(packSlotsUsed)
+
+    Dim r0 As Long, c0 As Long
+    r0 = tl(0): c0 = tl(1)
+
+    ws.Cells(r0, c0).Value = PartNo
+    ws.Cells(r0, c0).Font.Bold = True
+    ws.Cells(r0, c0).Font.Size = 11
+
+    ws.Cells(r0 + 2, c0).Value = "Qty-"
+    ws.Cells(r0 + 2, c0 + 3).Value = Qty & " Nos"
+
+    ws.Cells(r0 + 4, c0).Value = "Batch No"
+    ws.Cells(r0 + 4, c0 + 3).Value = PacketNo
+
+    ws.Cells(r0 + 6, c0).Value = "Pkd Date"
+    ws.Cells(r0 + 6, c0 + 3).Value = Format(Date, "dd-mm-yyyy")
+
+    ws.Cells(r0 + 8, c0).Value = "Pkd by"
+    ws.Cells(r0 + 8, c0 + 3).Value = PackedBy
+
+    ws.Cells(r0 + 9, c0).Value = "QC by"
+    ws.Cells(r0 + 9, c0 + 3).Value = InspectedBy
+
+    ws.Cells(r0 + 11, c0).Value = "SRI HARI RUBBER PRODUCTS"
+    ws.Cells(r0 + 11, c0).Font.Size = 7
+
+    Dim qrCellAddr As String
+    qrCellAddr = ws.Cells(r0, c0 + 5).Address
+
+    Call GenerateQR(PacketNo, SHEET_NAME, qrCellAddr, SHEET_NAME & "_QR_" & packSlotsUsed, 40)
+
+End Sub
+
+' Executes whatever labels have been queued (even a partial sheet),
+' using an output choice already decided upfront via
+' AskLabelOutputChoice - no prompting happens here. Then clears the
+' sheet ready for the next batch. Call once after the last packet in
+' a save transaction has been queued.
+Public Sub FlushPackingLabels(ByVal OutputChoice As String)
+
+    Const SHEET_NAME As String = "PACKING_LABEL_SHEET_12UP"
+
+    If packSlotsUsed = 0 Then Exit Sub
+
+    Dim ws As Worksheet
+    Set ws = Sheets(SHEET_NAME)
+    If ws.FilterMode Then ws.ShowAllData
+
+    Call ExecuteLabelOutput(ws, "Packing_Batch_" & Format(Now, "yyyymmdd_hhmmss"), OutputChoice)
+
+    Call ClearLabelSheet12Up(SHEET_NAME)
+    packSlotsUsed = 0
+
+End Sub

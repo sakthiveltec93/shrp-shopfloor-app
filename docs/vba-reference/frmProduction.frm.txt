@@ -1,0 +1,567 @@
+Private Sub cmdAddDowntime_Click()
+If cboIdleReason.Value = "" Then Exit Sub
+
+If txtidleminutes.Value = "" Then Exit Sub
+
+lstDowntime.AddItem cboIdleReason.Value
+
+lstDowntime.List(lstDowntime.ListCount - 1, 1) = _
+val(txtidleminutes.Value)
+
+lstDowntime.List(lstDowntime.ListCount - 1, 2) = _
+txtidleRemarks.Value
+
+cboIdleReason.Value = ""
+txtidleminutes.Value = ""
+txtidleRemarks.Value = ""
+
+Call CalculateEfficiency
+
+End Sub
+
+Private Sub lstDowntime_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If lstDowntime.ListIndex < 0 Then Exit Sub
+
+    If MsgBox("Remove this downtime entry?" & vbCrLf & vbCrLf & _
+              "Reason: " & lstDowntime.List(lstDowntime.ListIndex, 0) & vbCrLf & _
+              "Minutes: " & lstDowntime.List(lstDowntime.ListIndex, 1), _
+              vbQuestion + vbYesNo, "Remove Downtime Entry") = vbYes Then
+
+        lstDowntime.RemoveItem lstDowntime.ListIndex
+
+        Call CalculateEfficiency
+
+    End If
+
+End Sub
+
+Private Sub cmdAddReject_Click()
+If cboRejectReason.Value = "" Then Exit Sub
+
+If txtRejectQty.Value = "" Then Exit Sub
+
+lstRejects.AddItem cboRejectReason.Value
+
+lstRejects.List(lstRejects.ListCount - 1, 1) = _
+val(txtRejectQty.Value)
+
+lstRejects.List(lstRejects.ListCount - 1, 2) = _
+txtRejectRemarks.Value
+cboRejectReason.Value = ""
+txtRejectQty.Value = ""
+txtRejectRemarks.Value = ""
+End Sub
+
+Private Sub lstRejects_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If lstRejects.ListIndex < 0 Then Exit Sub
+
+    If MsgBox("Remove this reject entry?" & vbCrLf & vbCrLf & _
+              "Reason: " & lstRejects.List(lstRejects.ListIndex, 0) & vbCrLf & _
+              "Qty: " & lstRejects.List(lstRejects.ListIndex, 1), _
+              vbQuestion + vbYesNo, "Remove Reject Entry") = vbYes Then
+
+        lstRejects.RemoveItem lstRejects.ListIndex
+
+    End If
+
+End Sub
+
+Private Sub cmdSave_Click()
+
+    Dim ws As Worksheet
+    Dim NR As Long
+
+    Dim Shots As Long
+    Dim RejectQty As Double
+    Dim NetQty As Double
+    Dim ProdQty As Double
+    Dim DowntimeMin As Double
+
+    Dim BatchNo As String
+
+    If IsDuplicateEntry() Then
+        MsgBox "An entry already exists for this Machine, Date, Shift and Start Count." & vbCrLf & _
+               "Duplicate entries are not allowed.", vbExclamation, "Duplicate Entry"
+        Exit Sub
+    End If
+
+    If chkMouldChange.Value = True Then
+
+        If cboMouldChangeReason.Value = "" Then
+
+            MsgBox "Select Mould Change Reason.", vbExclamation
+            cboMouldChangeReason.SetFocus
+            Exit Sub
+
+        End If
+
+    End If
+
+    If lblStatus.Caption = "Low" And Trim(txtRemarks.Value) = "" Then
+
+        MsgBox "Efficiency is Low (" & lblEfficiency.Caption & ")." & vbCrLf & _
+               "Remarks are required before saving this entry.", _
+               vbExclamation, "Remarks Required"
+
+        txtRemarks.SetFocus
+        Exit Sub
+
+    End If
+
+    Shots = val(txtEndMachCount.Value) - val(txtStartMachCount.Value)
+
+    RejectQty = GetTotalRejectQty()
+
+    NetQty = Shots - RejectQty
+
+    ProdQty = Shots * val(lblCavities.Caption)
+
+    DowntimeMin = GetTotalDowntime()
+
+    BatchNo = GetPartCode(cboPartNo.Value) & _
+              Format(DateValue(txtProdDate.Value), "ddmmyy") & _
+              cboShift.Value
+
+    Dim ConfirmMsg As String
+
+    ConfirmMsg = "Confirm Production Entry:" & vbCrLf & vbCrLf & _
+        "Machine: " & cboMachine.Value & vbCrLf & _
+        "Part: " & cboPartNo.Value & " - " & lblPartName.Caption & vbCrLf & _
+        "Shift: " & cboShift.Value & "        Operator: " & cboOperator.Value & vbCrLf & _
+        "Batch No: " & BatchNo & vbCrLf & vbCrLf & _
+        "Start Time: " & lblStartTime.Caption & "        End Time: " & txtEndTime.Value & vbCrLf & _
+        "Start Count: " & Format(val(txtStartMachCount.Value), "#,##0") & _
+        "    End Count: " & Format(val(txtEndMachCount.Value), "#,##0") & vbCrLf & _
+        "Shots Produced: " & Format(Shots, "#,##0") & vbCrLf & vbCrLf & _
+        "Production Qty: " & Format(ProdQty, "#,##0") & vbCrLf & _
+        "Reject Qty: " & Format(RejectQty, "#,##0") & " (" & lstRejects.ListCount & " reason(s))" & vbCrLf & _
+        "Net Qty: " & Format(ProdQty - RejectQty, "#,##0") & vbCrLf & vbCrLf & _
+        "Efficiency: " & lblEfficiency.Caption & "        Status: " & lblStatus.Caption & vbCrLf & _
+        "Downtime: " & Format(DowntimeMin, "0") & " min (" & lstDowntime.ListCount & " entry/entries)" & vbCrLf & vbCrLf & _
+        "Mould Change: " & IIf(chkMouldChange.Value, "Yes - " & cboMouldChangeReason.Value, "No") & vbCrLf & _
+        "Remarks: " & IIf(Trim(txtRemarks.Value) = "", "-", txtRemarks.Value) & vbCrLf & vbCrLf & _
+        "Save this entry?"
+
+    If MsgBox(ConfirmMsg, vbQuestion + vbYesNo, "Confirm Production Entry") = vbNo Then
+
+        Exit Sub
+
+    End If
+
+    Set ws = Sheets("PRODUCTION_LOG")
+If ws.FilterMode Then ws.ShowAllData
+    NR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row + 1
+' Safety net: never write into a row that already has data,
+' no matter how NR was calculated
+Do While Application.WorksheetFunction.CountA(ws.Rows(NR)) > 0
+    NR = NR + 1
+Loop
+    ws.Cells(NR, "B").Value = txtProdDate.Value
+    ws.Cells(NR, "C").Value = cboShift.Value
+    ws.Cells(NR, "D").Value = cboMachine.Value
+    ws.Cells(NR, "E").Value = cboPartNo.Value
+    ws.Cells(NR, "F").Value = lblPartName.Caption
+    ws.Cells(NR, "G").Value = cboOperator.Value
+    ws.Cells(NR, "H").Value = lblStartTime.Caption
+
+    ws.Cells(NR, "I").Value = txtEndTime.Value
+
+    ws.Cells(NR, "J").Value = txtStartMachCount.Value
+    ws.Cells(NR, "K").Value = txtEndMachCount.Value
+
+    ws.Cells(NR, "L").Value = Shots
+
+    ws.Cells(NR, "M").Value = lblCavities.Caption
+    ws.Cells(NR, "N").Value = ProdQty
+
+    ws.Cells(NR, "O").Value = RejectQty
+
+    ws.Cells(NR, "P").Value = ProdQty - RejectQty
+
+    ws.Cells(NR, "Q").Value = DowntimeMin
+ws.Cells(NR, "R").Value = txtRemarks.Value
+    ws.Cells(NR, "S").Value = BatchNo
+Dim CTForRow As Variant
+    CTForRow = GetCycleTime(cboMachine.Value, cboPartNo.Value)
+
+    If IsNumeric(CTForRow) And val(CTForRow) > 0 Then
+        ws.Cells(NR, "T").Value = val(CTForRow)
+    Else
+        ws.Cells(NR, "T").Value = ""
+    End If
+
+    Dim StartMinForRow As Double, EndMinForRow As Double, RunMinForRow As Double
+    StartMinForRow = TimeStrToMinutesProd(lblStartTime.Caption)
+    EndMinForRow = TimeStrToMinutesProd(txtEndTime.Value)
+
+    RunMinForRow = EndMinForRow - StartMinForRow
+    If RunMinForRow < 0 Then RunMinForRow = RunMinForRow + 1440 ' overnight wrap
+
+    RunMinForRow = RunMinForRow - DowntimeMin
+    If RunMinForRow < 0 Then RunMinForRow = 0
+
+    ws.Cells(NR, "U").Value = RunMinForRow
+ws.Cells(NR, "V").Value = val(Replace(lblEfficiency.Caption, "%", "")) / 100
+    Call SaveProductionRejectLines
+    Call SaveProductionIdleLines
+
+    Call UpdateMachineStatus
+    Call UpdateMouldLife
+    Call UpdateMachineMasterStats(cboMachine.Value)
+    Call UpdateMouldMasterBreakdown(cboPartNo.Value)
+
+    MsgBox "Production Saved"
+
+    Call ClearProductionForm
+
+End Sub
+
+Private Sub Label16_Click()
+
+End Sub
+
+Private Sub lblShotWt_Click()
+
+End Sub
+
+Private Sub txtidleminiutes_Change()
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+    lblStartTime.Caption = "-"
+    lblShots.Caption = "0"
+    lblEfficiency.Caption = "0%"
+    lblStatus.Caption = "-"
+    txtProdDate.Value = Format(Date, "dd-mmm-yyyy")
+    LoadMachines
+LoadOperators
+    LoadParts
+LoadShifts
+LoadRejectReasons
+LoadIdleReasons
+LoadMouldChangeReasons
+
+    'Call SetShiftFromCurrentTime
+
+End Sub
+
+' ============================================================
+' Triggered whenever Machine or Date changes. Finds this machine's
+' most recent PRODUCTION_LOG entry across ALL dates (the mechanical
+' shot counter never resets, so even a prior day's entry is the
+' right source for Start Count), then sets Start Count/Start Time/
+' Shift/Operator per these rules:
+'   - Start Count always carries forward from the last entry's End
+'     Count, regardless of date/shift.
+'   - Same date as last entry: Start Time carries forward from its
+'     End Time. If that entry was Shift A, auto-advance to Shift B
+'     and clear Operator (forced re-selection). If it was already
+'     Shift B, stay on B and Operator ALSO carries forward (same
+'     shift continuing, e.g. a sub-entry mid-shift).
+'   - Different date: Shift/Start Time come from the current clock
+'     instead (the old entry's time isn't relevant to a new day),
+'     and Operator clears.
+' ============================================================
+Private Sub RefreshFromLastMachineEntry()
+If cboMachine.Value = "" Then Exit Sub
+If Not IsDate(txtProdDate.Value) Then Exit Sub
+
+Dim wsStatus As Worksheet
+Set wsStatus = Sheets("MACHINE_STATUS")
+If wsStatus.FilterMode Then wsStatus.ShowAllData
+
+Dim lastRowStatus As Long
+lastRowStatus = wsStatus.Cells(wsStatus.Rows.Count, "A").End(xlUp).Row
+
+Dim rr As Long
+For rr = 2 To lastRowStatus
+    If Trim(wsStatus.Cells(rr, "A").Value) = Trim(cboMachine.Value) Then
+        If Trim(wsStatus.Cells(rr, "B").Value) = "" Then
+            Exit Sub
+        End If
+        Exit For
+    End If
+Next rr
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestRow As Long
+    Dim bestDateTime As Date
+    Dim found As Boolean
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "D").Value) = Trim(cboMachine.Value) And IsDate(ws.Cells(r, "B").Value) Then
+
+            Dim EntryDate As Date
+            EntryDate = ws.Cells(r, "B").Value
+
+            Dim entryTimeVal As Variant
+            entryTimeVal = ws.Cells(r, "I").Value ' End Time
+
+            Dim entryTimeFraction As Double
+
+            If IsNumeric(entryTimeVal) Then
+                ' Cell holds a genuine time value, not text - use
+                ' the raw fraction directly.
+                entryTimeFraction = CDbl(entryTimeVal)
+            ElseIf InStr(CStr(entryTimeVal), ":") > 0 Then
+                entryTimeFraction = TimeStrToMinutesProd(CStr(entryTimeVal)) / 1440
+            Else
+                entryTimeFraction = 0
+            End If
+
+           Dim entryDT As Date
+ 
+            ' Shift B runs 21:30 into the next morning - if this
+            ' entry's End Time is earlier than 21:30, the shift
+            ' crossed midnight, and Production Date reflects when
+            ' it STARTED, not when it genuinely finished. Add a day
+            ' so the comparison reflects the true, later completion.
+            If Trim(ws.Cells(r, "C").Value) = "B" And _
+               entryTimeFraction < (TimeStrToMinutesProd("21:30") / 1440) Then
+ 
+                entryDT = EntryDate + 1 + entryTimeFraction
+ 
+            Else
+ 
+                entryDT = EntryDate + entryTimeFraction
+ 
+            End If
+            If Not found Or entryDT > bestDateTime Then
+                found = True
+                bestDateTime = entryDT
+                bestRow = r
+            End If
+
+        End If
+
+    Next r
+
+     If Not found Then
+        cboShift.Value = ""
+        cboOperator.Value = ""
+        Exit Sub
+    End If
+
+    Dim lastEntryDate As Date
+    lastEntryDate = ws.Cells(bestRow, "B").Value
+
+   Dim lastEndTimeVal As Variant
+    lastEndTimeVal = ws.Cells(bestRow, "I").Value
+
+    Dim lastEndTime As String
+    If IsNumeric(lastEndTimeVal) Then
+        lastEndTime = Format(CDbl(lastEndTimeVal), "hh:mm")
+    Else
+        lastEndTime = CStr(lastEndTimeVal)
+    End If
+
+    Dim lastEndCount As String
+    lastEndCount = ws.Cells(bestRow, "K").Value
+
+    Dim lastShift As String
+    lastShift = ws.Cells(bestRow, "C").Value
+
+    Dim lastOperator As String
+    lastOperator = ws.Cells(bestRow, "G").Value
+
+    txtStartMachCount.Value = lastEndCount
+
+    Dim selectedDate As Date
+    selectedDate = DateValue(txtProdDate.Value)
+
+If DateValue(lastEntryDate) = selectedDate Then
+ 
+        lblStartTime.Caption = lastEndTime
+ 
+        ' Only treat this as a genuine shift completion (advance to
+        ' the next shift, clear Operator) if the last entry's End
+        ' Time is actually close to that shift's real boundary -
+        ' not just because it happens to be tagged Shift A. A mid-
+        ' shift continuation entry (e.g. ending 16:30, well before
+        ' Shift A's 21:30 end) should stay on the SAME shift with
+        ' Operator carried forward, same as any other continuation.
+        Dim lastEndMin As Double
+        lastEndMin = TimeStrToMinutesProd(lastEndTime)
+ 
+        Dim shiftGenuinelyEnded As Boolean
+ 
+        If Trim(lastShift) = "A" Then
+            ' Shift A's real end is 21:30 - allow a buffer for
+            ' finishing a bit early and still counting as complete.
+            shiftGenuinelyEnded = (lastEndMin >= TimeStrToMinutesProd("20:00"))
+        Else
+            shiftGenuinelyEnded = False ' Shift B's real end wraps past
+                                          ' midnight into the next date -
+                                          ' this same-date branch won't
+                                          ' normally see that case at all.
+        End If
+ 
+        If Trim(lastShift) = "A" And shiftGenuinelyEnded Then
+ 
+            cboShift.Value = "B"
+            cboOperator.Value = ""
+ 
+        Else
+ 
+            cboShift.Value = lastShift
+            cboOperator.Value = lastOperator
+ 
+        End If
+ 
+     Else
+
+        cboShift.Value = ""
+        cboOperator.Value = ""
+
+    End If
+
+End Sub
+
+
+' Auto-selects Shift A or B based on the actual current time.
+Private Sub SetShiftFromCurrentTime()
+
+    If IsDate(txtProdDate.Value) And DateValue(txtProdDate.Value) <> Date Then
+        cboShift.Value = ""
+        Exit Sub
+    End If
+
+    Dim nowMin As Double
+    nowMin = TimeStrToMinutesProd(Format(Now, "HH:mm"))
+
+    Dim shiftAStart As Double, shiftBStart As Double
+    shiftAStart = TimeStrToMinutesProd("09:30")
+    shiftBStart = TimeStrToMinutesProd("21:30")
+
+    If nowMin >= shiftAStart And nowMin < shiftBStart Then
+        cboShift.Value = "A"
+    Else
+        cboShift.Value = "B"
+    End If
+
+    Call cboShift_AfterUpdate
+
+End Sub
+
+
+Private Sub cboPartNo_AfterUpdate()
+
+     Call LoadPartDetails
+    Call UpdateCycleTime
+
+End Sub
+Private Sub txtEndMachCount_AfterUpdate()
+
+    If IsNumeric(txtStartMachCount.Value) _
+    And IsNumeric(txtEndMachCount.Value) Then
+
+        lblShots.Caption = _
+        val(txtEndMachCount.Value) - _
+        val(txtStartMachCount.Value)
+
+    End If
+
+    Call CalculateEfficiency
+
+End Sub
+Private Sub txtEndTime_AfterUpdate()
+
+    Dim t As String
+
+    t = txtEndTime.Value
+
+    t = Replace(t, ":", "")
+    t = Replace(t, ".", "")
+    t = Replace(t, "-", "")
+    t = Replace(t, " ", "")
+
+    If Len(t) = 4 Then
+
+        txtEndTime.Value = _
+            Left(t, 2) & ":" & Right(t, 2)
+
+    End If
+
+    Call CalculateEfficiency
+
+End Sub
+
+Private Sub cboMachine_AfterUpdate()
+
+    Call LoadMachineStatus
+    Call RefreshFromLastMachineEntry
+
+End Sub
+
+Private Sub cboShift_AfterUpdate()
+
+    Dim isContinuation As Boolean
+    isContinuation = False
+
+    If cboMachine.Value <> "" And IsDate(txtProdDate.Value) Then
+
+        Dim ws As Worksheet
+        Set ws = Sheets("MACHINE_STATUS")
+        If ws.FilterMode Then ws.ShowAllData
+
+        Dim LR As Long, r As Long
+        LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+        For r = 2 To LR
+            If Trim(ws.Cells(r, "A").Value) = Trim(cboMachine.Value) Then
+                If IsDate(ws.Cells(r, "I").Value) Then
+                    If DateValue(ws.Cells(r, "I").Value) = DateValue(txtProdDate.Value) _
+                       And Trim(ws.Cells(r, "D").Value) = Trim(cboShift.Value) Then
+
+                        lblStartTime.Caption = Format(ws.Cells(r, "E").Value, "HH:mm")
+                        cboOperator.Value = ws.Cells(r, "H").Value
+                        isContinuation = True
+
+                    End If
+                End If
+                Exit For
+            End If
+        Next r
+
+    End If
+
+    If Not isContinuation Then
+
+        Select Case cboShift.Value
+            Case "A"
+                lblStartTime.Caption = "09:30"
+            Case "B"
+                lblStartTime.Caption = "21:30"
+        End Select
+
+        cboOperator.Value = ""
+
+    End If
+
+End Sub
+
+Private Sub txtProdDate_AfterUpdate()
+
+    Call RefreshFromLastMachineEntry
+
+End Sub
+
+Private Sub txtEndTime_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If txtEndTime.Value <> "" Then
+        txtEndTime.Value = Format(txtEndTime.Value, "HH:mm")
+    End If
+
+End Sub

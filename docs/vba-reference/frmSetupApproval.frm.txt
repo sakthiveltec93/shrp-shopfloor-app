@@ -1,0 +1,549 @@
+Option Explicit
+
+' ================================================================
+' Category-grouped walkthrough. Process Parameters are grouped by
+' their Category column (Temperature, Pressure, Speed, Position,
+' Cycle Time, Shot Weight, etc). Dimensions are grouped by their own
+' Item Name, walked across every cavity together. Either way, one
+' screen per group, one multi-value comma-separated entry commits
+' the whole group at once.
+' ================================================================
+
+Private ParamList As Collection      ' all process parameter rows for this Part+Machine
+Private BaseCurrentItemText As String ' the group description, before the live entry count gets appended
+Private DimList As Collection        ' all dimension rows for this Part
+
+Private ParamCategories As Collection ' distinct category names, in first-seen order
+Private dimNames As Collection        ' distinct dimension names, in first-seen order
+
+Private CategoryIndex As Long
+Private DimGroupIndex As Long
+Private InDimensionPhase As Boolean
+
+Private CurrentGroupItems As Collection ' the actual rows belonging to the group on screen right now
+Private Cavities As Long
+Private AnyFailure As Boolean
+
+Private Sub UserForm_Initialize()
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("MACHINE_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    cboMachine.Clear
+    For r = 2 To LR
+        If UCase(Trim(ws.Cells(r, "D").Value)) <> "NOT ACTIVE" Then
+            cboMachine.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    cboPartNo.Clear
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+            cboPartNo.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+
+    Set ws = Sheets("OperatorMaster")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    cboInspectedBy.Clear
+    cboApprovedBy.Clear
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+            cboInspectedBy.AddItem ws.Cells(r, "A").Value
+            cboApprovedBy.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+
+    lstReadings.ColumnCount = 8
+    lstReadings.ColumnWidths = "70 pt;95 pt;40 pt;65 pt;55 pt;40 pt;50 pt;140 pt"
+
+    lblCurrentItem.Caption = "-"
+    lblStandardValue.Caption = ""
+    fraReading.Visible = False
+    cmdSave.Enabled = False
+
+    AnyFailure = False
+
+End Sub
+
+Private Sub cboMachine_AfterUpdate()
+    Call TryLoadStandards
+End Sub
+
+Private Sub cboPartNo_AfterUpdate()
+    Call TryLoadStandards
+End Sub
+
+Private Sub TryLoadStandards()
+
+    If cboMachine.Value = "" Then Exit Sub
+    If cboPartNo.Value = "" Then Exit Sub
+
+    lstReadings.Clear
+    cmdSave.Enabled = False
+    AnyFailure = False
+
+    Cavities = GetCavitiesForSetup(cboPartNo.Value)
+    If Cavities < 1 Then Cavities = 1
+
+    Set ParamList = GetProcessParameters(cboPartNo.Value, cboMachine.Value)
+    Set DimList = GetDimensionStandards(cboPartNo.Value)
+
+    ' Build the distinct, first-seen-order category list for
+    ' Process Parameters
+    Set ParamCategories = New Collection
+    Dim p As Variant
+    Dim i As Long
+    For i = 1 To ParamList.Count
+        p = ParamList(i)
+        Dim cat As String
+        cat = Trim(p(7)) ' Category column
+        If cat = "" Then cat = "General"
+        If Not CollectionHasValue(ParamCategories, cat) Then
+            ParamCategories.Add cat
+        End If
+    Next i
+
+    ' Build the distinct, first-seen-order dimension name list
+    Set dimNames = New Collection
+    Dim d As Variant
+    For i = 1 To DimList.Count
+        d = DimList(i)
+        If Not CollectionHasValue(dimNames, d(0)) Then
+            dimNames.Add d(0)
+        End If
+    Next i
+
+    CategoryIndex = 1
+    DimGroupIndex = 1
+    InDimensionPhase = False
+
+    If ParamList.Count = 0 And DimList.Count = 0 Then
+
+        MsgBox "No standard parameters or dimensions are defined yet for " & _
+               cboPartNo.Value & " on " & cboMachine.Value & "." & vbCrLf & vbCrLf & _
+               "This approval can be saved as APPROVED with no readings attached.", _
+               vbInformation, "Nothing To Check Yet"
+
+        lblCurrentItem.Caption = "(no standards defined)"
+        fraReading.Visible = False
+        cmdSave.Enabled = True
+
+    Else
+
+        Call ShowNextGroup
+
+    End If
+
+End Sub
+
+Private Function CollectionHasValue(col As Collection, ByVal val As String) As Boolean
+    Dim item As Variant
+    For Each item In col
+        If item = val Then
+            CollectionHasValue = True
+            Exit Function
+        End If
+    Next item
+    CollectionHasValue = False
+End Function
+
+' Shows the next group - either a Process Parameter category (all
+' its items listed together) or a Dimension (all cavities together).
+Private Sub ShowNextGroup()
+
+    If Not InDimensionPhase And CategoryIndex <= ParamCategories.Count Then
+
+        Dim catName As String
+        catName = ParamCategories(CategoryIndex)
+
+        Set CurrentGroupItems = New Collection
+        Dim p As Variant
+        Dim i As Long
+        Dim summaryText As String
+        summaryText = ""
+
+        For i = 1 To ParamList.Count
+            p = ParamList(i)
+            Dim thisCat As String
+            thisCat = Trim(p(7))
+            If thisCat = "" Then thisCat = "General"
+            If thisCat = catName Then
+                CurrentGroupItems.Add p
+                If p(1) = "QUALITATIVE" Then
+                    summaryText = summaryText & p(0) & ": " & p(6) & vbCrLf
+                Else
+                    summaryText = summaryText & p(0) & ": " & Format(p(2), "0.00") & _
+                                  "-" & Format(p(3), "0.00") & " " & p(4) & vbCrLf
+                End If
+            End If
+        Next i
+
+        BaseCurrentItemText = "Category: " & catName & "  (" & CurrentGroupItems.Count & " items)"
+        lblCurrentItem.Caption = BaseCurrentItemText & "   -   0 of " & CurrentGroupItems.Count & " entered"
+        lblStandardValue.Caption = summaryText
+        txtActualValue.Visible = True
+        cboQualResult.Visible = False
+        txtActualValue.Value = ""
+        txtItemRemarks.Value = ""
+        fraReading.Visible = True
+
+    ElseIf DimGroupIndex <= dimNames.Count Then
+
+        InDimensionPhase = True
+
+        Dim dimName As String
+        dimName = dimNames(DimGroupIndex)
+
+        Set CurrentGroupItems = New Collection
+        Dim d As Variant
+        For i = 1 To DimList.Count
+            d = DimList(i)
+            If d(0) = dimName Then
+                CurrentGroupItems.Add d
+                Exit For ' only one master row per dimension name
+            End If
+        Next i
+
+        d = CurrentGroupItems(1)
+
+        BaseCurrentItemText = "Dimension: " & dimName & "  -  all " & Cavities & " cavities"
+        lblCurrentItem.Caption = BaseCurrentItemText & "   -   0 of " & Cavities & " entered"
+
+        If d(1) = "QUALITATIVE" Then
+            lblStandardValue.Caption = "Criteria: " & d(6) & vbCrLf & _
+                "Enter " & Cavities & " results, comma-separated, in cavity order (e.g. Pass,Pass,Fail,Pass...)"
+            txtActualValue.Visible = True
+            cboQualResult.Visible = False
+        Else
+            lblStandardValue.Caption = "Range: " & Format(d(2), "0.00") & "-" & Format(d(3), "0.00") & _
+                " " & d(4) & vbCrLf & _
+                "Enter " & Cavities & " readings, comma-separated, in cavity order (e.g. 22.30, 22.41, ...)"
+            txtActualValue.Visible = True
+            cboQualResult.Visible = False
+        End If
+
+        txtActualValue.Value = ""
+        txtItemRemarks.Value = ""
+        fraReading.Visible = True
+
+    Else
+
+        lblCurrentItem.Caption = "All groups checked."
+        lblStandardValue.Caption = ""
+        fraReading.Visible = False
+        cmdSave.Enabled = True
+        Exit Sub
+
+    End If
+
+End Sub
+
+' Commits an entire group at once - splits the comma-separated
+' entry, matches values positionally to the group's items (Process
+' Parameter category) or cavities (Dimension), computes Pass/Fail
+' for each, and requires one shared remark if anything in the group
+' failed.
+' Live count as the operator types comma-separated values - counts
+' non-blank segments and updates the label so a miscount is obvious
+' before Add Reading is even clicked, rather than only being caught
+' by the count-mismatch check afterward.
+Private Sub txtActualValue_Change()
+
+    If BaseCurrentItemText = "" Then Exit Sub
+
+    Dim expectedCount As Long
+    If Not InDimensionPhase Then
+        expectedCount = CurrentGroupItems.Count
+    Else
+        expectedCount = Cavities
+    End If
+
+    Dim enteredCount As Long
+
+    If Trim(txtActualValue.Value) = "" Then
+        enteredCount = 0
+    Else
+        Dim parts() As String
+        parts = Split(txtActualValue.Value, ",")
+        Dim nonBlank As Long
+        nonBlank = 0
+        Dim i As Long
+        For i = 0 To UBound(parts)
+            If Trim(parts(i)) <> "" Then nonBlank = nonBlank + 1
+        Next i
+        enteredCount = nonBlank
+    End If
+
+    lblCurrentItem.Caption = BaseCurrentItemText & "   -   " & enteredCount & " of " & expectedCount & " entered"
+
+End Sub
+
+Private Sub cmdAddReading_Click()
+
+    If Trim(txtActualValue.Value) = "" Then
+        MsgBox "Enter the reading(s) for this group.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim parts() As String
+    parts = Split(txtActualValue.Value, ",")
+
+    Dim expectedCount As Long
+    Dim category As String
+
+    If Not InDimensionPhase Then
+        expectedCount = CurrentGroupItems.Count
+        category = "Parameter"
+    Else
+        expectedCount = Cavities
+        category = "Dimension"
+    End If
+
+    If UBound(parts) - LBound(parts) + 1 <> expectedCount Then
+        MsgBox "Expected " & expectedCount & " value(s), got " & (UBound(parts) - LBound(parts) + 1) & _
+               "." & vbCrLf & "Check the count and try again.", vbExclamation, "Count Mismatch"
+        Exit Sub
+    End If
+
+    Dim groupHasFailure As Boolean
+    groupHasFailure = False
+
+    Dim pendingRows As Collection
+    Set pendingRows = New Collection
+
+    Dim idx As Long
+    For idx = 0 To UBound(parts)
+
+        Dim itemName As String
+        Dim checkType As String
+        Dim minVal As Double, maxVal As Double
+        Dim unit As String
+        Dim cavityLabel As String
+        Dim rawVal As String
+        rawVal = Trim(parts(idx))
+
+        If Not InDimensionPhase Then
+
+            Dim p As Variant
+            p = CurrentGroupItems(idx + 1)
+            itemName = p(0): checkType = p(1): minVal = p(2): maxVal = p(3): unit = p(4)
+            cavityLabel = "-"
+
+        Else
+
+            Dim d As Variant
+            d = CurrentGroupItems(1)
+            itemName = d(0): checkType = d(1): minVal = d(2): maxVal = d(3): unit = d(4)
+            cavityLabel = CStr(idx + 1)
+
+        End If
+
+        Dim passFail As String
+        Dim actualDisplay As String
+
+        If checkType = "QUALITATIVE" Then
+            actualDisplay = rawVal
+            passFail = UCase(rawVal)
+            If passFail <> "PASS" And passFail <> "FAIL" Then
+                MsgBox "Value #" & (idx + 1) & " ('" & rawVal & "') must be Pass or Fail.", vbExclamation
+                Exit Sub
+            End If
+        Else
+            If Not IsNumeric(rawVal) Then
+                MsgBox "Value #" & (idx + 1) & " ('" & rawVal & "') is not a number.", vbExclamation
+                Exit Sub
+            End If
+            Dim actualNum As Double
+            actualNum = CDbl(rawVal)
+            actualDisplay = Format(actualNum, "0.00")
+            If actualNum >= minVal And actualNum <= maxVal Then
+                passFail = "PASS"
+            Else
+                passFail = "FAIL"
+            End If
+        End If
+
+        If passFail = "FAIL" Then groupHasFailure = True
+
+        Dim rangeDisplay As String
+        If checkType = "QUALITATIVE" Then
+            rangeDisplay = "Qual."
+        Else
+            rangeDisplay = Format(minVal, "0.0") & "-" & Format(maxVal, "0.0")
+        End If
+
+        pendingRows.Add Array(category, itemName, cavityLabel, checkType, rangeDisplay, actualDisplay, passFail)
+
+    Next idx
+
+    Dim groupRemark As String
+    groupRemark = ""
+
+    If groupHasFailure Then
+        groupRemark = InputBox("One or more readings in this group FAILED." & vbCrLf & vbCrLf & _
+                                "Enter a remark covering the failure(s) before continuing:", _
+                                "Remark Required")
+        If Trim(groupRemark) = "" Then
+            MsgBox "A remark is required when any reading in the group fails.", vbExclamation
+            Exit Sub
+        End If
+        AnyFailure = True
+    End If
+
+    Dim rowArr As Variant
+    For Each rowArr In pendingRows
+        lstReadings.AddItem rowArr(0)
+        lstReadings.List(lstReadings.ListCount - 1, 1) = rowArr(1)
+        lstReadings.List(lstReadings.ListCount - 1, 2) = rowArr(2)
+        lstReadings.List(lstReadings.ListCount - 1, 3) = rowArr(3)
+        lstReadings.List(lstReadings.ListCount - 1, 4) = rowArr(4)
+        lstReadings.List(lstReadings.ListCount - 1, 5) = rowArr(5)
+        lstReadings.List(lstReadings.ListCount - 1, 6) = rowArr(6)
+        lstReadings.List(lstReadings.ListCount - 1, 7) = IIf(rowArr(6) = "FAIL", groupRemark, "")
+    Next rowArr
+
+    If Not InDimensionPhase Then
+        CategoryIndex = CategoryIndex + 1
+    Else
+        DimGroupIndex = DimGroupIndex + 1
+    End If
+
+    Call ShowNextGroup
+
+End Sub
+
+Private Sub cmdSave_Click()
+
+    If cboMachine.Value = "" Then
+        MsgBox "Select Machine", vbExclamation
+        Exit Sub
+    End If
+
+    If cboPartNo.Value = "" Then
+        MsgBox "Select Part No", vbExclamation
+        Exit Sub
+    End If
+
+    If cboInspectedBy.Value = "" Then
+        MsgBox "Select who inspected/took the readings.", vbExclamation
+        Exit Sub
+    End If
+
+    If cboApprovedBy.Value = "" Then
+        MsgBox "Select who is approving this setup.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim Result As String
+    If AnyFailure Then
+        Result = "REJECTED"
+    Else
+        Result = "APPROVED"
+    End If
+
+    Dim ConfirmMsg As String
+    ConfirmMsg = "Confirm Setup Approval:" & vbCrLf & vbCrLf & _
+        "Machine: " & cboMachine.Value & vbCrLf & _
+        "Part: " & cboPartNo.Value & " (" & Cavities & " cavities)" & vbCrLf & _
+        "Inspected By: " & cboInspectedBy.Value & vbCrLf & _
+        "Approved By: " & cboApprovedBy.Value & vbCrLf & _
+        "Readings Checked: " & lstReadings.ListCount & vbCrLf & vbCrLf & _
+        "Result: " & Result & IIf(AnyFailure, " (one or more readings/checks failed)", "") & _
+        vbCrLf & vbCrLf & "Save this approval?"
+
+    If MsgBox(ConfirmMsg, vbQuestion + vbYesNo, "Confirm Setup Approval") = vbNo Then
+        Exit Sub
+    End If
+
+    Dim ApprovalID As String
+    ApprovalID = GetNextApprovalID()
+
+    If lstReadings.ListCount > 0 Then
+
+        Dim wsParam As Worksheet, wsDim As Worksheet
+        Dim LRR As Long
+        Dim i As Long
+
+        Set wsParam = Sheets("SETUP_PARAMETER_READINGS_LOG")
+    If wsParam.FilterMode Then wsParam.ShowAllData
+        Set wsDim = Sheets("SETUP_DIMENSION_READINGS_LOG")
+    If wsDim.FilterMode Then wsDim.ShowAllData
+
+        For i = 0 To lstReadings.ListCount - 1
+
+            If lstReadings.List(i, 0) = "Parameter" Then
+
+                LRR = wsParam.Cells(wsParam.Rows.Count, "A").End(xlUp).Row + 1
+                wsParam.Cells(LRR, "A").Value = ApprovalID
+                wsParam.Cells(LRR, "B").Value = lstReadings.List(i, 1)
+                wsParam.Cells(LRR, "C").Value = lstReadings.List(i, 3)
+                wsParam.Cells(LRR, "D").Value = lstReadings.List(i, 4)
+                wsParam.Cells(LRR, "E").Value = lstReadings.List(i, 5)
+                wsParam.Cells(LRR, "F").Value = lstReadings.List(i, 6)
+                wsParam.Cells(LRR, "G").Value = lstReadings.List(i, 7)
+
+            Else
+
+                LRR = wsDim.Cells(wsDim.Rows.Count, "A").End(xlUp).Row + 1
+                wsDim.Cells(LRR, "A").Value = ApprovalID
+                wsDim.Cells(LRR, "B").Value = lstReadings.List(i, 1)
+                wsDim.Cells(LRR, "C").Value = lstReadings.List(i, 2)
+                wsDim.Cells(LRR, "D").Value = lstReadings.List(i, 3)
+                wsDim.Cells(LRR, "E").Value = lstReadings.List(i, 4)
+                wsDim.Cells(LRR, "F").Value = lstReadings.List(i, 5)
+                wsDim.Cells(LRR, "G").Value = lstReadings.List(i, 6)
+                wsDim.Cells(LRR, "H").Value = lstReadings.List(i, 7)
+
+            End If
+
+        Next i
+
+    End If
+
+    Dim ws As Worksheet
+    Dim LR As Long
+
+    Set ws = Sheets("SETUP_APPROVAL_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Date
+    ws.Cells(LR, "A").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "B").Value = Format(Now, "HH:mm")
+    ws.Cells(LR, "C").Value = cboMachine.Value
+    ws.Cells(LR, "D").Value = cboPartNo.Value
+    ws.Cells(LR, "E").Value = cboInspectedBy.Value
+    ws.Cells(LR, "F").Value = cboApprovedBy.Value
+    ws.Cells(LR, "G").Value = Result
+    ws.Cells(LR, "H").Value = "No"
+    ws.Cells(LR, "I").Value = txtOverallRemarks.Value
+    ws.Cells(LR, "J").Value = ApprovalID
+Call GenerateSetupApprovalPDF(ApprovalID, cboMachine.Value, cboPartNo.Value, _
+                               cboInspectedBy.Value, cboApprovedBy.Value, Result, Cavities)
+    MsgBox "Setup Approval Saved - Result: " & Result, vbInformation
+
+    cboPartNo.Value = ""
+    cboInspectedBy.Value = ""
+    cboApprovedBy.Value = ""
+    txtOverallRemarks.Value = ""
+    lstReadings.Clear
+    lblCurrentItem.Caption = "-"
+    lblStandardValue.Caption = ""
+    fraReading.Visible = False
+    cmdSave.Enabled = False
+    AnyFailure = False
+
+End Sub
+
+Private Sub cmdClose_Click()
+    Unload Me
+End Sub

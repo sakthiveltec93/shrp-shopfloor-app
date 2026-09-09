@@ -1,0 +1,27 @@
+Option Explicit
+
+Public Function IsTrimRequired(PartNo As String) As Boolean
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+
+            IsTrimRequired = _
+                UCase(ws.Cells(r, "D").Value) = "Y"
+
+            Exit Function
+
+        End If
+
+    Next r
+
+End Function

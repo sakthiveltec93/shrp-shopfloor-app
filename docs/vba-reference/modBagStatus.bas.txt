@@ -1,0 +1,376 @@
+Option Explicit
+
+' 1% tolerance applied everywhere a bag's completion is judged.
+Public Const BAG_TOLERANCE_PCT As Double = 0.01
+
+
+' Numeric ordering of the pipeline, used to detect "this bag is
+' already past the stage being scanned at" - not to gate whether
+' UpdateBagStatus runs (see note above), just for the operator
+' warning in each form's txtBatch_AfterUpdate.
+Public Function StageRank(StatusText As String) As Long
+
+    Select Case UCase(Trim(StatusText))
+
+        Case "OPEN"
+            StageRank = 0
+        Case "TRIMMED"
+            StageRank = 1
+        Case "INSPECTED"
+            StageRank = 2
+        Case "PACKED"
+            StageRank = 3
+        Case Else
+            StageRank = 0
+
+    End Select
+
+End Function
+
+
+' Sets a bag's status in BAG_LOG and records the transition in
+' BAG_STATUS_HISTORY (timestamp, bag, from-status, to-status,
+' source). Deliberately does NOT require the bag to currently be at
+' a specific "FromStatus" - some parts skip stages (Trim Req /
+' Inspection Req = N in PART_MASTER), and an operator can also
+' override and process a stage that was marked not-required. The
+' actual "is this a legitimate transition" gating lives in
+' CheckAndUpdateBagStatus, not here - this function just performs
+' the write and always logs what happened, whatever called it.
+Public Sub UpdateBagStatus(BagCode As String, ToStatus As String, Optional ByVal Source As String = "")
+
+    Dim ws As Worksheet
+    Dim r As Long
+
+    Set ws = Sheets(SH_BAGLOG)
+    If ws.FilterMode Then ws.ShowAllData
+
+    r = FindBatchRow(BagCode)   ' bag-row lookup, see modBatchValidation
+
+    If r = 0 Then Exit Sub
+
+    Dim FromStatus As String
+    FromStatus = ws.Cells(r, BL_COL_STATUS).Value
+
+    ws.Cells(r, BL_COL_STATUS).Value = ToStatus
+
+    Call LogBagStatusHistory(BagCode, FromStatus, ToStatus, Source)
+
+End Sub
+
+
+' Appends one row to BAG_STATUS_HISTORY for every status change,
+' regardless of what triggered it - the full "when was this bag
+' converted from what" record. Sheet needs headers already in row 1:
+' Date/Time | Bag Code | From Status | To Status | Source
+Public Sub LogBagStatusHistory(ByVal BagCode As String, ByVal FromStatus As String, _
+                                ByVal ToStatus As String, ByVal Source As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+
+    Set ws = Sheets("BAG_STATUS_HISTORY")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Now
+    ws.Cells(LR, "A").NumberFormat = "dd-mmm-yyyy hh:mm:ss"
+    ws.Cells(LR, "B").Value = BagCode
+    ws.Cells(LR, "C").Value = FromStatus
+    ws.Cells(LR, "D").Value = ToStatus
+    ws.Cells(LR, "E").Value = Source
+
+End Sub
+
+
+' True if RemainingWt is within BAG_TOLERANCE_PCT of BaseWt
+' (e.g. RemainingWt = 0.4 Kg, BaseWt = 50 Kg -> 0.8% -> True).
+' If BaseWt is 0/unknown, falls back to an exact-zero check so
+' it never divides by zero or approves a bogus completion.
+Public Function IsWithinTolerance( _
+        RemainingWt As Double, _
+        BaseWt As Double, _
+        Optional TolerancePct As Double = BAG_TOLERANCE_PCT) As Boolean
+
+    If BaseWt <= 0 Then
+        IsWithinTolerance = (RemainingWt <= 0.001)
+    Else
+
+        ' Same "1% or a fixed floor, whichever is larger" pattern
+        ' already used elsewhere in this project (GetEntryTolerance,
+        ' GetBagEntryQtyTolerance). A pure percentage alone is too
+        ' tight for small bags - 1% of a 3.97 Kg bag is under 40g,
+        ' tighter than normal scale precision can reliably hit.
+        Dim EffectiveTolerance As Double
+        EffectiveTolerance = BaseWt * TolerancePct
+
+        If EffectiveTolerance < 0.3 Then EffectiveTolerance = 0.3
+
+        IsWithinTolerance = (RemainingWt <= EffectiveTolerance)
+
+    End If
+
+End Function
+
+
+
+' Tolerance for how far a SINGLE ENTRY (in Kg) can miss the
+' remaining quantity before it needs the operator's explicit
+' confirmation - used at the point of entry (Trimming/Inspection
+' save), separate from IsWithinTolerance above which is about bag
+' *completion*. Fixed floor of 0.3 Kg so small bags aren't held to
+' an unrealistically tight percentage.
+Public Function GetEntryTolerance(BaseWt As Double) As Double
+
+    Dim pctTol As Double
+
+    pctTol = BaseWt * BAG_TOLERANCE_PCT
+
+    If pctTol > 0.3 Then
+        GetEntryTolerance = pctTol
+    Else
+        GetEntryTolerance = 0.3
+    End If
+
+End Function
+
+
+' Same idea as GetEntryTolerance, but in pieces rather than Kg -
+' Packing's natural unit is quantity, not weight. Falls back to
+' just the percentage if PartWeightGrams is unknown/zero.
+Public Function GetEntryToleranceQty(BaseQty As Double, PartWeightGrams As Double) As Double
+
+    Dim PctTolQty As Double
+    Dim FloorTolQty As Double
+
+    PctTolQty = BaseQty * BAG_TOLERANCE_PCT
+
+    If PartWeightGrams > 0 Then
+        FloorTolQty = 300 / PartWeightGrams
+    Else
+        FloorTolQty = 0
+    End If
+
+    If PctTolQty > FloorTolQty Then
+        GetEntryToleranceQty = PctTolQty
+    Else
+        GetEntryToleranceQty = FloorTolQty
+    End If
+
+End Function
+
+
+' Single entry point every stage (Trim/Inspect/Pack) calls
+' after saving its transaction:
+'   - RemainingWt = 0 (or ~0)         -> ready to close, no prompt
+'   - RemainingWt within 1% of BaseWt -> asks the operator to confirm
+'   - otherwise                       -> leaves status untouched
+' Once "ready to close" is decided, the workflow gate below checks
+' whether ToStatus is actually a LEGITIMATE next step for this bag,
+' given the part's Trim/Inspection requirements - a stage can never
+' silently skip past a required earlier stage. The only exception is
+' when this entry's weight matches the bag's full original weight
+' within tolerance (meaning the skipped stage genuinely never had
+' separate material to process) - allowed, but only with an explicit
+' confirmation and an audit note left in BAG_LOG.
+Public Sub CheckAndUpdateBagStatus( _
+        BagCode As String, _
+        RemainingWt As Double, _
+        BaseWt As Double, _
+        ToStatus As String, _
+        StageLabel As String)
+
+    Dim ReadyToClose As Boolean
+    ReadyToClose = False
+
+    If RemainingWt <= 0.001 Then
+
+        ReadyToClose = True
+
+    ElseIf IsWithinTolerance(RemainingWt, BaseWt) Then
+
+        If MsgBox( _
+            "Remaining weight is " & Format(RemainingWt, "0.000") & _
+            " Kg, within 1% tolerance of " & Format(BaseWt, "0.000") & _
+            " Kg." & vbCrLf & vbCrLf & _
+            "Mark this bag as fully " & StageLabel & "?", _
+            vbQuestion + vbYesNo, "Confirm Bag Completion") = vbYes Then
+
+            ReadyToClose = True
+
+        End If
+
+    End If
+
+    If Not ReadyToClose Then Exit Sub
+
+    ' --- Workflow gate: is this actually a legitimate next step? ---
+
+    Dim CurrentStatus As String
+    CurrentStatus = GetBagStatus(BagCode)
+
+    Dim PartNo As String
+    PartNo = GetPartName(BagCode)
+
+    Dim TrimReq As Boolean, InspReq As Boolean
+    TrimReq = IsTrimRequired(PartNo)
+    InspReq = InspectionRequired(PartNo)
+
+    If IsLegitimateStatusAdvance(CurrentStatus, ToStatus, TrimReq, InspReq) Then
+
+        Call UpdateBagStatus(BagCode, ToStatus, StageLabel)
+
+    Else
+
+        Dim FullBagWt As Double
+        FullBagWt = Getproductionweight(BagCode)
+
+        If IsWithinTolerance(Abs(FullBagWt - BaseWt), FullBagWt) Then
+
+            If MsgBox( _
+                "This part normally requires an earlier stage to be completed " & _
+                "before " & StageLabel & " - but this entry's weight (" & _
+                Format(BaseWt, "0.000") & " Kg) matches the bag's full original " & _
+                "weight (" & Format(FullBagWt, "0.000") & " Kg), so the earlier " & _
+                "stage was evidently never needed for this bag." & vbCrLf & vbCrLf & _
+                "Convert this bag directly from " & CurrentStatus & " to " & _
+                ToStatus & "?", _
+                vbQuestion + vbYesNo, "Skip Stage - Confirm") = vbYes Then
+
+                Call UpdateBagStatus(BagCode, ToStatus, StageLabel & " (stage skip)")
+
+                Call AppendBagRemark(BagCode, _
+                    "Converted from " & CurrentStatus & " to " & ToStatus & _
+                    " directly (skipped required stage) - weight within tolerance of full bag.")
+
+            End If
+
+        Else
+
+            MsgBox "Cannot mark this bag as " & StageLabel & "." & vbCrLf & vbCrLf & _
+                   "This part requires an earlier stage to be completed first, and " & _
+                   "this bag's current status is '" & CurrentStatus & "', not yet " & _
+                   "ready for " & StageLabel & "." & vbCrLf & vbCrLf & _
+                   "If this is a mistake, check with whoever manages the workflow rules.", _
+                   vbCritical, "Stage Skipped"
+
+        End If
+
+    End If
+
+End Sub
+
+
+' Determines whether moving a bag from its CURRENT status to
+' ToStatus is a legitimate step, given this part's Trim/Inspection
+' requirements. Each stage may only ever produce its own status:
+' Trimming -> TRIMMED, Inspection -> INSPECTED, Packing -> PACKED -
+' and only from the correct prior status for what this part actually
+' requires.
+Public Function IsLegitimateStatusAdvance( _
+        ByVal CurrentStatus As String, _
+        ByVal ToStatus As String, _
+        ByVal TrimReq As Boolean, _
+        ByVal InspReq As Boolean) As Boolean
+
+    Dim cs As String
+    cs = UCase(Trim(CurrentStatus))
+
+    Select Case UCase(Trim(ToStatus))
+
+        Case "TRIMMED"
+            IsLegitimateStatusAdvance = (cs = "OPEN" Or cs = "TRIMMED")
+
+        Case "INSPECTED"
+            If TrimReq Then
+                IsLegitimateStatusAdvance = (cs = "TRIMMED")
+            Else
+                IsLegitimateStatusAdvance = (cs = "OPEN" Or cs = "TRIMMED")
+            End If
+
+        Case "PACKED"
+            If InspReq Then
+                IsLegitimateStatusAdvance = (cs = "INSPECTED")
+            ElseIf TrimReq Then
+                IsLegitimateStatusAdvance = (cs = "TRIMMED")
+            Else
+                IsLegitimateStatusAdvance = (cs = "OPEN")
+            End If
+
+        Case Else
+            IsLegitimateStatusAdvance = True
+
+    End Select
+
+End Function
+
+
+' Appends a timestamped note to BAG_LOG column L for this bag -
+' used for audit-trail entries like a stage-skip conversion. Adds a
+' header the first time this column is used.
+Public Sub AppendBagRemark(ByVal BagCode As String, ByVal RemarkText As String)
+
+    Dim ws As Worksheet
+    Dim r As Long
+
+    Set ws = Sheets(SH_BAGLOG)
+    If ws.FilterMode Then ws.ShowAllData
+
+    If Trim(ws.Cells(1, "L").Value) = "" Then
+        ws.Cells(1, "L").Value = "Remarks"
+    End If
+
+    r = FindBatchRow(BagCode)
+    If r = 0 Then Exit Sub
+
+    Dim existing As String
+    existing = Trim(ws.Cells(r, "L").Value)
+
+    Dim stamped As String
+    stamped = Format(Now, "dd-mmm-yyyy HH:mm") & " - " & RemarkText
+
+    If existing = "" Then
+        ws.Cells(r, "L").Value = stamped
+    Else
+        ws.Cells(r, "L").Value = existing & " | " & stamped
+    End If
+
+End Sub
+
+
+Public Function IsWithinTrimTolerance(ByVal RemainingWt As Double, ByVal BaseWt As Double) As Boolean
+
+    If BaseWt <= 0 Then
+        IsWithinTrimTolerance = (RemainingWt <= 0.001)
+        Exit Function
+    End If
+
+    Dim PctTolerance As Double
+    Dim EffectiveTolerance As Double
+
+    PctTolerance = BaseWt * 0.02
+    EffectiveTolerance = Application.WorksheetFunction.Max(PctTolerance, 0.2)
+
+    IsWithinTrimTolerance = (RemainingWt <= EffectiveTolerance)
+
+End Function
+
+
+' Inspection completion tolerance: 1% or 100g, whichever is HIGHER.
+Public Function IsWithinInspectionTolerance(ByVal RemainingWt As Double, ByVal BaseWt As Double) As Boolean
+
+    If BaseWt <= 0 Then
+        IsWithinInspectionTolerance = (RemainingWt <= 0.001)
+        Exit Function
+    End If
+
+    Dim PctTolerance As Double
+    Dim EffectiveTolerance As Double
+
+    PctTolerance = BaseWt * 0.01
+    EffectiveTolerance = Application.WorksheetFunction.Max(PctTolerance, 0.1)
+
+    IsWithinInspectionTolerance = (RemainingWt <= EffectiveTolerance)
+
+End Function

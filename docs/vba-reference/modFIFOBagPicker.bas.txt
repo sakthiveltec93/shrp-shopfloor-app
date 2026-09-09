@@ -1,0 +1,349 @@
+Option Explicit
+
+' ================================================================
+' "Select by Part" mode - for use until barcode labels are in
+' place. Given a Part No, finds the OLDEST bag (FIFO, by BAG_LOG
+' Date) that's actually ready for the given stage, accounting for
+' parts that skip Trimming and/or Inspection entirely. Returns ""
+' if nothing is currently ready.
+'
+' All three functions below require Type = "PART" (column F) -
+' Runner bags share the same Part No and start at status "OPEN"
+' too, so without this check a Runner bag could get auto-selected
+' and processed through Trimming/Inspection/Packing as if it were
+' an actual part, which it isn't - it's waste sprue material.
+' ================================================================
+
+Public Function GetFIFOBagForTrimming(ByVal PartNo As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestBagCode As String
+    Dim bestDate As Date
+    Dim found As Boolean
+Dim bestShiftRank As Long
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" And _
+           UCase(Trim(ws.Cells(r, "J").Value)) = "OPEN" Then
+
+            Dim thisDate As Date
+            If IsDate(ws.Cells(r, "A").Value) Then
+                thisDate = ws.Cells(r, "A").Value
+            Else
+                thisDate = Date
+            End If
+
+            Dim thisShiftRank As Long
+thisShiftRank = GetShiftRank(ws.Cells(r, "C").Value)
+
+Dim isBetter As Boolean
+isBetter = False
+
+If Not found Then
+    isBetter = True
+ElseIf thisDate < bestDate Then
+    isBetter = True
+ElseIf thisDate = bestDate And thisShiftRank < bestShiftRank Then
+    isBetter = True
+End If
+
+If isBetter Then
+    found = True
+    bestDate = thisDate
+    bestShiftRank = thisShiftRank
+    bestBagCode = ws.Cells(r, "E").Value
+End If
+
+        End If
+
+    Next r
+
+    GetFIFOBagForTrimming = bestBagCode
+
+End Function
+
+
+Public Function GetFIFOBagForInspection(ByVal PartNo As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestBagCode As String
+    Dim bestDate As Date
+    Dim found As Boolean
+    Dim TrimReq As Boolean
+Dim bestShiftRank As Long
+    TrimReq = IsTrimRequired(PartNo)
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" Then
+
+            Dim st As String
+            st = UCase(Trim(ws.Cells(r, "J").Value))
+
+            Dim eligible As Boolean
+            eligible = False
+
+            ' TRIMMED is always eligible for Inspection, regardless
+            ' of whether Trim was actually required for this part -
+            ' a bag can get trimmed anyway via the "Trimming Not
+            ' Required - confirm anyway?" override, and that bag is
+            ' genuinely ready for Inspection either way.
+            If st = "TRIMMED" Then
+                eligible = True
+            ElseIf Not TrimReq And st = "OPEN" Then
+    eligible = True
+ElseIf TrimReq And st = "OPEN" And _
+        RemainingInspectionWeight(ws.Cells(r, "E").Value) > 0.001 Then
+    eligible = True
+End If
+
+            If eligible Then
+
+                Dim thisDate As Date
+                If IsDate(ws.Cells(r, "A").Value) Then
+                    thisDate = ws.Cells(r, "A").Value
+                Else
+                    thisDate = Date
+                End If
+
+                Dim thisShiftRank As Long
+thisShiftRank = GetShiftRank(ws.Cells(r, "C").Value)
+
+Dim isBetter As Boolean
+isBetter = False
+
+If Not found Then
+    isBetter = True
+ElseIf thisDate < bestDate Then
+    isBetter = True
+ElseIf thisDate = bestDate And thisShiftRank < bestShiftRank Then
+    isBetter = True
+End If
+
+If isBetter Then
+    found = True
+    bestDate = thisDate
+    bestShiftRank = thisShiftRank
+    bestBagCode = ws.Cells(r, "E").Value
+End If
+
+            End If
+
+        End If
+
+    Next r
+
+    GetFIFOBagForInspection = bestBagCode
+
+End Function
+
+
+Public Function GetFIFOBagForPacking(ByVal PartNo As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestBagCode As String
+    Dim bestDate As Date
+    Dim found As Boolean
+    Dim TrimReq As Boolean
+    Dim InspReq As Boolean
+Dim bestShiftRank As Long
+    TrimReq = IsTrimRequired(PartNo)
+    InspReq = InspectionRequired(PartNo)
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "D").Value) = Trim(PartNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" Then
+
+            Dim st As String
+            st = UCase(Trim(ws.Cells(r, "J").Value))
+
+            Dim eligible As Boolean
+            eligible = False
+
+            ' INSPECTED is always eligible for Packing, regardless of
+            ' whether Inspection was actually required - if it
+            ' happened (via override), the bag is genuinely ready.
+            ' Same logic cascades down: TRIMMED is eligible whenever
+            ' Inspection is skippable (whether or not Trim itself was
+            ' required), and OPEN only when BOTH are skippable.
+            If st = "INSPECTED" Then
+                eligible = True
+            ElseIf Not InspReq And st = "TRIMMED" Then
+                eligible = True
+            ElseIf Not InspReq And Not TrimReq And st = "OPEN" Then
+    eligible = True
+ElseIf InspReq And (st = "OPEN" Or st = "TRIMMED") And _
+        AvailablePackingWeight(ws.Cells(r, "E").Value) > 0.001 Then
+    eligible = True
+End If
+
+            If eligible Then
+
+                Dim thisDate As Date
+                If IsDate(ws.Cells(r, "A").Value) Then
+                    thisDate = ws.Cells(r, "A").Value
+                Else
+                    thisDate = Date
+                End If
+
+                Dim thisShiftRank As Long
+thisShiftRank = GetShiftRank(ws.Cells(r, "C").Value)
+
+Dim isBetter As Boolean
+isBetter = False
+
+If Not found Then
+    isBetter = True
+ElseIf thisDate < bestDate Then
+    isBetter = True
+ElseIf thisDate = bestDate And thisShiftRank < bestShiftRank Then
+    isBetter = True
+End If
+
+If isBetter Then
+    found = True
+    bestDate = thisDate
+    bestShiftRank = thisShiftRank
+    bestBagCode = ws.Cells(r, "E").Value
+End If
+
+            End If
+
+        End If
+
+    Next r
+
+    GetFIFOBagForPacking = bestBagCode
+
+End Function
+
+
+' Populates a ComboBox with every Part No from PART_MASTER - used
+' for the "Select by Part" dropdown on Trimming/Inspection/Packing.
+Public Sub PopulateFIFOPartDropdown(cbo As MSForms.ComboBox)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    cbo.Clear
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+            cbo.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+
+End Sub
+
+
+' Looks up a bag's Type (PART or RUNNER) from BAG_LOG by its Bag
+' Code - used to block Runner bags from being entered directly
+' (typed or scanned) into Trimming/Inspection/Packing, since runner
+' waste never goes through those stages. The FIFO picker functions
+' above already exclude Runner bags via their own Type filter - this
+' covers the direct-entry path, which had no such check.
+Public Function GetBagType(ByVal BagCode As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "E").Value) = Trim(BagCode) Then
+            GetBagType = UCase(Trim(ws.Cells(r, "F").Value))
+            Exit Function
+        End If
+    Next r
+
+    GetBagType = ""
+
+End Function
+
+
+' Shared across Trimming/Inspection/Packing: shows every BAG_LOG
+' entry (any type - Part, Runner, Rejection, Lump) for the given
+' Batch No, into the given ListBox - so the operator can see what
+' else exists in the same batch as the bag they're currently
+' processing. Same pattern as Bag Entry's lstPreviousBags.
+Public Sub LoadBagsForBatch(lst As MSForms.ListBox, ByVal BatchNo As String)
+
+    lst.Clear
+
+    If Trim(BatchNo) = "" Then
+        lst.Visible = False
+        Exit Sub
+    End If
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(BatchNo) Then
+
+            lst.AddItem Format(ws.Cells(r, "A").Value, "dd-mmm-yyyy") 'Production Date
+            lst.List(lst.ListCount - 1, 1) = Format(val(ws.Cells(r, "G").Value), "0.000") 'Weight
+            lst.List(lst.ListCount - 1, 2) = Format(val(ws.Cells(r, "H").Value), "#,##0") 'Qty
+            lst.List(lst.ListCount - 1, 3) = ws.Cells(r, "J").Value 'Status
+
+        End If
+
+    Next r
+
+    lst.Visible = (lst.ListCount > 0)
+
+End Sub
+
+Private Function GetShiftRank(ByVal BatchNo As String) As Long
+    Dim ShiftChar As String
+    ShiftChar = UCase(Right(Trim(BatchNo), 1))
+    Select Case ShiftChar
+        Case "A"
+            GetShiftRank = 1
+        Case "B"
+            GetShiftRank = 2
+        Case Else
+            GetShiftRank = 99
+    End Select
+End Function

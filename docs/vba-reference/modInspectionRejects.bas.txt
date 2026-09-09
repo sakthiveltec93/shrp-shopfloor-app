@@ -1,0 +1,15 @@
+Option Explicit
+
+Public Function GetTotalRejectWeight(lst As MSForms.ListBox) As Double
+
+    Dim i As Long
+
+    For i = 0 To lst.ListCount - 1
+
+        GetTotalRejectWeight = _
+            GetTotalRejectWeight + _
+            CDbl(lst.List(i, 1))
+
+    Next i
+
+End Function

@@ -1,0 +1,120 @@
+Option Explicit
+
+' Slot grid: 3 columns x 4 rows = 12 labels per A4 sheet.
+' Each slot is 8 grid-columns wide x 13 grid-rows tall, with a
+' 1-unit gap between slots (used as the cut line). Exact physical
+' size doesn't need to be precise - PageSetup below scales the
+' whole grid to fit one A4 page regardless.
+
+Private Const SLOT_COLS As Integer = 8
+Private Const SLOT_ROWS As Integer = 13
+Private Const GAP As Integer = 1
+Private Const GRID_COLS As Integer = 3
+Private Const GRID_ROWS As Integer = 4
+
+' Returns the top-left cell (row, col) of slot number 1-12.
+Public Function SlotTopLeft(ByVal slotIndex As Integer) As Variant
+
+    Dim slotCol As Integer, slotRow As Integer
+    slotCol = (slotIndex - 1) Mod GRID_COLS
+    slotRow = (slotIndex - 1) \ GRID_COLS
+
+    Dim topRow As Long, leftCol As Long
+    topRow = 2 + slotRow * (SLOT_ROWS + GAP)
+    leftCol = 2 + slotCol * (SLOT_COLS + GAP)
+
+    SlotTopLeft = Array(topRow, leftCol)
+
+End Function
+
+' One-time (or re-run anytime) layout builder: borders, sizing,
+' page setup. Safe to call repeatedly - clears and rebuilds.
+Public Sub SetupLabelSheet12Up(ByVal sheetName As String)
+
+    Dim ws As Worksheet
+    Set ws = Sheets(sheetName)
+    If ws.FilterMode Then ws.ShowAllData
+
+    ws.Cells.Clear
+    ws.Cells.Borders.LineStyle = xlNone
+
+    Dim totalCols As Long, totalRows As Long
+    totalCols = 1 + GRID_COLS * (SLOT_COLS + GAP)
+    totalRows = 1 + GRID_ROWS * (SLOT_ROWS + GAP)
+
+    ws.Columns("A:" & ColLetter(totalCols)).ColumnWidth = 3.2
+    ws.Rows("1:" & totalRows).RowHeight = 12
+
+    Dim i As Integer
+    For i = 1 To 12
+
+        Dim tl As Variant
+        tl = SlotTopLeft(i)
+        Dim r0 As Long, c0 As Long
+        r0 = tl(0): c0 = tl(1)
+
+        Dim slotRange As Range
+        Set slotRange = ws.Range(ws.Cells(r0, c0), ws.Cells(r0 + SLOT_ROWS - 1, c0 + SLOT_COLS - 1))
+        slotRange.Borders.LineStyle = xlDash
+        slotRange.Borders.Weight = xlThin
+        slotRange.Borders.ColorIndex = 15 ' light grey - cut guide, not a heavy print line
+
+    Next i
+
+    With ws.PageSetup
+        .Orientation = xlPortrait
+        .PaperSize = xlPaperA4
+        .TopMargin = ws.Application.CentimetersToPoints(0.5)
+        .BottomMargin = ws.Application.CentimetersToPoints(0.5)
+        .LeftMargin = ws.Application.CentimetersToPoints(0.5)
+        .RightMargin = ws.Application.CentimetersToPoints(0.5)
+        .HeaderMargin = 0
+        .FooterMargin = 0
+        .FitToPagesWide = 1
+        .FitToPagesTall = 1
+        .Zoom = False
+    End With
+
+    ws.PageSetup.PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(totalRows, totalCols)).Address
+
+End Sub
+
+Private Function ColLetter(ByVal colNum As Long) As String
+    Dim s As String
+    Dim n As Long
+    n = colNum
+    Do While n > 0
+        Dim m As Long
+        m = (n - 1) Mod 26
+        s = Chr(65 + m) & s
+        n = (n - m - 1) \ 26
+    Loop
+    ColLetter = s
+End Function
+
+' Clears content from all 12 slots (keeps the grid/borders) so the
+' sheet is ready for the next batch.
+Public Sub ClearLabelSheet12Up(ByVal sheetName As String)
+
+    Dim ws As Worksheet
+    Set ws = Sheets(sheetName)
+    If ws.FilterMode Then ws.ShowAllData
+
+    Dim i As Integer
+    For i = 1 To 12
+
+        Dim tl As Variant
+        tl = SlotTopLeft(i)
+        Dim r0 As Long, c0 As Long
+        r0 = tl(0): c0 = tl(1)
+
+        ws.Range(ws.Cells(r0, c0), ws.Cells(r0 + SLOT_ROWS - 1, c0 + SLOT_COLS - 1)).ClearContents
+
+        ' Remove any QR picture placed in this slot on a previous batch
+        On Error Resume Next
+        ws.Shapes(sheetName & "_QR_" & i).Delete
+        On Error GoTo 0
+
+    Next i
+
+End Sub

@@ -1,0 +1,305 @@
+Option Explicit
+
+Private Const CAVS_PER_ROW As Long = 8
+
+' Builds a formatted report matching your official Setting Approval
+' Inspection Report layout (REC NO: SRP/QA/R/04) on a working sheet,
+' populated from the just-saved approval's data, then exports it as
+' a PDF (A4, landscape). Called from frmSetupApproval's cmdSave_Click,
+' right after the approval and its readings are written.
+'
+' Cavities beyond 8 wrap onto a continuation row for the same
+' dimension rather than adding more columns, so the table stays
+' legible on an A4 page regardless of cavity count.
+Public Sub GenerateSetupApprovalPDF(ByVal ApprovalID As String, ByVal MachineNo As String, _
+                                     ByVal PartNo As String, ByVal InspectedBy As String, _
+                                     ByVal ApprovedBy As String, ByVal Result As String, _
+                                     ByVal Cavities As Long)
+
+    Const SHEET_NAME As String = "SETUP_APPROVAL_PDF"
+
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = Sheets(SHEET_NAME)
+    If ws.FilterMode Then ws.ShowAllData
+    On Error GoTo 0
+
+    If ws Is Nothing Then
+        Set ws = Sheets.Add(After:=Sheets(Sheets.Count))
+        ws.Name = SHEET_NAME
+    Else
+        ws.Cells.Clear
+    End If
+
+    ws.Cells.Font.Name = "Arial"
+    Dim r As Long
+    r = 1
+
+    ' ---- Header block ----
+    ws.Range(ws.Cells(r, 3), ws.Cells(r, 8)).Merge
+    ws.Cells(r, 3).Value = "SETTING APPROVAL INSPECTION REPORT"
+    ws.Cells(r, 3).Font.Bold = True
+    ws.Cells(r, 3).Font.Size = 14
+    ws.Cells(r, 3).HorizontalAlignment = xlCenter
+    ws.Cells(r, 9).Value = "REC NO : SRP / QA / R /04"
+    r = r + 1
+
+    Dim PartName As String
+    PartName = GetPartNameForPDF(PartNo)
+
+    ws.Cells(r, 1).Value = "Part Number : " & PartNo
+    ws.Cells(r, 5).Value = "Machine No : " & MachineNo
+    ws.Cells(r, 9).Value = "Date : " & Format(Date, "dd-mmm-yyyy")
+    r = r + 1
+
+    ws.Cells(r, 1).Value = "Part Name : " & PartName
+    ws.Cells(r, 5).Value = "No of Cavity : " & Cavities & " Nos"
+    ws.Cells(r, 9).Value = "Approval ID : " & ApprovalID
+    r = r + 1
+
+    ws.Cells(r, 1).Value = "Inspected By : " & InspectedBy
+    ws.Cells(r, 5).Value = "Approved By : " & ApprovedBy
+    r = r + 2
+
+    ' ---- Process Parameter table ----
+    ws.Cells(r, 1).Value = "PROCESS PARAMETER"
+    ws.Cells(r, 1).Font.Bold = True
+    r = r + 1
+
+    Dim hdrRow As Long
+    hdrRow = r
+    ws.Cells(r, 1).Value = "#"
+    ws.Cells(r, 2).Value = "Characteristic"
+    ws.Cells(r, 4).Value = "Standard"
+    ws.Cells(r, 6).Value = "Method of Check"
+    ws.Cells(r, 7).Value = "Observation"
+    ws.Cells(r, 8).Value = "Result"
+    ws.Range(ws.Cells(hdrRow, 1), ws.Cells(hdrRow, 8)).Font.Bold = True
+    ws.Range(ws.Cells(hdrRow, 1), ws.Cells(hdrRow, 8)).Interior.Color = RGB(230, 230, 230)
+    r = r + 1
+
+    Dim wsParam As Worksheet
+    Set wsParam = Sheets("SETUP_PARAMETER_READINGS_LOG")
+    If wsParam.FilterMode Then wsParam.ShowAllData
+    Dim LRp As Long
+    LRp = wsParam.Cells(wsParam.Rows.Count, "A").End(xlUp).Row
+
+    Dim seq As Long
+    seq = 1
+    Dim rp As Long
+    For rp = 2 To LRp
+        If Trim(wsParam.Cells(rp, "A").Value) = Trim(ApprovalID) Then
+            ws.Cells(r, 1).Value = seq
+            ws.Cells(r, 2).Value = wsParam.Cells(rp, "B").Value
+            ws.Cells(r, 4).Value = wsParam.Cells(rp, "D").Value
+            ws.Cells(r, 7).Value = wsParam.Cells(rp, "E").Value
+            ws.Cells(r, 8).Value = wsParam.Cells(rp, "F").Value
+            If UCase(wsParam.Cells(rp, "F").Value) = "FAIL" Then
+                ws.Cells(r, 8).Font.Color = RGB(200, 0, 0)
+                ws.Cells(r, 9).Value = wsParam.Cells(rp, "G").Value
+            End If
+            seq = seq + 1
+            r = r + 1
+        End If
+    Next rp
+
+    r = r + 1
+
+    ' ---- Product Parameter (Dimension) table ----
+    ws.Cells(r, 1).Value = "PRODUCT PARAMETER"
+    ws.Cells(r, 1).Font.Bold = True
+    r = r + 1
+
+    Dim colsThisRow As Long
+    colsThisRow = Application.WorksheetFunction.Min(Cavities, CAVS_PER_ROW)
+
+    hdrRow = r
+    ws.Cells(r, 1).Value = "#"
+    ws.Cells(r, 2).Value = "Characteristic"
+    ws.Cells(r, 3).Value = "Specification"
+    Dim cc As Long
+    For cc = 1 To colsThisRow
+        ws.Cells(r, 4 + cc - 1).Value = "C" & cc
+    Next cc
+    ws.Cells(r, 4 + colsThisRow).Value = "Result"
+    ws.Range(ws.Cells(hdrRow, 1), ws.Cells(hdrRow, 4 + colsThisRow)).Font.Bold = True
+    ws.Range(ws.Cells(hdrRow, 1), ws.Cells(hdrRow, 4 + colsThisRow)).Interior.Color = RGB(230, 230, 230)
+    r = r + 1
+
+    Dim wsDim As Worksheet
+    Set wsDim = Sheets("SETUP_DIMENSION_READINGS_LOG")
+    If wsDim.FilterMode Then wsDim.ShowAllData
+    Dim LRd As Long
+    LRd = wsDim.Cells(wsDim.Rows.Count, "A").End(xlUp).Row
+
+    Dim dimNames As Collection
+    Set dimNames = New Collection
+    Dim rd As Long
+    For rd = 2 To LRd
+        If Trim(wsDim.Cells(rd, "A").Value) = Trim(ApprovalID) Then
+            Dim nm As String
+            nm = wsDim.Cells(rd, "B").Value
+            Dim already As Boolean
+            already = False
+            Dim existing As Variant
+            For Each existing In dimNames
+                If existing = nm Then already = True
+            Next existing
+            If Not already Then dimNames.Add nm
+        End If
+    Next rd
+
+    seq = 1
+    Dim dn As Variant
+    For Each dn In dimNames
+
+        ' Pull every cavity reading for this dimension into an array
+        ' first (indexed 1..Cavities), so it can be written out in
+        ' wrapped chunks of CAVS_PER_ROW afterward.
+        Dim readingVals() As String
+        Dim readingFail() As Boolean
+        ReDim readingVals(1 To Cavities)
+        ReDim readingFail(1 To Cavities)
+
+        Dim specText As String
+        specText = ""
+        Dim groupHasFail As Boolean
+        groupHasFail = False
+        Dim failRemark As String
+        failRemark = ""
+
+        For rd = 2 To LRd
+            If Trim(wsDim.Cells(rd, "A").Value) = Trim(ApprovalID) And wsDim.Cells(rd, "B").Value = dn Then
+
+                If specText = "" Then specText = wsDim.Cells(rd, "E").Value
+
+                Dim thisCavNo As Long
+                thisCavNo = val(wsDim.Cells(rd, "C").Value)
+
+                If thisCavNo >= 1 And thisCavNo <= Cavities Then
+                    readingVals(thisCavNo) = wsDim.Cells(rd, "F").Value
+                    If UCase(wsDim.Cells(rd, "G").Value) = "FAIL" Then
+                        readingFail(thisCavNo) = True
+                        groupHasFail = True
+                        failRemark = wsDim.Cells(rd, "H").Value
+                    End If
+                End If
+
+            End If
+        Next rd
+
+        Dim numWrapRows As Long
+        numWrapRows = Int((Cavities - 1) / CAVS_PER_ROW) + 1
+
+        Dim wrapRow As Long
+        For wrapRow = 1 To numWrapRows
+
+            Dim startCav As Long, endCav As Long
+            startCav = (wrapRow - 1) * CAVS_PER_ROW + 1
+            endCav = Application.WorksheetFunction.Min(startCav + CAVS_PER_ROW - 1, Cavities)
+
+            If wrapRow = 1 Then
+                ws.Cells(r, 1).Value = seq
+                ws.Cells(r, 2).Value = dn
+                ws.Cells(r, 3).Value = specText
+            Else
+                ws.Cells(r, 2).Value = dn & " (cont'd)"
+                ws.Cells(r, 3).Value = "Cavities " & startCav & "-" & endCav
+            End If
+
+            Dim colOffset As Long
+            colOffset = 0
+            Dim cavNo As Long
+            For cavNo = startCav To endCav
+                ws.Cells(r, 4 + colOffset).Value = readingVals(cavNo)
+                If readingFail(cavNo) Then
+                    ws.Cells(r, 4 + colOffset).Font.Color = RGB(200, 0, 0)
+                End If
+                colOffset = colOffset + 1
+            Next cavNo
+
+            If wrapRow = numWrapRows Then
+                ws.Cells(r, 4 + colsThisRow).Value = IIf(groupHasFail, "FAIL", "PASS")
+                If groupHasFail Then
+                    ws.Cells(r, 4 + colsThisRow).Font.Color = RGB(200, 0, 0)
+                    ws.Cells(r, 5 + colsThisRow).Value = failRemark
+                End If
+            End If
+
+            r = r + 1
+
+        Next wrapRow
+
+        seq = seq + 1
+
+    Next dn
+
+    r = r + 1
+
+    ' ---- Footer ----
+    ws.Cells(r, 1).Value = "Overall Result :"
+    ws.Cells(r, 1).Font.Bold = True
+    ws.Cells(r, 3).Value = Result
+    ws.Cells(r, 3).Font.Bold = True
+    ws.Cells(r, 3).Font.Color = IIf(Result = "APPROVED", RGB(0, 130, 0), RGB(200, 0, 0))
+    r = r + 2
+
+    ws.Cells(r, 1).Value = "Inspected By : " & InspectedBy
+    ws.Cells(r, 6).Value = "Approved By : " & ApprovedBy
+
+    ws.Columns("A:L").AutoFit
+
+    ' ---- Export as PDF - operator picks the location ----
+    ws.PageSetup.Orientation = xlLandscape
+    ws.PageSetup.PaperSize = xlPaperA4
+    ws.PageSetup.FitToPagesWide = 1
+    ws.PageSetup.FitToPagesTall = False
+    ws.PageSetup.PrintArea = ws.UsedRange.Address
+
+    Dim DefaultName As String
+    DefaultName = "SetupApproval_" & Replace(ApprovalID, ":", "-") & ".pdf"
+
+    Dim ChosenPath As Variant
+    ChosenPath = Application.GetSaveAsFilename( _
+        InitialFileName:=DefaultName, _
+        FileFilter:="PDF Files (*.pdf), *.pdf", _
+        Title:="Save Setup Approval PDF")
+
+    If ChosenPath = False Then
+        Exit Sub
+    End If
+
+    On Error Resume Next
+    Err.Clear
+    ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=CStr(ChosenPath), _
+        Quality:=xlQualityStandard, OpenAfterPublish:=False
+    If Err.Number = 0 Then
+        MsgBox "Setup Approval PDF saved to:" & vbCrLf & ChosenPath, vbInformation, "PDF Saved"
+    Else
+        MsgBox "Could not save PDF." & vbCrLf & "Error: " & Err.Description, vbExclamation, "PDF Save Failed"
+    End If
+    On Error GoTo 0
+
+End Sub
+
+
+Private Function GetPartNameForPDF(ByVal PartNo As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If UCase(Trim(ws.Cells(r, "A").Value)) = UCase(Trim(PartNo)) Then
+            GetPartNameForPDF = ws.Cells(r, "B").Value
+            Exit Function
+        End If
+    Next r
+
+    GetPartNameForPDF = ""
+
+End Function

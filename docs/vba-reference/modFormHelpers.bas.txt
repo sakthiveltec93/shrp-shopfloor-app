@@ -1,0 +1,56 @@
+Option Explicit
+
+' Moves focus to the next control in Tab Order after whichever
+' control currently has focus, wrapping back to the first control
+' if the current one is last. Deliberately does NOT use SendKeys
+' (which sends keystrokes to whatever window happens to have focus
+' at that instant, and can be flaky/mistimed) - this finds and
+' focuses the actual next control directly.
+Public Sub MoveToNextControl(frm As Object)
+
+    Dim ctrl As MSForms.Control
+    Dim currentIndex As Long
+    Dim nextIndex As Long
+    Dim nextCtrl As MSForms.Control
+    Dim found As Boolean
+
+    On Error Resume Next
+    currentIndex = frm.ActiveControl.TabIndex
+    On Error GoTo 0
+
+    nextIndex = 9999
+    found = False
+
+    For Each ctrl In frm.Controls
+
+        If ctrl.TabStop And ctrl.Enabled And ctrl.Visible Then
+
+            If ctrl.TabIndex > currentIndex And ctrl.TabIndex < nextIndex Then
+                nextIndex = ctrl.TabIndex
+                Set nextCtrl = ctrl
+                found = True
+            End If
+
+        End If
+
+    Next ctrl
+
+    If Not found Then
+
+        ' Reached the last control - wrap around to the first one.
+        For Each ctrl In frm.Controls
+            If ctrl.TabStop And ctrl.Enabled And ctrl.Visible Then
+                If ctrl.TabIndex < nextIndex Then
+                    nextIndex = ctrl.TabIndex
+                    Set nextCtrl = ctrl
+                End If
+            End If
+        Next ctrl
+
+    End If
+
+    If Not nextCtrl Is Nothing Then
+        nextCtrl.SetFocus
+    End If
+
+End Sub

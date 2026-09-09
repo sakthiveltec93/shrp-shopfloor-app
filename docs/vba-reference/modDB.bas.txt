@@ -1,0 +1,124 @@
+Option Explicit
+
+' ================================================================
+' Connection layer for SHRP_Production.accdb. Every other module
+' that talks to the database goes through the two functions below
+' rather than opening its own connections - keeps the connection
+' string in exactly one place, and keeps the "open fresh, use,
+' close" pattern consistent everywhere.
+'
+' Deliberately opens and closes a connection for every single
+' operation, rather than holding one open for the whole session.
+' Slightly more overhead per call, but far safer on a file-share
+' Access database with several PCs hitting it at once - a
+' long-held connection is exactly the kind of thing that causes
+' file-locking problems on a network share.
+' ================================================================
+
+Public Const DB_PATH As String = "\\Shrp-pc\shrp daily update\SHRP_Production.accdb"
+
+Private Function GetConnectionString() As String
+    GetConnectionString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" & DB_PATH
+End Function
+
+
+' Runs an action query (INSERT / UPDATE / DELETE) with no result
+' set expected. Opens its own connection, runs the SQL, closes it.
+Public Sub ExecuteSQL(ByVal sql As String)
+
+    Dim conn As Object
+    Set conn = CreateObject("ADODB.Connection")
+
+    On Error GoTo ErrHandler
+
+    conn.Open GetConnectionString()
+    conn.Execute sql
+    conn.Close
+
+    Exit Sub
+
+ErrHandler:
+    Dim errDesc As String
+    errDesc = Err.Description
+
+    On Error Resume Next
+    If conn.State = 1 Then conn.Close ' 1 = adStateOpen
+    On Error GoTo 0
+
+    Err.Raise vbObjectError + 1000, "modDB.ExecuteSQL", _
+        "Database write failed: " & errDesc & vbCrLf & vbCrLf & "SQL: " & sql
+
+End Sub
+
+
+' Runs a SELECT and returns a disconnected recordset - safe to loop
+' through after the underlying connection has already been closed,
+' since .CursorLocation = adUseClient pulls all the data into
+' memory before disconnecting.
+Public Function GetRecordset(ByVal sql As String) As Object
+
+    Dim conn As Object
+    Dim rs As Object
+
+    Set conn = CreateObject("ADODB.Connection")
+    Set rs = CreateObject("ADODB.Recordset")
+
+    On Error GoTo ErrHandler
+
+    conn.Open GetConnectionString()
+
+    rs.CursorLocation = 3 ' adUseClient
+    rs.Open sql, conn, 3, 1 ' adOpenStatic, adLockReadOnly
+
+    Set rs.ActiveConnection = Nothing ' disconnect - rs now stands alone
+    conn.Close
+
+    Set GetRecordset = rs
+
+    Exit Function
+
+ErrHandler:
+    Dim errDesc As String
+    errDesc = Err.Description
+
+    On Error Resume Next
+    If conn.State = 1 Then conn.Close
+    On Error GoTo 0
+
+    Err.Raise vbObjectError + 1001, "modDB.GetRecordset", _
+        "Database read failed: " & errDesc & vbCrLf & vbCrLf & "SQL: " & sql
+
+End Function
+
+
+' Escapes single quotes for safe use inside a SQL string literal.
+' Use this on EVERY piece of text (operator names, remarks, part
+' numbers, etc.) that gets built into a SQL string - a raw
+' apostrophe in someone's remarks would otherwise break the query
+' or, worse, let it silently do something unintended.
+Public Function SQLEscape(ByVal s As String) As String
+    SQLEscape = Replace(s, "'", "''")
+End Function
+
+
+' Quick connectivity check - run this manually (F5) after setup to
+' confirm the database is reachable from this PC before building
+' anything on top of it.
+Public Sub TestConnection()
+
+    On Error GoTo ErrHandler
+
+    Dim rs As Object
+    Set rs = GetRecordset("SELECT COUNT(*) AS N FROM Machines")
+
+    MsgBox "Connected successfully." & vbCrLf & vbCrLf & _
+           "Machines table currently has " & rs.Fields("N").Value & " row(s).", _
+           vbInformation, "Connection OK"
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Connection failed:" & vbCrLf & vbCrLf & Err.Description, _
+           vbCritical, "Connection Failed"
+
+End Sub

@@ -1,0 +1,60 @@
+Option Explicit
+
+' SUMMARY Sheet Mapping
+' (kept for backward compatibility - no longer used by
+'  Trimming / Inspection / Packing, which now read
+'  PRODUCTION_LOG + BAG_LOG instead, see below)
+
+Public Const COL_DATE As String = "A"
+Public Const COL_MACHINE As String = "B"
+Public Const COL_PART As String = "C"
+Public Const COL_OKQTY As String = "M"
+Public Const COL_PRODWT As String = "AP"
+Public Const COL_RMBATCH As String = "AH"
+Public Const COL_BATCHNO As String = "AR"
+
+' Status Columns
+
+Public Const COL_TRIMSTATUS As String = "AS"
+Public Const COL_INSPECTIONSTATUS As String = "AW"
+Public Const COL_PACKSTATUS As String = "BA"
+Public Const COL_DISPATCHSTATUS As String = "BE"
+
+' Sheet Names
+
+Public Const SH_SUMMARY As String = "SUMMARY"
+Public Const SH_PARTMASTER As String = "PART_MASTER"
+Public Const SH_OPERATOR As String = "OperatorMaster"
+
+Public Const SH_TRIMLOG As String = "TRIM_LOG"
+Public Const SH_INSPECTLOG As String = "INSPECTION_LOG"
+Public Const SH_PACKLOG As String = "PACKING_LOG"
+Public Const SH_DISPATCHLOG As String = "DISPATCH_LOG"
+Public Const SH_INSPECTIONLOG = "INSPECTION_LOG"
+Public Const SH_REJECTLOG = "INSPECTION_REJECT_LOG"
+
+' ---- Added: Production Log / Bag Log wiring ----
+
+Public Const SH_PRODUCTIONLOG As String = "PRODUCTION_LOG"
+Public Const SH_BAGLOG As String = "BAG_LOG"
+
+' PRODUCTION_LOG column mapping
+' NOTE: frmProduction's cmdSave_Click writes the Batch No to
+' column S ("ws.Cells(NR, "S").Value = BatchNo") - column A's
+' "Batch No" header is never actually populated, despite the
+' header existing. S is the real column to match against.
+Public Const PL_COL_BATCHNO As String = "S"
+Public Const PL_COL_PARTNO As String = "E"
+Public Const PL_COL_PARTNAME As String = "F"
+
+' BAG_LOG column mapping
+Public Const BL_COL_DATE As String = "A"
+Public Const BL_COL_MACHINE As String = "B"
+Public Const BL_COL_BATCHNO As String = "C"
+Public Const BL_COL_PARTNO As String = "D"
+Public Const BL_COL_BAGCODE As String = "E"
+Public Const BL_COL_BAGTYPE As String = "F"
+Public Const BL_COL_WEIGHT As String = "G"
+Public Const BL_COL_QTY As String = "H"
+Public Const BL_COL_OPERATOR As String = "I"
+Public Const BL_COL_STATUS As String = "J"

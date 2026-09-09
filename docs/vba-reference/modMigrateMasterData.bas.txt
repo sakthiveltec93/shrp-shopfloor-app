@@ -1,0 +1,320 @@
+Option Explicit
+
+' ================================================================
+' ONE-TIME MIGRATION - copies existing master data from your Excel
+' sheets into the new Access database. Requires modDB.bas already
+' imported and working (TestConnection succeeded).
+'
+' Safe to re-run: each insert is wrapped so a duplicate-key error
+' (from a row already migrated) is silently skipped rather than
+' stopping the whole run - so if this gets interrupted partway,
+' just run it again and it'll pick up wherever it left off.
+'
+' Run MigrateAllMasterData() once (F5). Delete this module after.
+' ================================================================
+
+Sub MigrateAllMasterData()
+
+    Call AddCycleTimesTable
+    Call MigrateMachines
+    Call MigrateParts
+    Call MigrateCycleTimes
+    Call MigrateOperators
+    Call MigrateRejectReasons
+    Call MigrateIdleReasons
+    Call MigrateMouldChangeReasons
+
+    MsgBox "Master data migration complete. Check the Immediate Window " & _
+           "(Ctrl+G) for a row-count summary of each table.", vbInformation
+
+End Sub
+
+
+Private Sub AddCycleTimesTable()
+
+    On Error Resume Next ' harmless if it already exists from a prior run
+
+    Dim sql As String
+    sql = "CREATE TABLE CycleTimes ("
+    sql = sql & "MachineName TEXT(50), "
+    sql = sql & "PartNo TEXT(50), "
+    sql = sql & "CycleTime DOUBLE, "
+    sql = sql & "CONSTRAINT PK_CycleTimes PRIMARY KEY (MachineName, PartNo)"
+    sql = sql & ")"
+
+    modDB.ExecuteSQL sql
+
+    On Error GoTo 0
+
+End Sub
+
+
+Private Sub SafeInsert(ByVal sql As String, ByRef okCount As Long, ByRef skipCount As Long)
+
+    On Error GoTo SkipIt
+
+    modDB.ExecuteSQL sql
+    okCount = okCount + 1
+    Exit Sub
+
+SkipIt:
+    skipCount = skipCount + 1
+
+End Sub
+
+
+Private Sub MigrateMachines()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("MACHINE_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim MachineName As String
+        MachineName = Trim(ws.Cells(r, "A").Value)
+
+        If MachineName <> "" Then
+
+            Dim sql As String
+            sql = "INSERT INTO Machines (MachineName) VALUES ('" & _
+                  modDB.SQLEscape(MachineName) & "')"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "Machines: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateParts()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("PART_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim PartNo As String
+        PartNo = Trim(ws.Cells(r, "A").Value)
+
+        If PartNo <> "" Then
+
+            Dim PartName As String, Cavities As String, TrimReq As String
+            Dim InspReq As String, PackReq As String, StdPackQty As String
+            Dim PartWeight As String
+
+            PartName = modDB.SQLEscape(Trim(ws.Cells(r, "B").Value))
+            PartWeight = val(ws.Cells(r, "C").Value)
+            TrimReq = IIf(UCase(Trim(ws.Cells(r, "D").Value)) = "Y", "True", "False")
+            InspReq = IIf(UCase(Trim(ws.Cells(r, "E").Value)) = "Y", "True", "False")
+            PackReq = IIf(UCase(Trim(ws.Cells(r, "F").Value)) = "Y", "True", "False")
+            StdPackQty = val(ws.Cells(r, "I").Value)
+            Cavities = val(ws.Cells(r, "J").Value)
+
+            Dim sql As String
+            sql = "INSERT INTO Parts (PartNo, PartName, Cavities, TrimRequired, "
+            sql = sql & "InspectionRequired, PackingRequired, StdPackQty, PartWeight) VALUES ('"
+            sql = sql & modDB.SQLEscape(PartNo) & "', '"
+            sql = sql & PartName & "', "
+            sql = sql & Cavities & ", "
+            sql = sql & TrimReq & ", "
+            sql = sql & InspReq & ", "
+            sql = sql & PackReq & ", "
+            sql = sql & StdPackQty & ", "
+            sql = sql & PartWeight & ")"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "Parts: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateCycleTimes()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("CYCLETIME_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim MachineName As String, PartNo As String, CT As String
+
+        MachineName = Trim(ws.Cells(r, "A").Value)
+        PartNo = Trim(CStr(ws.Cells(r, "B").Value))
+        CT = val(ws.Cells(r, "C").Value)
+
+        If MachineName <> "" And PartNo <> "" Then
+
+            Dim sql As String
+            sql = "INSERT INTO CycleTimes (MachineName, PartNo, CycleTime) VALUES ('"
+            sql = sql & modDB.SQLEscape(MachineName) & "', '"
+            sql = sql & modDB.SQLEscape(PartNo) & "', "
+            sql = sql & CT & ")"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "CycleTimes: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateOperators()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("OperatorMaster")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    ' No header row on this sheet - data starts at row 1
+    For r = 1 To LR
+
+        Dim OperatorName As String
+        OperatorName = Trim(ws.Cells(r, "A").Value)
+
+        If OperatorName <> "" Then
+
+            Dim sql As String
+            sql = "INSERT INTO Operators (OperatorName) VALUES ('" & _
+                  modDB.SQLEscape(OperatorName) & "')"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "Operators: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateRejectReasons()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("REJECT_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim ReasonCode As String
+        ReasonCode = Trim(ws.Cells(r, "A").Value)
+
+        If ReasonCode <> "" Then
+
+            Dim ReasonText As String, Disposition As String
+
+            ReasonText = modDB.SQLEscape(Trim(ws.Cells(r, "B").Value))
+            Disposition = modDB.SQLEscape(Trim(ws.Cells(r, "C").Value))
+
+            Dim sql As String
+            sql = "INSERT INTO RejectReasons (ReasonCode, ReasonText, Disposition) VALUES ('"
+            sql = sql & modDB.SQLEscape(ReasonCode) & "', '"
+            sql = sql & ReasonText & "', '"
+            sql = sql & Disposition & "')"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "RejectReasons: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateIdleReasons()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("IDLE_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim ReasonText As String
+        ReasonText = Trim(ws.Cells(r, "A").Value)
+
+        If ReasonText <> "" Then
+
+            Dim sql As String
+            sql = "INSERT INTO IdleReasons (ReasonText) VALUES ('" & _
+                  modDB.SQLEscape(ReasonText) & "')"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "IdleReasons: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub
+
+
+Private Sub MigrateMouldChangeReasons()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("MOULD_CHANGE_REASON_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim okCount As Long, skipCount As Long, r As Long
+
+    For r = 2 To LR
+
+        Dim ReasonText As String
+        ReasonText = Trim(ws.Cells(r, "A").Value)
+
+        If ReasonText <> "" Then
+
+            Dim sql As String
+            sql = "INSERT INTO MouldChangeReasons (ReasonText) VALUES ('" & _
+                  modDB.SQLEscape(ReasonText) & "')"
+
+            Call SafeInsert(sql, okCount, skipCount)
+
+        End If
+
+    Next r
+
+    Debug.Print "MouldChangeReasons: " & okCount & " inserted, " & skipCount & " skipped (already existed)"
+
+End Sub

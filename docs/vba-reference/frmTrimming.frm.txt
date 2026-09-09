@@ -1,0 +1,724 @@
+Option Explicit
+
+Private Sub chkRework_Click()
+
+    If chkRework.Value Then
+
+        If Trim(txtBatch.Value) = "" Then
+
+            Call PopulateReworkBagPicker(cboReworkBag, "Trimming")
+
+            lstPendingRework.Visible = False
+            cboReworkBag.Visible = True
+
+            If cboReworkBag.ListCount = 0 Then
+                MsgBox "No bags currently have outstanding rework for Trimming.", _
+                       vbInformation, "No Pending Rework"
+                chkRework.Value = False
+                cboReworkBag.Visible = False
+            End If
+
+            Exit Sub
+
+        End If
+
+        cboReworkBag.Visible = False
+        lstPendingRework.Visible = True
+
+        Call PopulateOutstandingReworkList( _
+            lstPendingRework, txtBatch.Value, "Trimming", _
+            Getproductionweight(txtBatch.Value), "TRIM_LOG")
+
+        If lstPendingRework.ListCount = 0 Then
+            MsgBox "No outstanding rework found in the Rejection Log for this bag.", _
+                   vbInformation, "No Pending Rework"
+        End If
+
+    Else
+
+        lstPendingRework.Clear
+        lstPendingRework.Visible = False
+        cboReworkBag.Clear
+        cboReworkBag.Visible = False
+
+    End If
+
+End Sub
+
+' Fires when a bag is picked from the "no bag yet" rework dropdown.
+' Reads the bag code from the hidden column (never from the visible
+' text) so this can't break regardless of what's in Part Name/Reason.
+Private Sub cboReworkBag_AfterUpdate()
+
+    If cboReworkBag.ListIndex < 0 Then Exit Sub
+
+    Dim BagCode As String
+    BagCode = cboReworkBag.List(cboReworkBag.ListIndex, 1)
+
+    txtBatch.Value = BagCode
+    Call txtBatch_AfterUpdate
+
+    Dim pendingWt As Double
+    pendingWt = GetTotalOutstandingRework(BagCode, "Trimming", _
+                    Getproductionweight(BagCode), "TRIM_LOG")
+
+    txtWeight.Value = Format(pendingWt, "0.000")
+
+    cboReworkBag.Visible = False
+    lstPendingRework.Visible = True
+
+    Call PopulateOutstandingReworkList( _
+        lstPendingRework, txtBatch.Value, "Trimming", _
+        Getproductionweight(txtBatch.Value), "TRIM_LOG")
+
+End Sub
+
+Private Sub cmdClear_Click()
+
+   Call ClearForm
+
+End Sub
+
+Private Sub cmdAddReject_Click()
+
+    If cboRejectReason.Value = "" Then
+
+        MsgBox "Select Reject Reason", vbExclamation
+        Exit Sub
+
+    End If
+
+    If txtRejectQty.Value = "" Or val(txtRejectQty.Value) <= 0 Then
+
+        MsgBox "Enter a valid Reject Qty", vbExclamation
+        Exit Sub
+
+    End If
+
+    lstRejects.AddItem cboRejectReason.Value
+
+    lstRejects.List(lstRejects.ListCount - 1, 1) = val(txtRejectQty.Value)
+
+    cboRejectReason.Value = ""
+    txtRejectQty.Value = ""
+
+End Sub
+
+
+
+Private Sub txtRejectQty_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+
+    If KeyCode = vbKeyReturn Then
+        KeyCode = 0
+        Call cmdAddReject_Click
+    End If
+
+End Sub
+
+Private Sub lstRejects_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If lstRejects.ListIndex < 0 Then Exit Sub
+
+    If MsgBox("Remove this reject entry?" & vbCrLf & vbCrLf & _
+              "Reason: " & lstRejects.List(lstRejects.ListIndex, 0) & vbCrLf & _
+              "Qty: " & lstRejects.List(lstRejects.ListIndex, 1), _
+              vbQuestion + vbYesNo, "Remove Reject Entry") = vbYes Then
+
+        lstRejects.RemoveItem lstRejects.ListIndex
+
+    End If
+
+End Sub
+
+Private Function TotalRejectQty() As Double
+
+    Dim i As Long
+
+    For i = 0 To lstRejects.ListCount - 1
+        TotalRejectQty = TotalRejectQty + val(lstRejects.List(i, 1))
+    Next i
+
+End Function
+
+Private Sub SaveTrimRejectLines()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim i As Long
+
+    Set ws = Sheets("TRIM_REJECT_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    For i = 0 To lstRejects.ListCount - 1
+
+        LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        ws.Cells(LR, "A").Value = Date
+        ws.Cells(LR, "B").Value = txtBatch.Value
+        ws.Cells(LR, "C").Value = lblPart.Caption
+        ws.Cells(LR, "D").Value = cboOperator.Value
+        ws.Cells(LR, "E").Value = lstRejects.List(i, 0) 'Reason
+        ws.Cells(LR, "F").Value = lstRejects.List(i, 1) 'Qty
+
+    Next i
+
+End Sub
+
+Private Sub LoadRejectReasons()
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("REJECT_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    cboRejectReason.Clear
+
+    For r = 2 To LR
+        cboRejectReason.AddItem ws.Cells(r, "B").Value
+    Next r
+
+End Sub
+
+Private Sub txtRunnerWeight_Change()
+
+    Call UpdateExpectedPiecesDisplay
+
+End Sub
+
+Private Sub UpdateExpectedPiecesDisplay()
+
+    If lblPart.Caption = "-" Or lblPart.Caption = "" Then Exit Sub
+    If Not IsBagWithRunner(txtBatch.Value) Then Exit Sub
+
+    Dim EffectiveWt As Double
+    EffectiveWt = val(txtWeight.Value) + val(txtRunnerWeight.Value)
+
+    Dim ExpectedPieces As Double
+    ExpectedPieces = GetExpectedPiecesFromShotWeight(lblPart.Caption, EffectiveWt)
+
+    If ExpectedPieces > 0 Then
+        lblExpectedPieces.Caption = Format(ExpectedPieces, "#,##0") & _
+            " (from Shot Wt - cross-check only)"
+    Else
+        lblExpectedPieces.Caption = "-"
+    End If
+
+End Sub
+
+Private Sub cmdSave_Click()
+
+    Dim ws As Worksheet
+
+    Dim LR As Long
+
+    Dim RemWt As Double
+
+    If txtBatch.Value = "" Then
+
+        MsgBox "Enter Batch Number"
+
+        Exit Sub
+
+    End If
+
+    If cboOperator.Value = "" Then
+
+        MsgBox "Select Operator"
+
+        Exit Sub
+
+    End If
+
+    If txtWeight.Value = "" Then
+
+        MsgBox "Enter Weight"
+
+        Exit Sub
+
+    End If
+
+    Dim IsWithRunner As Boolean
+    Dim RunnerWt As Double
+
+    IsWithRunner = IsBagWithRunner(txtBatch.Value)
+    RunnerWt = IIf(IsWithRunner, val(txtRunnerWeight.Value), 0)
+
+    RemWt = RemainingWeight( _
+                txtBatch.Value, _
+                "TRIM_LOG")
+
+    ' RemainingWeight only sums the Part-only Weight column from
+    ' TRIM_LOG - for With-Runner bags, previously-processed Runner
+    ' weight also needs subtracting here, since it's real material
+    ' that's already been removed from this bag too, just recorded
+    ' in a separate column.
+    If IsWithRunner Then
+        RemWt = RemWt - GetProcessedRunnerWeight(txtBatch.Value)
+    End If
+
+    Dim EnteredWt As Double
+    Dim TrimTolerance As Double
+
+    EnteredWt = CDbl(txtWeight.Value)
+
+    ' For With-Runner bags, the figure being compared against what's
+    ' remaining in the bag is Part + Runner combined - that matches
+    ' how the bag's original weight was recorded at Bag Entry (Part
+    ' and Runner weighed together, not separated).
+    Dim EffectiveEnteredWt As Double
+    EffectiveEnteredWt = EnteredWt + RunnerWt
+
+    TrimTolerance = GetEntryTolerance(Getproductionweight(txtBatch.Value))
+
+    If EffectiveEnteredWt > RemWt + TrimTolerance Then
+
+        MsgBox "Entered weight (" & Format(EffectiveEnteredWt, "0.000") & _
+               " Kg" & IIf(IsWithRunner, " incl. Runner", "") & _
+               ") exceeds remaining (" & Format(RemWt, "0.000") & _
+               " Kg) by more than the allowed tolerance (" & _
+               Format(TrimTolerance, "0.000") & " Kg)." & vbCrLf & _
+               "Cannot save.", vbExclamation, "Weight Exceeds Remaining"
+
+        Exit Sub
+
+    ElseIf EffectiveEnteredWt > RemWt Then
+
+        If MsgBox( _
+            "Weight Entered: " & Format(EffectiveEnteredWt, "0.000") & " Kg" & _
+            IIf(IsWithRunner, " (Part " & Format(EnteredWt, "0.000") & " + Runner " & Format(RunnerWt, "0.000") & ")", "") & vbCrLf & _
+            "Remaining Before This Entry: " & Format(RemWt, "0.000") & " Kg" & vbCrLf & _
+            "This is " & Format(EffectiveEnteredWt - RemWt, "0.000") & _
+            " Kg over remaining, within tolerance." & vbCrLf & vbCrLf & _
+            "Confirm to proceed?", _
+            vbQuestion + vbYesNo, "Confirm Overage") = vbNo Then
+
+            Exit Sub
+
+        End If
+
+    ElseIf EffectiveEnteredWt < RemWt Then
+
+        Dim RemAfterEntry As Double
+        RemAfterEntry = RemWt - EffectiveEnteredWt
+
+        If Not IsWithinTolerance(RemAfterEntry, Getproductionweight(txtBatch.Value)) Then
+
+            If MsgBox( _
+                "Weight Entered: " & Format(EffectiveEnteredWt, "0.000") & " Kg" & _
+                IIf(IsWithRunner, " (Part " & Format(EnteredWt, "0.000") & " + Runner " & Format(RunnerWt, "0.000") & ")", "") & vbCrLf & _
+                "Remaining Before This Entry: " & Format(RemWt, "0.000") & " Kg" & vbCrLf & _
+                "Balance After This Entry: " & Format(RemAfterEntry, "0.000") & " Kg" & vbCrLf & vbCrLf & _
+                "This is a PARTIAL trimming entry - it does not finish this bag." & vbCrLf & _
+                "Confirm to proceed?", _
+                vbQuestion + vbYesNo, "Confirm Partial Entry") = vbNo Then
+
+                Exit Sub
+
+            End If
+
+        End If
+        ' Else: the leftover is already within tolerance - no separate
+        ' "partial" warning needed here. CheckAndUpdateBagStatus (below,
+        ' after the save) will ask the single "mark as complete?"
+        ' confirmation instead of showing two prompts for the same thing.
+
+    End If
+
+    Dim OutstandingRework As Double
+    Dim LooksLikeRework As Boolean
+    Dim EntryType As String
+
+    OutstandingRework = GetTotalOutstandingRework( _
+        txtBatch.Value, "Trimming", Getproductionweight(txtBatch.Value), "TRIM_LOG")
+
+    LooksLikeRework = (OutstandingRework > 0.001)
+
+    If chkRework.Value <> LooksLikeRework Then
+
+        If MsgBox( _
+            "Rework checkbox is " & IIf(chkRework.Value, "CHECKED", "UNCHECKED") & _
+            ", but the Rejection Log shows " & Format(OutstandingRework, "0.000") & _
+            " Kg of outstanding rework routed to Trimming for this bag." & vbCrLf & vbCrLf & _
+            "Continue anyway with your checkbox setting?", _
+            vbQuestion + vbYesNo, "Check Rework Setting") = vbNo Then
+
+            Exit Sub
+
+        End If
+
+    End If
+
+    If chkRework.Value Then
+        EntryType = "REWORK"
+    Else
+        EntryType = "ORIGINAL"
+    End If
+
+    Dim RejectQtyTotal As Double
+    RejectQtyTotal = TotalRejectQty()
+
+    Dim ConfirmMsg As String
+    ConfirmMsg = "Confirm Trimming Entry:" & vbCrLf & vbCrLf & _
+        "Batch: " & txtBatch.Value & vbCrLf & _
+        "Part: " & lblPart.Caption & vbCrLf & _
+        "Operator: " & cboOperator.Value & vbCrLf & vbCrLf & _
+        "Weight Trimmed (Part): " & Format(EnteredWt, "0.000") & " Kg" & _
+        IIf(IsWithRunner, vbCrLf & "Runner Weight: " & Format(RunnerWt, "0.000") & " Kg", "") & vbCrLf & _
+        "Reject Qty: " & Format(RejectQtyTotal, "#,##0") & " (" & lstRejects.ListCount & " reason(s))" & vbCrLf & _
+        "Entry Type: " & EntryType & _
+        IIf(IsWithRunner And lblExpectedPieces.Caption <> "-" And lblExpectedPieces.Caption <> "", _
+            vbCrLf & vbCrLf & "Expected Pieces (Shot Wt cross-check): " & lblExpectedPieces.Caption, "") & _
+        vbCrLf & vbCrLf & _
+        "Save this entry?"
+
+    If MsgBox(ConfirmMsg, vbQuestion + vbYesNo, "Confirm Trimming Entry") = vbNo Then
+
+        Exit Sub
+
+    End If
+
+    Call SaveTrimRejectLines
+
+    Set ws = Sheets("TRIM_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Date
+    ws.Cells(LR, "B").Value = txtBatch.Value
+    ws.Cells(LR, "C").Value = lblPart.Caption
+    ws.Cells(LR, "D").Value = cboOperator.Value
+    ws.Cells(LR, "E").Value = txtWeight.Value
+    ws.Cells(LR, "F").Value = lblPieces.Caption
+    ws.Cells(LR, "G").Value = RejectQtyTotal
+    ws.Cells(LR, "H").Value = EntryType
+    ws.Cells(LR, "I").Value = RunnerWt
+
+    ' Correction applied the same way as before the save: RemainingWeight
+    ' only knows about the Part-only column, so Runner weight (now
+    ' including THIS entry's, since TRIM_LOG was just written above)
+    ' is subtracted separately for With-Runner bags.
+    Dim FinalRemWt As Double
+    FinalRemWt = RemainingWeight(txtBatch.Value, "TRIM_LOG")
+
+    If IsWithRunner Then
+        FinalRemWt = FinalRemWt - GetProcessedRunnerWeight(txtBatch.Value)
+    End If
+
+    Call CheckAndUpdateBagStatus( _
+        txtBatch.Value, _
+        FinalRemWt, _
+        Getproductionweight(txtBatch.Value), _
+        "TRIMMED", "Trimmed")
+
+    MsgBox "Trimming Transaction Saved"
+
+    Call ClearForm
+
+End Sub
+
+Private Sub txtWeight_Change()
+
+    Dim PW As Double
+
+    If lblPart.Caption = "-" Then Exit Sub
+
+    PW = GetPartWeight(lblPart.Caption)
+
+    If PW = 0 Then Exit Sub
+
+    If IsNumeric(txtWeight.Value) Then
+
+        lblPieces.Caption = _
+            WeightToPieces( _
+                CDbl(txtWeight.Value), _
+                PW)
+
+    End If
+
+    Call UpdateExpectedPiecesDisplay
+
+End Sub
+
+Private Sub chkSelectByPart_Click()
+
+    If chkSelectByPart.Value Then
+
+        ' Checked = Select by Barcode (direct entry/scan)
+        cboPartNoFIFO.Visible = False
+        cboPartNoFIFO.Value = ""
+        txtBatch.Locked = False
+        txtBatch.Value = ""
+
+    Else
+
+        ' Unchecked (default) = Select by Part - FIFO, since barcode
+        ' labels aren't in use yet.
+        cboPartNoFIFO.Visible = True
+        txtBatch.Locked = True
+        txtBatch.Value = ""
+
+        Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+
+    End If
+
+End Sub
+
+Private Sub cboPartNoFIFO_AfterUpdate()
+
+    If cboPartNoFIFO.Value = "" Then Exit Sub
+
+    Dim foundBag As String
+    foundBag = GetFIFOBagForTrimming(cboPartNoFIFO.Value)
+
+    If foundBag = "" Then
+
+        MsgBox "No bags currently ready for Trimming for Part '" & _
+               cboPartNoFIFO.Value & "'.", vbInformation, "No Bags Available"
+
+        txtBatch.Value = ""
+        Exit Sub
+
+    End If
+
+    txtBatch.Value = foundBag
+    Call txtBatch_AfterUpdate
+
+End Sub
+
+Private Sub txtBatch_AfterUpdate()
+
+    Dim BatchNo As String
+    Dim ProdWt As Double
+    Dim RemWt As Double
+
+    BatchNo = Trim(txtBatch.Value)
+
+    If BatchNo = "" Then Exit Sub
+
+    If GetPartName(BatchNo) = "" Then
+
+        MsgBox "Batch Number '" & BatchNo & _
+               "' does not exist.", _
+               vbExclamation, "Invalid Batch"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If GetBagType(BatchNo) <> "PART" And GetBagType(BatchNo) <> "" Then
+
+        MsgBox "'" & BatchNo & "' is a " & GetBagType(BatchNo) & " bag, not a Part bag." & vbCrLf & _
+               "Only Part bags go through Trimming - Runner, Rejection and Lump entries are scrap/waste material.", _
+               vbExclamation, "Not a Part Bag"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If Not IsBatchInProductionLog(GetBatchNoForBag(BatchNo)) Then
+
+        MsgBox "This bag's batch (" & GetBatchNoForBag(BatchNo) & _
+               ") was not found in Production Log.", _
+               vbExclamation, "Production Log Mismatch"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If StageRank(GetBagStatus(BatchNo)) >= 1 Then
+
+        If MsgBox( _
+            "This bag is already at status '" & GetBagStatus(BatchNo) & _
+            "'." & vbCrLf & vbCrLf & _
+            "Add another Trimming entry anyway?", _
+            vbQuestion + vbYesNo, "Bag Already Processed") = vbNo Then
+
+            txtBatch.Value = ""
+            txtBatch.SetFocus
+
+            Exit Sub
+
+        End If
+
+    End If
+
+    lblPart.Caption = GetPartName(BatchNo)
+
+    Call LoadBagsForBatch(lstBagsInBatch, GetBatchNoForBag(BatchNo))
+
+    If Not IsTrimRequired(lblPart.Caption) Then
+
+        If MsgBox( _
+            "Part Master shows Trimming = N for '" & lblPart.Caption & _
+            "' - this is normally a direct-to-Inspection part." & vbCrLf & vbCrLf & _
+            "Confirm: do you still want to record a Trimming entry for this bag?", _
+            vbQuestion + vbYesNo, "Trimming Not Required") = vbNo Then
+
+            txtBatch.Value = ""
+            txtBatch.SetFocus
+
+            Exit Sub
+
+        End If
+
+    End If
+
+    ' With-Runner provision: this bag's Part+Runner were weighed
+    ' together at Bag Entry, so the operator needs to separate them
+    ' here and record the Runner portion too.
+    If IsBagWithRunner(BatchNo) Then
+        lblRunnerWeightCaption.Visible = True
+        txtRunnerWeight.Visible = True
+        lblExpectedPiecesCaption.Visible = True
+        lblExpectedPieces.Visible = True
+        txtRunnerWeight.Value = ""
+        lblExpectedPieces.Caption = "-"
+    Else
+        lblRunnerWeightCaption.Visible = False
+        txtRunnerWeight.Visible = False
+        lblExpectedPiecesCaption.Visible = False
+        lblExpectedPieces.Visible = False
+        txtRunnerWeight.Value = ""
+    End If
+
+    lblOKQty.Caption = Format(GetOKQty(BatchNo), "#,##0")
+
+    ProdWt = Getproductionweight(BatchNo)
+
+    lblProdWt.Caption = Format(ProdWt, "0.00")
+    lblProcessedWt.Caption = _
+        Format(GetTrimmedWeight(BatchNo), "0.00")
+
+    RemWt = RemainingWeight(BatchNo, "TRIM_LOG")
+
+    If IsBagWithRunner(BatchNo) Then
+        RemWt = RemWt - GetProcessedRunnerWeight(BatchNo)
+        lblProcessedWt.Caption = Format(GetTrimmedWeight(BatchNo) + GetProcessedRunnerWeight(BatchNo), "0.00")
+    End If
+
+    lblRemaining.Caption = Format(RemWt, "0.00")
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LastRow As Long
+
+    chkSelectByPart.Caption = "Select by Barcode (uncheck = Select by Part)"
+    chkSelectByPart.Value = False
+    cboPartNoFIFO.Visible = True
+    txtBatch.Locked = True
+    Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+
+    lblRunnerWeightCaption.Visible = False
+    txtRunnerWeight.Visible = False
+    lblExpectedPiecesCaption.Visible = False
+    lblExpectedPieces.Visible = False
+
+    With lstBagsInBatch
+        .ColumnCount = 4
+        .ColumnWidths = "75 pt;60 pt;60 pt;65 pt"
+        .Visible = False
+    End With
+
+    Set ws = Sheets("OperatorMaster")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    cboOperator.Clear
+
+    For r = 2 To LastRow
+
+        cboOperator.AddItem ws.Cells(r, "A").Value
+
+    Next r
+
+    Call LoadRejectReasons
+
+End Sub
+
+Private Sub ClearForm()
+
+    txtBatch.Value = ""
+
+    txtWeight.Value = ""
+
+    cboOperator.Value = ""
+
+    chkRework.Value = False
+    lstPendingRework.Clear
+    lstPendingRework.Visible = False
+    cboReworkBag.Clear
+    cboReworkBag.Visible = False
+
+    cboPartNoFIFO.Value = ""
+    If Not chkSelectByPart.Value Then
+        Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+    End If
+
+    cboRejectReason.Value = ""
+    txtRejectQty.Value = ""
+    lstRejects.Clear
+
+    lblPart.Caption = "-"
+
+    lblProdWt.Caption = "-"
+
+    lblRemaining.Caption = "-"
+
+    lblPieces.Caption = "-"
+
+    txtRunnerWeight.Value = ""
+    lblRunnerWeightCaption.Visible = False
+    txtRunnerWeight.Visible = False
+    lblExpectedPiecesCaption.Visible = False
+    lblExpectedPieces.Visible = False
+    lblExpectedPieces.Caption = "-"
+
+    lstBagsInBatch.Clear
+    lstBagsInBatch.Visible = False
+If chkSelectByPart.Value Then
+        txtBatch.SetFocus
+    Else
+        cboPartNoFIFO.SetFocus
+    End If
+End Sub
+
+Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+
+    If KeyCode = vbKeyReturn Then
+
+        Dim skipAdvance As Boolean
+        skipAdvance = False
+
+        On Error Resume Next
+        If TypeOf Me.ActiveControl Is MSForms.TextBox Then
+            If Me.ActiveControl.Multiline Then skipAdvance = True
+        End If
+        On Error GoTo 0
+
+        If Not skipAdvance Then
+            KeyCode = 0
+            Call MoveToNextControl(Me)
+        End If
+
+    End If
+
+End Sub

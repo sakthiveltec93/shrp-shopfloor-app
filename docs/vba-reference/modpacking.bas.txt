@@ -1,0 +1,435 @@
+Option Explicit
+
+Public Function GetTodaysActualPacketWt(ByVal PartNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestWt As Double
+    Dim bestTime As Date
+    Dim found As Boolean
+
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = Trim(PartNo) Then
+
+            If IsDate(ws.Cells(r, "A").Value) Then
+
+                Dim entryDateTime As Date
+                entryDateTime = ws.Cells(r, "A").Value
+
+                If DateValue(entryDateTime) = DateValue(Now) Then
+
+                    If Not found Or entryDateTime > bestTime Then
+                        found = True
+                        bestTime = entryDateTime
+                        bestWt = val(ws.Cells(r, "F").Value)
+                    End If
+
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+    If found Then
+        GetTodaysActualPacketWt = bestWt
+    Else
+        GetTodaysActualPacketWt = 0
+    End If
+
+End Function
+Public Function GetStdPackQty(ByVal PartNo As String) As Long
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If ws.Cells(r, "A").Value = PartNo Then
+
+            GetStdPackQty = val(ws.Cells(r, "I").Value)
+
+            Exit Function
+
+        End If
+
+    Next r
+
+End Function
+
+
+Public Function GetPackedQty(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If ws.Cells(r, "B").Value = BatchNo Then
+
+            GetPackedQty = GetPackedQty + _
+                           val(ws.Cells(r, "H").Value)
+
+        End If
+
+    Next r
+
+End Function
+
+
+Public Function GetPackedWeight(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If ws.Cells(r, "B").Value = BatchNo Then
+
+            GetPackedWeight = GetPackedWeight + _
+                              val(ws.Cells(r, "I").Value)
+
+        End If
+
+    Next r
+
+End Function
+
+
+Public Function GetInspectedQty(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("INSPECTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If ws.Cells(r, "B").Value = BatchNo Then
+
+            GetInspectedQty = GetInspectedQty + _
+                              val(ws.Cells(r, "F").Value)
+
+        End If
+
+    Next r
+
+End Function
+Public Sub LogQtyVariance(ByVal BatchNo As String, ByVal PartNo As String, ByVal Source As String)
+
+    Dim EstimatedQty As Double
+    Dim ActualFGQty As Double
+    Dim FinalVariance As Double
+    Dim FinalVariancePct As Double
+    Dim PW As Double
+    Dim wsVar As Worksheet
+    Dim LRVar As Long
+
+    PW = GetPartWeight(PartNo)
+
+    If PW > 0 Then
+        EstimatedQty = Round((GetInspectedWeight(BatchNo) * 1000) / PW, 0)
+    Else
+        EstimatedQty = 0
+    End If
+
+    ActualFGQty = GetPackedQty(BatchNo)
+    FinalVariance = ActualFGQty - EstimatedQty
+
+    If EstimatedQty <> 0 Then
+        FinalVariancePct = (FinalVariance / EstimatedQty) * 100
+    Else
+        FinalVariancePct = 0
+    End If
+
+    Set wsVar = Sheets("QTY_VARIANCE_LOG")
+    If wsVar.FilterMode Then wsVar.ShowAllData
+    LRVar = wsVar.Cells(wsVar.Rows.Count, "A").End(xlUp).Row + 1
+
+    wsVar.Cells(LRVar, "A").Value = Date
+    wsVar.Cells(LRVar, "B").Value = BatchNo
+    wsVar.Cells(LRVar, "C").Value = PartNo
+    wsVar.Cells(LRVar, "D").Value = EstimatedQty
+    wsVar.Cells(LRVar, "E").Value = ActualFGQty
+    wsVar.Cells(LRVar, "F").Value = FinalVariance
+    wsVar.Cells(LRVar, "G").Value = Format(FinalVariancePct, "0.00")
+    wsVar.Cells(LRVar, "H").Value = Source
+
+End Sub
+Public Function AvailablePackingQty(ByVal BatchNo As String) As Double
+
+    Dim PW As Double
+    Dim PartNo As String
+
+    PartNo = GetPartName(BatchNo)
+
+    PW = GetPartWeight(PartNo)
+
+    If PW = 0 Then Exit Function
+
+    AvailablePackingQty = _
+        Round((AvailablePackingWeight(BatchNo) * 1000) / PW, 0)
+
+End Function
+
+
+Public Function AvailablePackingWeight(ByVal BatchNo As String) As Double
+
+    Dim ActualTrimmedWt As Double
+    Dim InspBaseWt As Double
+
+    ActualTrimmedWt = GetProcessedWeight(BatchNo, "TRIM_LOG")
+
+    If ActualTrimmedWt > 0.001 Then
+        InspBaseWt = ActualTrimmedWt
+    Else
+        InspBaseWt = Getproductionweight(BatchNo)
+    End If
+
+    Dim OutstandingReworkAtInspection As Double
+    OutstandingReworkAtInspection = _
+        GetTotalOutstandingRework(BatchNo, "Inspection", InspBaseWt, "INSPECTION_LOG")
+
+    AvailablePackingWeight = _
+        GetInspectedWeight(BatchNo) - _
+        GetPackedWeight(BatchNo) - _
+        OutstandingReworkAtInspection
+
+    If AvailablePackingWeight < 0 Then AvailablePackingWeight = 0
+
+End Function
+
+
+' The weight-based estimate (AvailablePackingQty) can be off by the
+' piece counts a 50-100g weighing-scale granularity can't catch.
+' Packing uses a high-precision counting scale, so once an operator
+' has actually counted the remaining quantity (column O in
+' PACKING_LOG, entered via the form), that counted figure becomes
+' the new source of truth for this bag - not the weight estimate.
+'
+' Looks at this bag's most recent PACKING_LOG row:
+'   - if it has an Actual Balance Qty (column O) entered, use that
+'   - else fall back to that row's System Remain Qty (column J)
+'   - else (no packing history yet) fall back to the weight estimate
+Public Function GetAdjustedAvailableQty(ByVal BagCode As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = LR To 2 Step -1
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(BagCode) Then
+
+            If Trim(ws.Cells(r, "O").Value) <> "" Then
+                GetAdjustedAvailableQty = val(ws.Cells(r, "O").Value)
+            Else
+                GetAdjustedAvailableQty = val(ws.Cells(r, "J").Value)
+            End If
+
+            Exit Function
+
+        End If
+
+    Next r
+
+    ' No packing history yet for this bag - nothing to adjust from.
+    GetAdjustedAvailableQty = AvailablePackingQty(BagCode)
+
+End Function
+
+
+' ================================================================
+' Cross-bag balance pooling for Packing - when a bag's leftover Qty
+' is too small for another full cover, it moves into a shared pool
+' per Part No, where leftovers from multiple different bags can
+' accumulate until there's enough for an extra cover.
+' ================================================================
+
+Public Function GetPackingBalancePool(ByVal PartNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PACKING_BALANCE_POOL")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            GetPackingBalancePool = val(ws.Cells(r, "B").Value)
+            Exit Function
+        End If
+    Next r
+
+    GetPackingBalancePool = 0
+
+End Function
+
+
+Public Sub AddToPackingBalancePool(ByVal PartNo As String, ByVal Qty As Double, _
+                                    ByVal OperatorName As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim found As Boolean
+
+    Set ws = Sheets("PACKING_BALANCE_POOL")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            ws.Cells(r, "B").Value = val(ws.Cells(r, "B").Value) + Qty
+            ws.Cells(r, "C").Value = Now
+            ws.Cells(r, "D").Value = OperatorName
+            found = True
+            Exit For
+        End If
+    Next r
+
+    If Not found Then
+        r = LR + 1
+        ws.Cells(r, "A").Value = PartNo
+        ws.Cells(r, "B").Value = Qty
+        ws.Cells(r, "C").Value = Now
+        ws.Cells(r, "D").Value = OperatorName
+    End If
+
+End Sub
+
+
+Public Sub DeductFromPackingBalancePool(ByVal PartNo As String, ByVal Qty As Double, _
+                                         ByVal OperatorName As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PACKING_BALANCE_POOL")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            ws.Cells(r, "B").Value = val(ws.Cells(r, "B").Value) - Qty
+            If val(ws.Cells(r, "B").Value) < 0 Then ws.Cells(r, "B").Value = 0
+            ws.Cells(r, "C").Value = Now
+            ws.Cells(r, "D").Value = OperatorName
+            Exit For
+        End If
+    Next r
+
+End Sub
+
+
+' Checks whether this Part's pool now holds enough for at least one
+' extra cover, and if so, asks how many were actually made. Deducts
+' accordingly and logs the event. Non-blocking - called after a
+' Packing save closes out a bag.
+Public Sub CheckExtraCoverOpportunity(ByVal PartNo As String, ByVal StdPack As Double, _
+                                       ByVal OperatorName As String)
+
+    If StdPack <= 0 Then Exit Sub
+
+    Dim Pool As Double
+    Pool = GetPackingBalancePool(PartNo)
+
+    If Pool < StdPack Then Exit Sub ' not enough yet for even 1 extra cover
+
+    Dim MaxExtraCovers As Long
+    MaxExtraCovers = Int(Pool / StdPack)
+
+    Dim ExtraCoverStr As String
+    ExtraCoverStr = InputBox( _
+        "Part " & PartNo & ": cumulative balance from multiple bags is " & _
+        Format(Pool, "#,##0") & " Nos." & vbCrLf & vbCrLf & _
+        "Using these balance pieces, up to " & MaxExtraCovers & _
+        " extra cover(s) can be made (Std Pack Qty = " & _
+        Format(StdPack, "#,##0") & " Nos each)." & vbCrLf & vbCrLf & _
+        "How many extra covers were actually made from the balance? (0 if none yet)", _
+        "Extra Cover Opportunity")
+
+    If Trim(ExtraCoverStr) = "" Then Exit Sub ' cancelled
+
+    Dim ExtraCovers As Long
+    ExtraCovers = val(ExtraCoverStr)
+
+    If ExtraCovers <= 0 Then Exit Sub
+
+    If ExtraCovers > MaxExtraCovers Then
+        MsgBox "Cannot claim " & ExtraCovers & " extra covers - the pool only " & _
+               "has enough for " & MaxExtraCovers & ".", vbExclamation, "Exceeds Pool Balance"
+        Exit Sub
+    End If
+
+    Dim QtyUsed As Double
+    QtyUsed = ExtraCovers * StdPack
+
+    Dim BalanceBefore As Double
+    BalanceBefore = Pool
+
+    Call DeductFromPackingBalancePool(PartNo, QtyUsed, OperatorName)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+
+    Set ws = Sheets("PACKING_EXTRA_COVER_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Date
+    ws.Cells(LR, "A").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "B").Value = Format(Now, "HH:mm")
+    ws.Cells(LR, "C").Value = PartNo
+    ws.Cells(LR, "D").Value = ExtraCovers
+    ws.Cells(LR, "E").Value = QtyUsed
+    ws.Cells(LR, "F").Value = BalanceBefore
+    ws.Cells(LR, "G").Value = BalanceBefore - QtyUsed
+    ws.Cells(LR, "H").Value = OperatorName
+
+    MsgBox ExtraCovers & " extra cover(s) logged for " & PartNo & "." & vbCrLf & _
+           "Remaining pool balance: " & Format(BalanceBefore - QtyUsed, "#,##0") & " Nos.", _
+           vbInformation, "Extra Cover Logged"
+
+End Sub

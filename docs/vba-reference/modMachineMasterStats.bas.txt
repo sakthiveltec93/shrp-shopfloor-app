@@ -1,0 +1,212 @@
+Option Explicit
+
+' Called after every Production Entry save. Recomputes, for the given
+' Machine, from source data (never incrementally accumulated):
+'   I: Current Mould, J: Current Part - most recent Part No run
+'   N: Cumulative Shots Produced - all-time total from PRODUCTION_LOG
+'   O/P/Q: Last Breakdown Date/Reason/Minutes - most recent
+'          PRODUCTION_IDLE_LOG entry with Reason = "Machine Breakdown"
+Public Sub UpdateMachineMasterStats(ByVal MachineNo As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim TargetRow As Long
+
+    Set ws = Sheets("MACHINE_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    TargetRow = 0
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(MachineNo) Then
+            TargetRow = r
+            Exit For
+        End If
+    Next r
+
+    If TargetRow = 0 Then Exit Sub ' machine not found in MACHINE_MASTER
+
+    Dim wsP As Worksheet
+    Dim LRp As Long
+    Dim rp As Long
+
+    Set wsP = Sheets("PRODUCTION_LOG")
+    If wsP.FilterMode Then wsP.ShowAllData
+    LRp = wsP.Cells(wsP.Rows.Count, "B").End(xlUp).Row
+
+    ' --- Current Mould / Current Part ---
+    Dim latestPart As String
+    Dim latestDate As Date
+    Dim foundPart As Boolean
+    foundPart = False
+
+    For rp = 2 To LRp
+        If Trim(wsP.Cells(rp, "D").Value) = Trim(MachineNo) And IsDate(wsP.Cells(rp, "B").Value) Then
+            If Not foundPart Or wsP.Cells(rp, "B").Value >= latestDate Then
+                foundPart = True
+                latestDate = wsP.Cells(rp, "B").Value
+                latestPart = wsP.Cells(rp, "E").Value
+            End If
+        End If
+    Next rp
+
+    If foundPart Then
+        ws.Cells(TargetRow, "I").Value = latestPart ' Current Mould
+        ws.Cells(TargetRow, "J").Value = latestPart ' Current Part
+    End If
+
+    ' --- Cumulative Shots Produced - full recompute, all-time ---
+    Dim totalShots As Double
+    totalShots = 0
+
+    For rp = 2 To LRp
+        If Trim(wsP.Cells(rp, "D").Value) = Trim(MachineNo) Then
+            totalShots = totalShots + val(wsP.Cells(rp, "L").Value)
+        End If
+    Next rp
+
+    ws.Cells(TargetRow, "N").Value = totalShots
+
+    ' --- Last Breakdown (Machine-related reasons only, per
+    ' IDLE_MASTER's "Related To" categorization - not a hardcoded
+    ' reason name, so this stays correct as new machine-related
+    ' reasons get added to IDLE_MASTER later) ---
+    Dim wsIdle As Worksheet
+    Dim LRIdle As Long
+    Dim ri As Long
+    Dim foundBreakdown As Boolean
+    Dim bdDate As Date
+    Dim bdReason As String
+    Dim bdMinutes As Double
+    foundBreakdown = False
+
+    Set wsIdle = Sheets("PRODUCTION_IDLE_LOG")
+    If wsIdle.FilterMode Then wsIdle.ShowAllData
+    LRIdle = wsIdle.Cells(wsIdle.Rows.Count, "A").End(xlUp).Row
+
+    For ri = 2 To LRIdle
+
+        If Trim(wsIdle.Cells(ri, "B").Value) = Trim(MachineNo) And _
+           UCase(GetIdleRelatedTo(wsIdle.Cells(ri, "E").Value)) = "MACHINE" And _
+           IsDate(wsIdle.Cells(ri, "A").Value) Then
+
+            If Not foundBreakdown Or wsIdle.Cells(ri, "A").Value >= bdDate Then
+                foundBreakdown = True
+                bdDate = wsIdle.Cells(ri, "A").Value
+                bdReason = wsIdle.Cells(ri, "E").Value
+                bdMinutes = val(wsIdle.Cells(ri, "F").Value)
+            End If
+
+        End If
+
+    Next ri
+
+    If foundBreakdown Then
+        ws.Cells(TargetRow, "O").Value = bdDate
+        ws.Cells(TargetRow, "O").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(TargetRow, "P").Value = bdReason
+        ws.Cells(TargetRow, "Q").Value = bdMinutes
+    End If
+
+End Sub
+
+
+' Looks up an Idle Reason's category from IDLE_MASTER column B
+' (Related To) - e.g. "Machine", "Mould", "EB", "Material". Returns
+' "" if the reason isn't found or has no category set yet.
+Public Function GetIdleRelatedTo(ByVal Reason As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("IDLE_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(Reason) Then
+            GetIdleRelatedTo = Trim(ws.Cells(r, "B").Value)
+            Exit Function
+        End If
+    Next r
+
+    GetIdleRelatedTo = ""
+
+End Function
+
+
+' Called after every Production Entry save, alongside
+' UpdateMachineMasterStats. Recomputes Last Breakdown Date/Reason/
+' Minutes on MOULD_MASTER for this Part No, using only idle entries
+' whose IDLE_MASTER category is Mould-related. Matched by Part No
+' (column C on MOULD_MASTER), since a mould's identity tracks with
+' the part it makes, not with whichever machine it's currently on.
+Public Sub UpdateMouldMasterBreakdown(ByVal PartNo As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim TargetRow As Long
+
+    Set ws = Sheets("MOULD_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    TargetRow = 0
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "C").Value) = Trim(PartNo) Then
+            TargetRow = r
+            Exit For
+        End If
+    Next r
+
+    If TargetRow = 0 Then Exit Sub ' part/mould not found in MOULD_MASTER
+
+    Dim wsIdle As Worksheet
+    Dim LRIdle As Long
+    Dim ri As Long
+    Dim foundBreakdown As Boolean
+    Dim bdDate As Date
+    Dim bdReason As String
+    Dim bdMinutes As Double
+    Dim relatedTo As String
+    foundBreakdown = False
+
+    Set wsIdle = Sheets("PRODUCTION_IDLE_LOG")
+    If wsIdle.FilterMode Then wsIdle.ShowAllData
+    LRIdle = wsIdle.Cells(wsIdle.Rows.Count, "A").End(xlUp).Row
+
+    For ri = 2 To LRIdle
+
+        If Trim(wsIdle.Cells(ri, "C").Value) = Trim(PartNo) And IsDate(wsIdle.Cells(ri, "A").Value) Then
+
+            ' Tolerant of both "Mold" and "Mould" - IDLE_MASTER
+            ' currently has both spellings for what's clearly meant
+            ' to be the same category.
+            relatedTo = UCase(GetIdleRelatedTo(wsIdle.Cells(ri, "E").Value))
+
+            If relatedTo = "MOULD" Or relatedTo = "MOLD" Then
+
+                If Not foundBreakdown Or wsIdle.Cells(ri, "A").Value >= bdDate Then
+                    foundBreakdown = True
+                    bdDate = wsIdle.Cells(ri, "A").Value
+                    bdReason = wsIdle.Cells(ri, "E").Value
+                    bdMinutes = val(wsIdle.Cells(ri, "F").Value)
+                End If
+
+            End If
+
+        End If
+
+    Next ri
+
+    If foundBreakdown Then
+        ws.Cells(TargetRow, "S").Value = bdDate ' Last Breakdown Date
+        ws.Cells(TargetRow, "S").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(TargetRow, "T").Value = bdReason  ' Last Breakdown Reason
+        ws.Cells(TargetRow, "U").Value = bdMinutes ' Last Breakdown Minutes
+    End If
+
+End Sub

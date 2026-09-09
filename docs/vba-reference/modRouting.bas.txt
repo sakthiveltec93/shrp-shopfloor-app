@@ -1,0 +1,82 @@
+Option Explicit
+
+Private Function FindPartRow(PartNo As String) As Long
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets(SH_PARTMASTER)
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(UCase(ws.Cells(r, "A").Value)) = _
+           Trim(UCase(PartNo)) Then
+
+            FindPartRow = r
+            Exit Function
+
+        End If
+
+    Next r
+
+End Function
+
+
+Public Function TrimRequired(PartNo As String) As Boolean
+
+    Dim r As Long
+
+    r = FindPartRow(PartNo)
+
+    If r = 0 Then Exit Function
+
+    TrimRequired = _
+    (UCase(Sheets(SH_PARTMASTER).Cells(r, "D").Value) = "Y")
+
+End Function
+
+
+Public Function InspectionRequired(PartNo As String) As Boolean
+
+    Dim r As Long
+
+    r = FindPartRow(PartNo)
+
+    If r = 0 Then Exit Function
+
+    InspectionRequired = _
+    (UCase(Sheets(SH_PARTMASTER).Cells(r, "E").Value) = "Y")
+
+End Function
+
+
+Public Function PackingRequired(PartNo As String) As Boolean
+
+    Dim r As Long
+
+    r = FindPartRow(PartNo)
+
+    If r = 0 Then Exit Function
+
+    PackingRequired = _
+    (UCase(Sheets(SH_PARTMASTER).Cells(r, "F").Value) = "Y")
+
+End Function
+
+
+Public Function DispatchRequired(PartNo As String) As Boolean
+
+    Dim r As Long
+
+    r = FindPartRow(PartNo)
+
+    If r = 0 Then Exit Function
+
+    DispatchRequired = _
+    (UCase(Sheets(SH_PARTMASTER).Cells(r, "G").Value) = "Y")
+
+End Function

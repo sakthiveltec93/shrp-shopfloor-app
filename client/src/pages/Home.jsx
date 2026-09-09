@@ -21,6 +21,26 @@ export default function Home() {
           <span className="tile-label">Production Entry</span>
           <span className="tile-hint">Log hourly count</span>
         </Link>
+        <Link to="/bag-entry" className="tile">
+          <span className="tile-icon">◧</span>
+          <span className="tile-label">Bag Entry</span>
+          <span className="tile-hint">Log a bag against a batch</span>
+        </Link>
+        <Link to="/trimming" className="tile">
+          <span className="tile-icon">✂</span>
+          <span className="tile-label">Trimming</span>
+          <span className="tile-hint">Next bag, FIFO</span>
+        </Link>
+        <Link to="/inspection" className="tile">
+          <span className="tile-icon">◎</span>
+          <span className="tile-label">Inspection</span>
+          <span className="tile-hint">Next bag, FIFO</span>
+        </Link>
+        <Link to="/packing" className="tile">
+          <span className="tile-icon">▧</span>
+          <span className="tile-label">Packing</span>
+          <span className="tile-hint">Next bag, FIFO</span>
+        </Link>
         {isSupervisor && (
           <Link to="/approvals" className="tile">
             <span className="tile-icon">✓</span>

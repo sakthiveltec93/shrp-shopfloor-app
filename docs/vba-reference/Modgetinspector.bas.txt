@@ -1,0 +1,45 @@
+Public Function GetLastInspector(ByVal BatchNo As String) As String
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("INSPECTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = LR To 2 Step -1
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(BatchNo) Then
+
+            GetLastInspector = CStr(ws.Cells(r, "D").Value)
+            Exit Function
+
+        End If
+
+    Next r
+
+    GetLastInspector = "NA"
+
+End Function
+Public Function GetLastPacker(ByVal BatchNo As String) As String
+ 
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+ 
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+ 
+    For r = LR To 2 Step -1
+        If Trim(ws.Cells(r, "B").Value) = Trim(BatchNo) Then
+            GetLastPacker = CStr(ws.Cells(r, "D").Value)
+            Exit Function
+        End If
+    Next r
+ 
+    GetLastPacker = "NA"
+ 
+End Function

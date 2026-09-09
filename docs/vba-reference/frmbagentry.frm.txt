@@ -1,0 +1,548 @@
+Private Sub cboPartNo_AfterUpdate()
+
+    Call LookupBatchForSelectedPart
+
+End Sub
+
+Private Sub Label35_Click()
+
+End Sub
+
+Private Sub txtShotWtReading_AfterUpdate()
+
+    If Trim(txtShotWtReading.Value) = "" Then Exit Sub
+    If val(txtShotWtReading.Value) <= 0 Then Exit Sub
+    If cboPartNo.Value = "" Then Exit Sub
+
+    ' Preview what the average would be INCLUDING this new reading,
+    ' so this session's Qty calc uses the corrected figure right
+    ' away. The actual log write only happens at Save.
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim total As Double
+    Dim cnt As Long
+
+    Set ws = Sheets("SHOT_WEIGHT_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "B").Value) = Trim(cboPartNo.Value) Then
+            total = total + val(ws.Cells(r, "C").Value)
+            cnt = cnt + 1
+        End If
+    Next r
+
+    total = total + val(txtShotWtReading.Value)
+    cnt = cnt + 1
+
+    lblShotWt.Caption = Format(total / cnt, "0.00")
+
+End Sub
+
+Private Sub lstbags_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If lstbags.ListIndex < 0 Then Exit Sub
+
+    If MsgBox("Remove this bag entry?" & vbCrLf & vbCrLf & _
+              "Weight: " & lstbags.List(lstbags.ListIndex) & " Kg", _
+              vbQuestion + vbYesNo, "Remove Bag Entry") = vbYes Then
+
+        lstbags.RemoveItem lstbags.ListIndex
+        Call UpdateBagTotals
+
+    End If
+
+End Sub
+
+Private Sub lstRunner_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+    If lstRunner.ListIndex < 0 Then Exit Sub
+
+    If MsgBox("Remove this runner entry?" & vbCrLf & vbCrLf & _
+              "Weight: " & lstRunner.List(lstRunner.ListIndex) & " Kg", _
+              vbQuestion + vbYesNo, "Remove Runner Entry") = vbYes Then
+
+        lstRunner.RemoveItem lstRunner.ListIndex
+        Call UpdateBagTotals
+
+    End If
+
+End Sub
+
+Private Sub chkWithRunner_Click()
+
+    If chkWithRunner.Value Then
+
+        If lstRunner.ListCount > 0 Then
+            If MsgBox("Checking 'With Runner' clears the Runner Bag list, " & _
+                      "since runner isn't tracked separately in this mode." & vbCrLf & vbCrLf & _
+                      "Continue?", vbQuestion + vbYesNo, "Clear Runner Bags") = vbNo Then
+                chkWithRunner.Value = False
+                Exit Sub
+            End If
+            lstRunner.Clear
+            Call UpdateBagTotals
+        End If
+
+        txtRunnerWeight.Value = ""
+        txtRunnerWeight.Enabled = False
+        cmdAddRunner.Enabled = False
+
+    Else
+
+        txtRunnerWeight.Enabled = True
+        cmdAddRunner.Enabled = True
+
+    End If
+Call UpdateExpectedBagWeight
+End Sub
+
+Private Sub cmdAddBag_Click()
+
+    If val(txtBagWeight.Value) <= 0 Then Exit Sub
+
+    lstbags.AddItem Format(val(txtBagWeight.Value), "0.000")
+
+    Call UpdateBagTotals
+
+    txtBagWeight.Value = ""
+
+    txtBagWeight.SetFocus
+
+End Sub
+Private Sub cmdAddRunner_Click()
+
+    If val(txtRunnerWeight.Value) <= 0 Then Exit Sub
+
+    lstRunner.AddItem Format(val(txtRunnerWeight.Value), "0.000")
+
+    Call UpdateBagTotals
+
+    txtRunnerWeight.Value = ""
+
+    txtRunnerWeight.SetFocus
+
+End Sub
+Private Sub UpdateBagTotals()
+
+    Dim i As Long
+    Dim TotalPart As Double
+    Dim TotalRunner As Double
+
+    For i = 0 To lstbags.ListCount - 1
+
+        TotalPart = TotalPart + _
+        val(lstbags.List(i))
+
+    Next i
+
+    For i = 0 To lstRunner.ListCount - 1
+
+        TotalRunner = TotalRunner + _
+        val(lstRunner.List(i))
+
+    Next i
+
+    lblTotalPartWeight.Caption = _
+    Format(TotalPart, "0.000")
+
+    lblTotalRunnerWeight.Caption = _
+    Format(TotalRunner, "0.000")
+
+    lblrejectionlumpsweight.Caption = _
+    Format(val(txtrejectionweight.Value) + _
+           val(txtlumpweight.Value), "0.000")
+           Dim AccountedWt As Double
+
+AccountedWt = _
+    val(lblTotalPartWeight.Caption) + _
+    val(lblTotalRunnerWeight.Caption) + _
+    val(lblrejectionlumpsweight.Caption)
+
+lblTotalProdWeight.Caption = _
+    Format(AccountedWt, "0.000")
+
+End Sub
+
+
+
+Private Sub txtRejectionWeight_AfterUpdate()
+
+    Call UpdateBagTotals
+
+End Sub
+Private Sub txtLumpWeight_AfterUpdate()
+
+    Call UpdateBagTotals
+
+End Sub
+Private Sub cmdSave_Click()
+
+    Dim ws As Worksheet
+    Dim NR As Long
+    Dim i As Long
+    Dim BagCode As String
+    Dim Qty As Double
+
+    If lstbags.ListCount = 0 And lstRunner.ListCount = 0 Then
+
+        MsgBox "Add at least one Part Bag or Runner Bag before saving.", _
+               vbExclamation, "Nothing To Save"
+
+        Exit Sub
+
+    End If
+
+    ' ============================================================
+    ' NEW: block bagging beyond what was actually produced (net of
+    ' production-stage rejects), with a 1% or 200 Nos tolerance -
+    ' whichever is larger. Prevents double/over-entry across
+    ' multiple Bag Entry sessions for the same batch.
+    ' ============================================================
+    Dim BatchTotalQty As Double
+    Dim AlreadyBaggedQty As Double
+    Dim AlreadyBaggedWt As Double
+    Dim ThisEntryQty As Double
+    Dim ProjectedTotal As Double
+    Dim QtyTolerance As Double
+
+    BatchTotalQty = GetBatchTotalNetQty(lblBatchNo.Caption)
+    AlreadyBaggedQty = GetAlreadyBaggedQty(lblBatchNo.Caption)
+    AlreadyBaggedWt = GetAlreadyBaggedWeight(lblBatchNo.Caption)
+
+    If chkWithRunner.Value Then
+
+        If val(lblShotWt.Caption) > 0 Then
+            For i = 0 To lstbags.ListCount - 1
+                ThisEntryQty = ThisEntryQty + _
+                    ((val(lstbags.List(i)) * 1000) / val(lblShotWt.Caption)) * _
+                    val(lblCavities.Caption)
+            Next i
+        End If
+
+    Else
+
+        If val(lblPartWt.Caption) > 0 Then
+            For i = 0 To lstbags.ListCount - 1
+                ThisEntryQty = ThisEntryQty + _
+                    (val(lstbags.List(i)) * 1000) / val(lblPartWt.Caption)
+            Next i
+        End If
+
+    End If
+
+    ProjectedTotal = AlreadyBaggedQty + ThisEntryQty
+    QtyTolerance = GetBagEntryQtyTolerance(BatchTotalQty)
+
+    Dim OverageJustification As String
+    OverageJustification = ""
+
+    If ProjectedTotal > BatchTotalQty + QtyTolerance Then
+
+        Dim OverageMsg As String
+        OverageMsg = "Batch " & lblBatchNo.Caption & " - " & Format(BatchTotalQty, "#,##0") & " Nos" & vbCrLf & _
+               "Bag Weight Approx Qty - " & Format(ProjectedTotal, "#,##0") & " Nos (" & _
+               Format(AlreadyBaggedWt + val(lblTotalPartWeight.Caption), "0.000") & " Kg)" & vbCrLf & _
+               "Which is higher than the 1% or 200 Nos tolerance (max " & _
+               Format(BatchTotalQty + QtyTolerance, "#,##0") & " Nos)." & vbCrLf & vbCrLf & _
+               "Already Bagged: " & Format(AlreadyBaggedQty, "#,##0") & " Nos" & vbCrLf & _
+               "This Entry: " & Format(ThisEntryQty, "#,##0") & " Nos" & vbCrLf & vbCrLf & _
+               "This exceeds the normal tolerance and will not save automatically." & vbCrLf & _
+               "To proceed anyway, enter a justification below." & vbCrLf & _
+               "Cancel or leave blank to stop without saving."
+
+        OverageJustification = InputBox(OverageMsg, "Exceeds Batch Production Qty - Justification Required")
+
+        If Trim(OverageJustification) = "" Then
+            MsgBox "No justification entered - entry not saved.", vbInformation
+            Exit Sub
+        End If
+
+        ' Logged for audit purposes, tracked against this Batch -
+        ' the override is permitted, but never silent.
+        Dim wsOverage As Worksheet
+        Dim LROverage As Long
+
+        Set wsOverage = Sheets("BAG_ENTRY_OVERAGE_LOG")
+    If wsOverage.FilterMode Then wsOverage.ShowAllData
+        LROverage = wsOverage.Cells(wsOverage.Rows.Count, "A").End(xlUp).Row + 1
+
+        wsOverage.Cells(LROverage, "A").Value = Date
+        wsOverage.Cells(LROverage, "A").NumberFormat = "dd-mmm-yyyy"
+        wsOverage.Cells(LROverage, "B").Value = Format(Now, "HH:mm")
+        wsOverage.Cells(LROverage, "C").Value = lblBatchNo.Caption
+        wsOverage.Cells(LROverage, "D").Value = cboMachine.Value
+        wsOverage.Cells(LROverage, "E").Value = cboPartNo.Value
+        wsOverage.Cells(LROverage, "F").Value = BatchTotalQty
+        wsOverage.Cells(LROverage, "G").Value = QtyTolerance
+        wsOverage.Cells(LROverage, "H").Value = ProjectedTotal
+        wsOverage.Cells(LROverage, "I").Value = ProjectedTotal - (BatchTotalQty + QtyTolerance)
+        wsOverage.Cells(LROverage, "J").Value = OverageJustification
+        wsOverage.Cells(LROverage, "K").Value = Application.UserName
+
+    End If
+
+    Dim ConfirmMsg As String
+
+    ConfirmMsg = "Confirm Bag Entry:" & vbCrLf & vbCrLf & _
+        "Batch No: " & lblBatchNo.Caption & vbCrLf & _
+        "Machine: " & cboMachine.Value & vbCrLf & _
+        "Part: " & cboPartNo.Value & " - " & lblPartName.Caption & vbCrLf & vbCrLf & _
+        "Part Bags: " & lstbags.ListCount & " (Total " & lblTotalPartWeight.Caption & " Kg)" & vbCrLf & _
+        "Runner Bags: " & lstRunner.ListCount & " (Total " & lblTotalRunnerWeight.Caption & " Kg)" & vbCrLf & _
+        "Rejection + Lumps: " & lblrejectionlumpsweight.Caption & " Kg" & vbCrLf & _
+        "Total Production Weight: " & lblTotalProdWeight.Caption & " Kg" & vbCrLf & vbCrLf & _
+        "Batch Qty So Far: " & Format(ProjectedTotal, "#,##0") & " / " & Format(BatchTotalQty, "#,##0") & " Nos" & _
+        IIf(Trim(txtShotWtReading.Value) <> "" And val(txtShotWtReading.Value) > 0, _
+            vbCrLf & "New Shot Wt Reading: " & Format(val(txtShotWtReading.Value), "0.00") & " g (will be logged)", "") & _
+        IIf(OverageJustification <> "", _
+            vbCrLf & vbCrLf & "Overage Justification: " & OverageJustification, "") & _
+        vbCrLf & vbCrLf & _
+        "Save this entry?"
+
+    If MsgBox(ConfirmMsg, vbQuestion + vbYesNo, "Confirm Bag Entry") = vbNo Then
+
+        Exit Sub
+
+    End If
+    
+    ' Decide label output NOW, before anything is queued or written -
+    ' both decisions (proceed? + how to output labels?) are resolved
+    ' upfront, together. Nothing below this point asks again.
+    Dim LabelChoice As String
+    LabelChoice = AskLabelOutputChoice()
+
+    ' Log new Shot Weight reading, if the operator provided one -
+    ' independent of the main bag write, done first per this
+    ' project's "auxiliary writes before the main transaction" pattern.
+    If Trim(txtShotWtReading.Value) <> "" And val(txtShotWtReading.Value) > 0 Then
+
+        Dim wsShot As Worksheet
+        Dim LRShot As Long
+
+        Set wsShot = Sheets("SHOT_WEIGHT_LOG")
+    If wsShot.FilterMode Then wsShot.ShowAllData
+        LRShot = wsShot.Cells(wsShot.Rows.Count, "A").End(xlUp).Row + 1
+
+        wsShot.Cells(LRShot, "A").Value = Date
+        wsShot.Cells(LRShot, "A").NumberFormat = "dd-mmm-yyyy"
+        wsShot.Cells(LRShot, "B").Value = cboPartNo.Value
+        wsShot.Cells(LRShot, "C").Value = val(txtShotWtReading.Value)
+        wsShot.Cells(LRShot, "D").Value = Application.UserName
+        wsShot.Cells(LRShot, "E").Value = "Logged via Bag Entry"
+
+    End If
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    ' PART BAGS
+
+    For i = 0 To lstbags.ListCount - 1
+
+        NR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        BagCode = lblBatchNo.Caption & "-" & _
+                  GetNextBagNo(lblBatchNo.Caption)
+
+        If chkWithRunner.Value Then
+            Qty = ((val(lstbags.List(i)) * 1000) / val(lblShotWt.Caption)) * _
+                  val(lblCavities.Caption)
+        Else
+            Qty = (val(lstbags.List(i)) * 1000) / val(lblPartWt.Caption)
+        End If
+
+        ws.Cells(NR, "A").Value = txtProdDate.Value
+        ws.Cells(NR, "B").Value = cboMachine.Value
+        ws.Cells(NR, "C").Value = lblBatchNo.Caption
+        ws.Cells(NR, "D").Value = cboPartNo.Value
+        ws.Cells(NR, "E").Value = BagCode
+        ws.Cells(NR, "F").Value = "PART"
+        ws.Cells(NR, "G").Value = lstbags.List(i)
+        ws.Cells(NR, "H").Value = Round(Qty, 0)
+       ws.Cells(NR, "J").Value = "OPEN"
+       ws.Cells(NR, "K").Value = IIf(chkWithRunner.Value, "Yes", "No")
+            Call PrintPartBagLabel( _
+        BagCode, _
+        lblBatchNo.Caption, _
+        cboPartNo.Value, _
+        lblPartName.Caption, _
+        CDbl(lstbags.List(i)), _
+        Qty, _
+        txtProdDate.Value)
+
+    Next i
+
+    ' RUNNER BAGS
+
+    For i = 0 To lstRunner.ListCount - 1
+
+        NR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        BagCode = lblBatchNo.Caption & "-R" & _
+                  Format(i + 1, "00")
+
+        ws.Cells(NR, "A").Value = txtProdDate.Value
+        ws.Cells(NR, "B").Value = cboMachine.Value
+        ws.Cells(NR, "C").Value = lblBatchNo.Caption
+        ws.Cells(NR, "D").Value = cboPartNo.Value
+        ws.Cells(NR, "E").Value = BagCode
+        ws.Cells(NR, "F").Value = "RUNNER"
+        ws.Cells(NR, "G").Value = lstRunner.List(i)
+        ws.Cells(NR, "H").Value = 0
+       ws.Cells(NR, "J").Value = "OPEN"
+            Call PrintRunnerBagLabel( _
+    BagCode, _
+    lblBatchNo.Caption, _
+    cboPartNo.Value & " RUNNER", _
+    CDbl(lstRunner.List(i)), _
+    txtProdDate.Value)
+
+    Next i
+
+    ' REJECTION & LUMPS - previously computed for the on-screen total
+    ' and confirm dialog only, then discarded on clear with no record
+    ' anywhere. Logged here the same way Runner bags are, so this
+    ' scrap weight is traceable to the batch instead of vanishing.
+    If val(txtrejectionweight.Value) > 0 Then
+
+        NR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        BagCode = lblBatchNo.Caption & "-REJ-" & Format(Now, "hhmmss")
+
+        ws.Cells(NR, "A").Value = txtProdDate.Value
+        ws.Cells(NR, "B").Value = cboMachine.Value
+        ws.Cells(NR, "C").Value = lblBatchNo.Caption
+        ws.Cells(NR, "D").Value = cboPartNo.Value
+        ws.Cells(NR, "E").Value = BagCode
+        ws.Cells(NR, "F").Value = "REJECTION"
+        ws.Cells(NR, "G").Value = val(txtrejectionweight.Value)
+        ws.Cells(NR, "H").Value = 0
+        ws.Cells(NR, "J").Value = "N/A"
+
+    End If
+
+    If val(txtlumpweight.Value) > 0 Then
+
+        NR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        BagCode = lblBatchNo.Caption & "-LUMP-" & Format(Now, "hhmmss")
+
+        ws.Cells(NR, "A").Value = txtProdDate.Value
+        ws.Cells(NR, "B").Value = cboMachine.Value
+        ws.Cells(NR, "C").Value = lblBatchNo.Caption
+        ws.Cells(NR, "D").Value = cboPartNo.Value
+        ws.Cells(NR, "E").Value = BagCode
+        ws.Cells(NR, "F").Value = "LUMP"
+        ws.Cells(NR, "G").Value = val(txtlumpweight.Value)
+        ws.Cells(NR, "H").Value = 0
+        ws.Cells(NR, "J").Value = "N/A"
+
+    End If
+
+    Call FlushWIPLabels(LabelChoice)
+
+    MsgBox "Bag Entry Saved"
+
+    ' Non-blocking: if this save just brought the batch to full
+    ' completion, offers to mark Bag Entry complete for it - runs
+    ' first since "is this batch done" is the more fundamental
+    ' question, before the weight-reconciliation follow-up below.
+    Call TryConfirmBagEntryCompletion(lblBatchNo.Caption, cboPartNo.Value)
+
+    ' Non-blocking: if this save just brought the batch to full
+    ' completion, checks whether the weighed material vs actual
+    ' Production OK Qty implies a different weight than the current
+    ' reference, and offers to log it - reusing the exact Part/Batch
+    ' values from this save before ClearBagForm resets them.
+    Call TryReconcileWeight(lblBatchNo.Caption, cboPartNo.Value, chkWithRunner.Value)
+
+    Call ClearBagForm
+
+End Sub
+Private Sub UserForm_Initialize()
+
+    txtProdDate.Value = Format(Date, "dd-mmm-yyyy")
+
+    Call LoadBagMachines
+
+    With cboShift
+        .Clear
+        .AddItem "A"
+        .AddItem "B"
+    End With
+
+    With lstPreviousBags
+        .ColumnCount = 5
+        .ColumnWidths = "90 pt;60 pt;60 pt;60 pt;60 pt"
+        .Visible = False
+    End With
+
+End Sub
+
+Private Sub ClearBagForm()
+
+    txtBagWeight.Value = ""
+    txtRunnerWeight.Value = ""
+
+    txtrejectionweight.Value = ""
+    txtlumpweight.Value = ""
+
+    lstbags.Clear
+    lstRunner.Clear
+
+    lblTotalPartWeight.Caption = "0.000"
+    lblTotalRunnerWeight.Caption = "0.000"
+    lblrejectionlumpsweight.Caption = "0.000"
+
+    lblTotalProdWeight.Caption = "-"
+
+    lblBatchNo.Caption = ""
+    lblPartName.Caption = ""
+
+    lstPreviousBags.Clear
+    lstPreviousBags.Visible = False
+
+    lblPartWt.Caption = ""
+    lblShotWt.Caption = ""
+
+    cboPartNo.Value = ""
+    cboMachine.Value = ""
+    cboShift.Value = ""
+
+    chkWithRunner.Value = False
+    txtRunnerWeight.Enabled = True
+    cmdAddRunner.Enabled = True
+
+    txtShotWtReading.Value = ""
+
+End Sub
+
+
+Private Sub txtProdDate_AfterUpdate()
+
+    LoadMachinesForSelectedDate
+    Call CheckAllBagEntriesClosedForDate
+
+End Sub
+Private Sub cboMachine_AfterUpdate()
+
+    If Trim(Me.cboMachine.Value) = "" Then Exit Sub
+    If Trim(Me.cboShift.Value) = "" Then Exit Sub
+    If Not IsDate(Me.txtProdDate.Value) Then Exit Sub
+
+    LoadCurrentProduction
+
+End Sub
+
+Private Sub cboShift_AfterUpdate()
+
+    If Trim(Me.cboMachine.Value) = "" Then Exit Sub
+    If Trim(Me.cboShift.Value) = "" Then Exit Sub
+    If Not IsDate(Me.txtProdDate.Value) Then Exit Sub
+
+    LoadCurrentProduction
+
+End Sub

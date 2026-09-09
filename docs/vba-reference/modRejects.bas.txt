@@ -1,0 +1,25 @@
+Option Explicit
+
+Public Function GetRejectDisposition(ByVal RejectReason As String) As String
+
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+
+    Set ws = Sheets("REJECT_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(RejectReason) Then
+
+            GetRejectDisposition = ws.Cells(r, "C").Value
+            Exit Function
+
+        End If
+
+    Next r
+
+End Function

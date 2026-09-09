@@ -1,0 +1,172 @@
+Option Explicit
+
+Public Function GetProcessedWeight( _
+            BatchNo As String, _
+            logSheet As String) As Double
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LastRow As Long
+
+    Set ws = Sheets(logSheet)
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If Trim(UCase(ws.Cells(r, "B").Value)) = Trim(UCase(BatchNo)) Then
+            Select Case logSheet
+
+                Case SH_TRIMLOG
+                    ' TRIM_LOG: E = Weight (Kg). G is Reject Qty
+                    ' in PIECES, not weight - do not add it here.
+                    GetProcessedWeight = GetProcessedWeight + _
+                        val(ws.Cells(r, "E").Value)
+
+                Case SH_INSPECTIONLOG
+                    ' INSPECTION_LOG: E = Accept Weight, G = Reject Weight
+                    GetProcessedWeight = GetProcessedWeight + _
+                        val(ws.Cells(r, "E").Value) + val(ws.Cells(r, "G").Value)
+
+                Case Else
+                    GetProcessedWeight = GetProcessedWeight + _
+                        val(ws.Cells(r, "E").Value) + val(ws.Cells(r, "G").Value)
+
+            End Select
+
+        End If
+
+    Next r
+
+End Function
+
+
+' Remaining capacity at a stage = bag's own weight, PLUS any
+' weight sent back to that stage via REWORK_LOG (e.g. flash
+' rejected at Inspection and routed "Return To Trimming"),
+' MINUS everything already logged at that stage. This lets a
+' bag accept a further Trim entry for reworked material even
+' after its original weight has been fully trimmed once.
+Public Function RemainingWeight( _
+            BatchNo As String, _
+            logSheet As String) As Double
+
+    Dim PendingRework As Double
+
+    Select Case logSheet
+        Case SH_TRIMLOG
+            PendingRework = GetPendingReworkWeight(BatchNo, "Trimming")
+        Case Else
+            PendingRework = 0
+    End Select
+
+    RemainingWeight = _
+        Getproductionweight(BatchNo) + PendingRework - _
+        GetProcessedWeight(BatchNo, logSheet)
+
+End Function
+Public Function GetTrimmedWeight(BatchNo As String) As Double
+
+    GetTrimmedWeight = _
+        GetProcessedWeight(BatchNo, SH_TRIMLOG)
+
+End Function
+Public Function GetInspectedWeight(BatchNo As String) As Double
+
+    Dim ActualInspectedWt As Double
+    ActualInspectedWt = GetProcessedWeight(BatchNo, SH_INSPECTIONLOG)
+
+    If ActualInspectedWt > 0.001 Then
+
+        ' Real Inspection entries exist for this bag - use them,
+        ' regardless of whether Inspection was nominally required
+        ' (it happened, via override or otherwise, so it's real).
+        GetInspectedWeight = GetAcceptedWeight(BatchNo)
+    Else
+
+        Dim PartNo As String
+        PartNo = GetPartName(BatchNo)
+
+        If Not InspectionRequired(PartNo) Then
+
+            ' Inspection is genuinely skippable for this part, and
+            ' hasn't happened - fall through to whatever DID happen
+            ' at the previous stage: Trimmed weight if this bag was
+            ' trimmed, else the raw production weight.
+            Dim ActualTrimmedWt As Double
+            ActualTrimmedWt = GetProcessedWeight(BatchNo, "TRIM_LOG")
+
+            If ActualTrimmedWt > 0.001 Then
+                GetInspectedWeight = ActualTrimmedWt
+            Else
+                GetInspectedWeight = Getproductionweight(BatchNo)
+            End If
+
+        Else
+
+            ' Inspection IS required for this part but hasn't
+            ' happened yet - correctly nothing available for
+            ' Packing until it does.
+            GetInspectedWeight = 0
+
+        End If
+
+    End If
+
+End Function
+
+
+
+Public Function RemainingInspectionWeight(BatchNo As String) As Double
+ 
+    Dim PartNo As String
+    Dim ReworkToInspection As Double
+    Dim ActualTrimmedWt As Double
+ 
+    PartNo = GetPartName(BatchNo)
+    ReworkToInspection = GetPendingReworkWeight(BatchNo, "Inspection")
+    ActualTrimmedWt = GetProcessedWeight(BatchNo, "TRIM_LOG")
+ 
+    ' A bag can get trimmed anyway via the "Trimming Not Required -
+    ' confirm anyway?" override, even when Trim=N for the part. Once
+    ' that's happened, real material has genuinely been removed, so
+    ' the ceiling here must reflect the ACTUAL trimmed weight, not
+    ' the raw pre-trim bag weight.
+    If ActualTrimmedWt > 0.001 Then
+ 
+        RemainingInspectionWeight = _
+            ActualTrimmedWt + ReworkToInspection - _
+            GetProcessedWeight(BatchNo, "INSPECTION_LOG")
+ 
+    Else
+ 
+        RemainingInspectionWeight = _
+            Getproductionweight(BatchNo) + ReworkToInspection - _
+            GetProcessedWeight(BatchNo, "INSPECTION_LOG")
+ 
+    End If
+ 
+    If RemainingInspectionWeight < 0 Then
+        RemainingInspectionWeight = 0
+    End If
+ 
+End Function
+Public Function GetAcceptedWeight(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+
+    Set ws = Sheets("INSPECTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LastRow
+        If Trim(UCase(ws.Cells(r, "B").Value)) = Trim(UCase(BatchNo)) Then
+            GetAcceptedWeight = GetAcceptedWeight + val(ws.Cells(r, "E").Value)
+        End If
+    Next r
+
+End Function

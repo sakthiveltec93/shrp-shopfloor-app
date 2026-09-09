@@ -1,0 +1,132 @@
+Private Sub WriteMouldHistoryEntry( _
+        MachineNo As String, PartNo As String, PartName As String, _
+        LoadedDate As Variant, LoadedTime As String, _
+        UnloadedDate As Variant, UnloadedTime As String, _
+        totalShots As Double, TotalRejectQty As Double, TotalIdleMin As Double, _
+        MouldChangeReason As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim Cavities As Double
+    Dim TotalProdQty As Double
+    Dim TotalNetQty As Double
+    Dim GrossHours As Double
+    Dim NetHours As Double
+    Dim Eff As Double
+    Dim CT As Variant
+
+    Set ws = Sheets("MOULD_HISTORY")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ' Gross Run Hours = SUM of every actual PRODUCTION_LOG session's
+    ' (EndTime - StartTime) for this Machine+Part, between the Load
+    ' and Unload dates - NOT the calendar span between Load and
+    ' Unload. A mould loaded Monday and unloaded Wednesday might only
+    ' have genuinely run a fraction of that ~48 hour window - single
+    ' shifts, days with no logged production at all, gaps between
+    ' sessions. Calendar-span arithmetic silently counts all of that
+    ' as running time, which is wrong. LoadedTime/UnloadedTime are
+    ' no longer used in this calculation at all (only for display in
+    ' columns E/G below) - this sidesteps the original time-parsing
+    ' bug entirely rather than just patching around it.
+    GrossHours = SumActualRunHours(MachineNo, PartNo, LoadedDate, UnloadedDate)
+
+    Cavities = GetCavitiesForPart(PartNo)
+    TotalProdQty = totalShots * Cavities
+    TotalNetQty = TotalProdQty - TotalRejectQty
+
+    NetHours = GrossHours - (TotalIdleMin / 60)
+    If NetHours < 0 Then NetHours = 0
+
+    CT = GetCycleTime(MachineNo, PartNo)
+
+    If IsNumeric(CT) And val(CT) > 0 And NetHours > 0 Then
+        Eff = (totalShots / ((NetHours * 3600) / val(CT))) * 100
+    Else
+        Eff = 0
+    End If
+
+    ws.Cells(LR, "A").Value = MachineNo
+    ws.Cells(LR, "B").Value = PartNo
+    ws.Cells(LR, "C").Value = PartName
+    ws.Cells(LR, "D").Value = LoadedDate
+    ws.Cells(LR, "D").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "E").Value = LoadedTime
+    ws.Cells(LR, "F").Value = UnloadedDate
+    ws.Cells(LR, "F").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "G").Value = UnloadedTime
+    ws.Cells(LR, "H").Value = totalShots
+    ws.Cells(LR, "I").Value = TotalProdQty
+    ws.Cells(LR, "J").Value = TotalRejectQty
+    ws.Cells(LR, "K").Value = TotalNetQty
+    ws.Cells(LR, "L").Value = Format(GrossHours, "0.00")
+    ws.Cells(LR, "M").Value = TotalIdleMin
+    ws.Cells(LR, "N").Value = Format(NetHours, "0.00")
+    ws.Cells(LR, "O").Value = Format(Eff, "0.0")
+    ws.Cells(LR, "P").Value = MouldChangeReason
+
+End Sub
+
+
+' Sums the actual (End-Start) duration, in hours, of every
+' PRODUCTION_LOG entry for this exact Machine+Part between the given
+' Load and Unload dates (inclusive) - the true actual running time,
+' never the calendar span between Load and Unload. Handles overnight
+' shifts (End Time earlier than Start Time) by wrapping to the next
+' day, same convention used everywhere else in this project.
+Private Function SumActualRunHours(ByVal MachineNo As String, ByVal PartNo As String, _
+                                    ByVal LoadedDate As Variant, ByVal UnloadedDate As Variant) As Double
+
+    If Not IsDate(LoadedDate) Or Not IsDate(UnloadedDate) Then
+        SumActualRunHours = 0
+        Exit Function
+    End If
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim total As Double
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    Dim loadD As Date, unloadD As Date
+    loadD = DateValue(LoadedDate)
+    unloadD = DateValue(UnloadedDate)
+
+    For r = 2 To LR
+
+        If IsDate(ws.Cells(r, "B").Value) Then
+
+            Dim EntryDate As Date
+            EntryDate = DateValue(ws.Cells(r, "B").Value)
+
+            If EntryDate >= loadD And EntryDate <= unloadD And _
+               Trim(ws.Cells(r, "D").Value) = Trim(MachineNo) And _
+               Trim(ws.Cells(r, "E").Value) = Trim(PartNo) Then
+
+                Dim startVal As Variant, endVal As Variant
+                startVal = ws.Cells(r, "H").Value
+                endVal = ws.Cells(r, "I").Value
+
+                If IsNumeric(startVal) And IsNumeric(endVal) Then
+
+                    Dim runMin As Double
+                    runMin = (CDbl(endVal) - CDbl(startVal)) * 1440
+                    If runMin < 0 Then runMin = runMin + 1440 ' overnight wrap
+
+                    total = total + (runMin / 60)
+
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+    SumActualRunHours = total
+
+End Function

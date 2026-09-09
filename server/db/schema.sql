@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS parts (
   cavity_count INTEGER NOT NULL DEFAULT 1,
   standard_cycle_time_sec NUMERIC NOT NULL,
   unit_weight_g NUMERIC,
+  -- Routing flags, ported from PART_MASTER columns D/E/F/G
+  trim_required BOOLEAN NOT NULL DEFAULT FALSE,
+  inspection_required BOOLEAN NOT NULL DEFAULT FALSE,
+  packing_required BOOLEAN NOT NULL DEFAULT TRUE,
+  dispatch_required BOOLEAN NOT NULL DEFAULT TRUE,
+  standard_pack_qty INTEGER,
   active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -40,7 +46,8 @@ CREATE TABLE IF NOT EXISTS efficiency_bands (
 CREATE TABLE IF NOT EXISTS check_items (
   id SERIAL PRIMARY KEY,
   item_name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('reject_reason', 'downtime_reason', 'quality_check'))
+  category TEXT NOT NULL CHECK (category IN ('reject_reason', 'downtime_reason', 'quality_check')),
+  UNIQUE (item_name, category)
 );
 
 -- Current part assignment per machine - set only via Mould Setup/Approval form
@@ -84,5 +91,69 @@ CREATE TABLE IF NOT EXISTS reject_log (
   production_entry_id INTEGER NOT NULL REFERENCES production_entries(id),
   reject_reason_id INTEGER NOT NULL REFERENCES check_items(id),
   qty INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ================================================================
+-- Bag traceability pipeline (ported from BAG_LOG / TRIM_LOG /
+-- INSPECTION_LOG / PACKING_LOG + modBagStatus, modFIFOBagPicker,
+-- Modbagentry). A "bag" is a unit of material moving through
+-- Bag Entry -> Trimming -> Inspection -> Packing, tracked by
+-- weight/qty and a status that only ever advances one direction.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS bags (
+  id SERIAL PRIMARY KEY,
+  bag_code TEXT UNIQUE NOT NULL, -- BatchNo + 3-digit sequence, e.g. "B00123001"
+  batch_no TEXT NOT NULL,
+  entry_date DATE NOT NULL,
+  shift TEXT NOT NULL CHECK (shift IN ('A', 'B')),
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  bag_type TEXT NOT NULL DEFAULT 'PART' CHECK (bag_type IN ('PART', 'RUNNER')),
+  base_weight_kg NUMERIC NOT NULL,
+  qty INTEGER NOT NULL,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'TRIMMED', 'INSPECTED', 'PACKED')),
+  remarks TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bags_batch ON bags(batch_no);
+CREATE INDEX IF NOT EXISTS idx_bags_part_status ON bags(part_id, status, bag_type);
+
+CREATE TABLE IF NOT EXISTS bag_status_history (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  source TEXT,
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trim_entries (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  remaining_wt_kg NUMERIC NOT NULL,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS inspection_entries (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  remaining_wt_kg NUMERIC NOT NULL,
+  reject_wt_kg NUMERIC NOT NULL DEFAULT 0,
+  reject_reason_id INTEGER REFERENCES check_items(id),
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS packing_entries (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  packed_qty INTEGER NOT NULL,
+  packed_wt_kg NUMERIC NOT NULL,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

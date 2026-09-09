@@ -1,0 +1,18 @@
+Public Function BuildQRData( _
+        PartNo As String, _
+        BatchNo As String, _
+        PacketNo As String, _
+        Qty As Long, _
+        PackedBy As String, _
+        InspectedBy As String) As String
+
+    BuildQRData = _
+        "Part:" & PartNo & _
+        "|Batch:" & BatchNo & _
+        "|Pkt:" & PacketNo & _
+        "|Qty:" & Qty & _
+        "|Date:" & Format(Date, "dd-mm-yyyy") & _
+        "|Packer:" & PackedBy & _
+        "|Inspector:" & InspectedBy
+
+End Function

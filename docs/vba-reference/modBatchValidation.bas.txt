@@ -1,0 +1,150 @@
+Option Explicit
+
+' Looks up a Bag Code (e.g. "33140826A-001") in BAG_LOG.
+' This is now the primary key Trimming / Inspection / Packing
+' validate against - each physical bag is tracked individually
+' through the process, not the batch as a whole.
+Public Function FindBatchRow(BagCode As String) As Long
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LastRow As Long
+
+    Set ws = Sheets(SH_BAGLOG)
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, BL_COL_BAGCODE).End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, BL_COL_BAGCODE).Value) = Trim(BagCode) Then
+
+            FindBatchRow = r
+            Exit Function
+
+        End If
+
+    Next r
+
+    FindBatchRow = 0
+
+End Function
+
+
+' Part No for this bag - read straight from BAG_LOG (already
+' stored there at Bag Entry time).
+Public Function GetPartName(BagCode As String) As String
+
+    Dim r As Long
+
+    r = FindBatchRow(BagCode)
+
+    If r = 0 Then Exit Function
+
+    GetPartName = _
+    Sheets(SH_BAGLOG).Cells(r, BL_COL_PARTNO).Value
+
+End Function
+
+
+' "Production weight" for a bag = that bag's own weighed
+' quantity from BAG_LOG - not the whole batch's total. Each
+' bag now moves through Trim/Inspect/Pack as its own unit,
+' so this is the figure Remaining Weight gets checked against.
+Public Function Getproductionweight(BagCode As String) As Double
+
+    Dim r As Long
+
+    r = FindBatchRow(BagCode)
+
+    If r = 0 Then Exit Function
+
+    Getproductionweight = _
+    val(Sheets(SH_BAGLOG).Cells(r, BL_COL_WEIGHT).Value)
+
+End Function
+
+
+' Batch No this bag belongs to (BAG_LOG column C) - this is
+' the link back to PRODUCTION_LOG.
+Public Function GetBatchNoForBag(BagCode As String) As String
+
+    Dim r As Long
+
+    r = FindBatchRow(BagCode)
+
+    If r = 0 Then Exit Function
+
+    GetBatchNoForBag = _
+    Sheets(SH_BAGLOG).Cells(r, BL_COL_BATCHNO).Value
+
+End Function
+
+
+' Current Status of this bag (BAG_LOG column J) - used to warn
+' an operator who scans a bag at a stage it's already passed.
+Public Function GetBagStatus(BagCode As String) As String
+
+    Dim r As Long
+
+    r = FindBatchRow(BagCode)
+
+    If r = 0 Then Exit Function
+
+    GetBagStatus = _
+    Trim(Sheets(SH_BAGLOG).Cells(r, BL_COL_STATUS).Value)
+
+End Function
+
+
+' Confirms the bag's batch really exists in PRODUCTION_LOG -
+' guards against a bag code whose batch was never produced /
+' was mistyped, so every bag traces back to a real production
+' entry.
+Public Function IsBatchInProductionLog(BatchNo As String) As Boolean
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LastRow As Long
+
+    If Trim(BatchNo) = "" Then Exit Function
+
+    Set ws = Sheets(SH_PRODUCTIONLOG)
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, PL_COL_BATCHNO).End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, PL_COL_BATCHNO).Value) = Trim(BatchNo) Then
+
+            IsBatchInProductionLog = True
+            Exit Function
+
+        End If
+
+    Next r
+
+    IsBatchInProductionLog = False
+
+End Function
+
+
+'-- Legacy SUMMARY-sheet stub. Unused by current forms.
+Public Function GetRMBatch(BatchNo As String) As String
+
+    GetRMBatch = ""
+
+End Function
+
+
+Public Function GetOKQty(BagCode As String) As Double
+ 
+    Dim r As Long
+    r = FindBatchRow(BagCode)
+ 
+    If r = 0 Then Exit Function
+ 
+    GetOKQty = val(Sheets(SH_BAGLOG).Cells(r, "H").Value)
+ 
+End Function

@@ -1,0 +1,145 @@
+Option Explicit
+
+' Asks upfront how to handle labels for this save - called BEFORE
+' anything is written to the log, so this is resolved together with
+' the Confirm dialog, before any commitment happens. Returns "PRINT",
+' "PDF", or "NONE" for ExecuteLabelOutput to act on later, without
+' asking again.
+Public Function AskLabelOutputChoice() As String
+
+    Dim Choice As VbMsgBoxResult
+
+    Choice = MsgBox( _
+        "How do you want to handle the label(s) for this entry?" & vbCrLf & vbCrLf & _
+        "Yes = Print" & vbCrLf & _
+        "No = Save as PDF" & vbCrLf & _
+        "Cancel = Just save, no printout or file", _
+        vbYesNoCancel + vbQuestion, "Label Output")
+
+    Select Case Choice
+        Case vbYes
+            AskLabelOutputChoice = "PRINT"
+        Case vbNo
+            AskLabelOutputChoice = "PDF"
+        Case Else
+            AskLabelOutputChoice = "NONE"
+    End Select
+
+End Function
+
+
+' Executes a PREVIOUSLY made choice - no prompting here, the decision
+' was already captured upfront via AskLabelOutputChoice, before the
+' write happened. Called from FlushWIPLabels/FlushPackingLabels at
+' the end of a save, once labels are actually ready to act on.
+Public Function ExecuteLabelOutput(ws As Worksheet, ByVal LabelName As String, _
+                                    ByVal Choice As String) As Boolean
+
+    Select Case Choice
+
+        Case "PRINT"
+            ExecuteLabelOutput = PrintLabelWithRetry(ws, LabelName)
+
+        Case "PDF"
+            ExecuteLabelOutput = SaveLabelAsFile(ws, LabelName)
+
+        Case Else ' "NONE"
+            ExecuteLabelOutput = True
+
+    End Select
+
+End Function
+
+
+' Actual print attempt with retry-on-failure - unchanged in behavior,
+' only reached now if the operator explicitly chose Print upfront.
+Private Function PrintLabelWithRetry(ws As Worksheet, ByVal LabelName As String) As Boolean
+
+    Dim Choice As VbMsgBoxResult
+    Dim Success As Boolean
+
+    Do
+
+        Success = False
+
+        On Error Resume Next
+        Err.Clear
+        ws.PrintOut Copies:=1
+        If Err.Number = 0 Then Success = True
+        On Error GoTo 0
+
+        If Success Then
+            PrintLabelWithRetry = True
+            Exit Function
+        End If
+
+        Choice = MsgBox( _
+            "Could not print label '" & LabelName & "'." & vbCrLf & _
+            "The printer may not be connected, or a printer error occurred." & vbCrLf & vbCrLf & _
+            "Yes = Retry printing" & vbCrLf & _
+            "No = Save label as a file instead" & vbCrLf & _
+            "Cancel = Skip this label", _
+            vbYesNoCancel + vbExclamation, "Printing Failed")
+
+        Select Case Choice
+
+            Case vbNo
+                PrintLabelWithRetry = SaveLabelAsFile(ws, LabelName)
+                Exit Function
+
+            Case vbCancel
+                PrintLabelWithRetry = False
+                Exit Function
+
+            ' vbYes falls through the Select and loops back to retry
+
+        End Select
+
+    Loop
+
+End Function
+
+
+' Saves the label sheet as a PDF into a "Labels" subfolder next to
+' the workbook, named after the bag/packet with a timestamp so
+' repeated saves for the same label don't overwrite each other.
+Public Function SaveLabelAsFile(ws As Worksheet, ByVal LabelName As String) As Boolean
+
+    Dim FolderPath As String
+    Dim FilePath As String
+    Dim SafeName As String
+
+    On Error Resume Next
+    Err.Clear
+
+    FolderPath = ThisWorkbook.Path & "\Labels"
+
+    If Dir(FolderPath, vbDirectory) = "" Then
+        MkDir FolderPath
+    End If
+
+    SafeName = LabelName
+    SafeName = Replace(SafeName, "\", "-")
+    SafeName = Replace(SafeName, "/", "-")
+    SafeName = Replace(SafeName, ":", "-")
+    SafeName = Replace(SafeName, "*", "-")
+    SafeName = Replace(SafeName, "?", "-")
+
+    FilePath = FolderPath & "\" & SafeName & "_" & _
+               Format(Now, "yyyymmdd_hhmmss") & ".pdf"
+
+    ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=FilePath, _
+        Quality:=xlQualityStandard, OpenAfterPublish:=False
+
+    If Err.Number = 0 Then
+        MsgBox "Label saved to:" & vbCrLf & FilePath, vbInformation, "Label Saved"
+        SaveLabelAsFile = True
+    Else
+        MsgBox "Could not save label file either." & vbCrLf & _
+               "Error: " & Err.Description, vbExclamation, "Save Failed"
+        SaveLabelAsFile = False
+    End If
+
+    On Error GoTo 0
+
+End Function

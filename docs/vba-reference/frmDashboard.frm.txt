@@ -1,0 +1,3 @@
+Private Sub cmdTrim_Click()
+    frmTrimming.Show
+End Sub

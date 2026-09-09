@@ -37,6 +37,13 @@ export const api = {
   entryContext: () => request('/entries/context'),
   createEntry: (payload) => request('/entries', { method: 'POST', body: payload }),
   entriesForDate: (date) => request(`/entries${date ? `?date=${date}` : ''}`),
+
+  createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
+  bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
+  fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),
+  trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),
+  inspectBag: (id, payload) => request(`/bags/${id}/inspect`, { method: 'POST', body: payload }),
+  packBag: (id, payload) => request(`/bags/${id}/pack`, { method: 'POST', body: payload }),
 };
 
 export { getToken };

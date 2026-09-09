@@ -1,0 +1,84 @@
+Option Explicit
+
+' True if this bag was entered as "With Runner" at Bag Entry (Part +
+' Runner weighed together, unseparated) - read from BAG_LOG column K,
+' written at Bag Entry save time. Used by Trimming to decide whether
+' to ask for a separate Runner Weight, since that's the point where
+' the actual physical separation happens for these specific bags.
+Public Function IsBagWithRunner(ByVal BagCode As String) As Boolean
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "E").Value) = Trim(BagCode) Then
+            IsBagWithRunner = (UCase(Trim(ws.Cells(r, "K").Value)) = "YES")
+            Exit Function
+        End If
+    Next r
+
+    IsBagWithRunner = False
+
+End Function
+
+
+' Sum of Runner Weight (TRIM_LOG column I) already logged against
+' this Batch No, across every Trimming entry for it - used alongside
+' the normal Part Weight processed total to correctly compare against
+' the bag's ORIGINAL combined Part+Runner weight from Bag Entry.
+Public Function GetProcessedRunnerWeight(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("TRIM_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "B").Value) = Trim(BatchNo) Then
+            GetProcessedRunnerWeight = GetProcessedRunnerWeight + val(ws.Cells(r, "I").Value)
+        End If
+    Next r
+
+End Function
+
+
+' Cross-check only, shown alongside the actual (Part Weight based)
+' piece count for With-Runner bags: given the TOTAL weight being
+' processed this session (Part + Runner combined) and the part's
+' Shot Weight/Cavities from PART_MASTER, how many pieces would be
+' expected purely from shot count? A big mismatch against the actual
+' piece count is worth the operator noticing before saving.
+Public Function GetExpectedPiecesFromShotWeight(ByVal PartNo As String, _
+                                                 ByVal EffectiveWeight As Double) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim ShotWt As Double
+    Dim Cavities As Double
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            ShotWt = val(ws.Cells(r, "K").Value)
+            Cavities = val(ws.Cells(r, "J").Value)
+            Exit For
+        End If
+    Next r
+
+    If ShotWt <= 0 Then Exit Function
+
+    GetExpectedPiecesFromShotWeight = (EffectiveWeight * 1000 / ShotWt) * Cavities
+
+End Function

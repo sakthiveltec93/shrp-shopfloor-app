@@ -1,0 +1,6 @@
+Public Function GetNextPacketNo(BatchNo As String, SeqNo As Long) As String
+
+    GetNextPacketNo = _
+        BatchNo & "-" & Format(SeqNo, "000")
+
+End Function

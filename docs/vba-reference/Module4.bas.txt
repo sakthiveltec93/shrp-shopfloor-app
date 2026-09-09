@@ -1,0 +1,14 @@
+Sub OpenTrimming()
+
+    frmTrimming.Show
+
+End Sub
+
+Public Sub OpenInspection()
+
+    frmInspection.Show
+
+End Sub
+Public Sub OpenSetupApproval()
+    frmSetupApproval.Show
+End Sub

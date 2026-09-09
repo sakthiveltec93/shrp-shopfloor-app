@@ -1,0 +1,979 @@
+Option Explicit
+
+Public Sub LoadMachines()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("MACHINE_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboMachine.Clear
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 2 To LR
+        If UCase(Trim(ws.Cells(r, "D").Value)) <> "NOT ACTIVE" Then
+            frmProduction.cboMachine.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+End Sub
+
+Public Sub LoadOperators()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("OperatorMaster")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboOperator.Clear
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 1 To LR
+        If Trim(ws.Cells(r, 1).Value) <> "" Then
+            frmProduction.cboOperator.AddItem ws.Cells(r, 1).Value
+        End If
+    Next r
+End Sub
+
+Public Sub LoadParts()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboPartNo.Clear
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 2 To LR
+        frmProduction.cboPartNo.AddItem ws.Cells(r, "A").Value
+    Next r
+End Sub
+
+Public Sub LoadShifts()
+    With frmProduction.cboShift
+        .Clear
+        .AddItem "A"
+        .AddItem "B"
+    End With
+End Sub
+
+Public Sub LoadRejectReasons()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("REJECT_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboRejectReason.Clear
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "B").Value) <> "" Then
+            frmProduction.cboRejectReason.AddItem ws.Cells(r, "B").Value
+        End If
+    Next r
+End Sub
+
+Public Sub LoadIdleReasons()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("IDLE_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboIdleReason.Clear
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+            frmProduction.cboIdleReason.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+End Sub
+
+Public Sub LoadMouldChangeReasons()
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("MOULD_CHANGE_REASON_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    frmProduction.cboMouldChangeReason.Clear
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+            frmProduction.cboMouldChangeReason.AddItem ws.Cells(r, "A").Value
+        End If
+    Next r
+End Sub
+
+Public Sub LoadPartDetails()
+    Dim ws As Worksheet, r As Long, LR As Long, p As String
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    p = frmProduction.cboPartNo.Value
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(p) Then
+            frmProduction.lblPartName.Caption = ws.Cells(r, "B").Value
+            frmProduction.lblCavities.Caption = ws.Cells(r, "J").Value
+            Exit Sub
+        End If
+    Next r
+End Sub
+
+Public Function GetCavitiesForPart(ByVal PartNo As String) As Double
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            GetCavitiesForPart = val(ws.Cells(r, "J").Value)
+            Exit Function
+        End If
+    Next r
+End Function
+
+Public Function GetPartCode(PartNo As String) As String
+    Dim ws As Worksheet, r As Long, LR As Long
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            GetPartCode = ws.Cells(r, "L").Value
+            Exit Function
+        End If
+    Next r
+End Function
+
+Public Function GetTotalRejectQty() As Double
+    Dim i As Long
+    For i = 0 To frmProduction.lstRejects.ListCount - 1
+        GetTotalRejectQty = GetTotalRejectQty + val(frmProduction.lstRejects.List(i, 1))
+    Next i
+End Function
+Public Function IsDuplicateEntry() As Boolean
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "D").Value) = Trim(frmProduction.cboMachine.Value) And _
+   CDate(ws.Cells(r, "B").Value) = CDate(frmProduction.txtProdDate.Value) And _
+   Trim(ws.Cells(r, "C").Value) = Trim(frmProduction.cboShift.Value) And _
+   val(ws.Cells(r, "J").Value) = val(frmProduction.txtStartMachCount.Value) And _
+   Trim(UCase(ws.Cells(r, "E").Value)) = Trim(UCase(frmProduction.cboPartNo.Value)) Then
+
+    IsDuplicateEntry = True
+    Exit Function
+
+        End If
+
+    Next r
+
+    IsDuplicateEntry = False
+
+End Function
+
+Public Sub ClearProductionForm()
+
+    With frmProduction
+
+        .cboMachine.Value = ""
+        .cboPartNo.Value = ""
+        .cboOperator.Value = ""
+        .cboShift.Value = ""
+        .cboRejectReason.Value = ""
+        .cboIdleReason.Value = ""
+        .cboMouldChangeReason.Value = ""
+        .chkMouldChange.Value = False
+
+        .txtStartMachCount.Value = ""
+        .txtEndMachCount.Value = ""
+        .txtEndTime.Value = ""
+        .txtRejectQty.Value = ""
+        .txtRejectRemarks.Value = ""
+        .txtidleminutes.Value = ""
+        .txtidleRemarks.Value = ""
+        .txtMouldShots.Value = ""
+        .txtRemarks.Value = ""
+
+        .lblPartName.Caption = ""
+        .lblCavities.Caption = ""
+        .lblCycleTime.Caption = ""
+        .lblActualCycleTime.Caption = "-"
+        .lblTargetHr.Caption = ""
+        .lblStartTime.Caption = "-"
+        .lblShots.Caption = "0"
+        .lblEfficiency.Caption = "0%"
+        .lblStatus.Caption = "-"
+
+        .lblEfficiency.BackColor = RGB(150, 150, 150)
+        .lblStatus.BackColor = RGB(150, 150, 150)
+
+        .lstRejects.Clear
+        .lstDowntime.Clear
+
+        .txtProdDate.Value = Format(Date, "dd-mmm-yyyy")
+
+        .cboMachine.SetFocus
+
+    End With
+
+End Sub
+Public Function GetTotalDowntime() As Double
+    Dim i As Long
+    For i = 0 To frmProduction.lstDowntime.ListCount - 1
+        GetTotalDowntime = GetTotalDowntime + val(frmProduction.lstDowntime.List(i, 1))
+    Next i
+End Function
+
+Public Function ValidateProductionForm() As Boolean
+    If frmProduction.cboShift.Value = "" Then Exit Function
+    If frmProduction.cboMachine.Value = "" Then Exit Function
+    If frmProduction.cboPartNo.Value = "" Then Exit Function
+    If frmProduction.cboOperator.Value = "" Then Exit Function
+    If frmProduction.txtEndMachCount.Value = "" Then Exit Function
+    ValidateProductionForm = True
+End Function
+
+' Writes each individual reject-reason line entered on the form to
+' PRODUCTION_REJECT_LOG. PRODUCTION_LOG column O only ever held the
+' summed total - this is the detail trail behind that number.
+' Sheet headers: Date | Machine | Part | Operator | Reason | Qty | Remarks
+Public Sub SaveProductionRejectLines()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim i As Long
+
+    Set ws = Sheets("PRODUCTION_REJECT_LOG")
+If ws.FilterMode Then ws.ShowAllData
+    For i = 0 To frmProduction.lstRejects.ListCount - 1
+
+        LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        ws.Cells(LR, "A").Value = frmProduction.txtProdDate.Value
+        ws.Cells(LR, "A").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(LR, "B").Value = frmProduction.cboMachine.Value
+        ws.Cells(LR, "C").Value = frmProduction.cboPartNo.Value
+        ws.Cells(LR, "D").Value = frmProduction.cboOperator.Value
+        ws.Cells(LR, "E").Value = frmProduction.lstRejects.List(i, 0) 'Reason
+        ws.Cells(LR, "F").Value = frmProduction.lstRejects.List(i, 1) 'Qty
+        ws.Cells(LR, "G").Value = frmProduction.lstRejects.List(i, 2) 'Remarks
+
+    Next i
+
+End Sub
+
+' Same idea for idle/downtime detail lines.
+' Sheet headers: Date | Machine | Part | Operator | Reason | Minutes | Remarks
+Public Sub SaveProductionIdleLines()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim i As Long
+
+    Set ws = Sheets("PRODUCTION_IDLE_LOG")
+If ws.FilterMode Then ws.ShowAllData
+    For i = 0 To frmProduction.lstDowntime.ListCount - 1
+
+        LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+        ws.Cells(LR, "A").Value = frmProduction.txtProdDate.Value
+        ws.Cells(LR, "A").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(LR, "B").Value = frmProduction.cboMachine.Value
+        ws.Cells(LR, "C").Value = frmProduction.cboPartNo.Value
+        ws.Cells(LR, "D").Value = frmProduction.cboOperator.Value
+        ws.Cells(LR, "E").Value = frmProduction.lstDowntime.List(i, 0) 'Reason
+        ws.Cells(LR, "F").Value = frmProduction.lstDowntime.List(i, 1) 'Minutes
+        ws.Cells(LR, "G").Value = frmProduction.lstDowntime.List(i, 2) 'Remarks
+
+    Next i
+
+End Sub
+
+Public Sub LoadMachineStatus()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("MACHINE_STATUS")
+If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) = _
+           Trim(frmProduction.cboMachine.Value) Then
+
+            '==================================
+            ' MOULD REMOVED
+            '==================================
+            Dim StartTimeAlreadySet As Boolean
+            StartTimeAlreadySet = False
+
+            If Trim(ws.Cells(r, "B").Value) = "" Then
+
+                frmProduction.cboPartNo.Value = ""
+                frmProduction.lblPartName.Caption = ""
+
+                frmProduction.lblCavities.Caption = ""
+                frmProduction.lblCycleTime.Caption = ""
+                frmProduction.lblTargetHr.Caption = ""
+
+                frmProduction.txtStartMachCount.Value = 0
+
+                frmProduction.cboOperator.Value = ""
+
+                ' The new mould's production continues from where the
+                ' mould-change entry finished - use its End Time as
+                ' this entry's Start Time instead of a shift default.
+                If IsDate(ws.Cells(r, "E").Value) And ws.Cells(r, "E").Value <> 0 Then
+                    frmProduction.lblStartTime.Caption = _
+                        Format(ws.Cells(r, "E").Value, "HH:mm")
+                    StartTimeAlreadySet = True
+                End If
+
+                MsgBox "Previous mould was removed." & vbCrLf & _
+                       "Please select a new Part Number.", _
+                       vbInformation, "Mould Change"
+
+            Else
+
+                '==================================
+                ' NORMAL MACHINE STATUS
+                '==================================
+                frmProduction.cboPartNo.Value = _
+                    ws.Cells(r, "B").Value
+
+                frmProduction.lblPartName.Caption = _
+                    ws.Cells(r, "C").Value
+
+                frmProduction.txtStartMachCount.Value = _
+                    ws.Cells(r, "F").Value
+
+                frmProduction.cboOperator.Value = _
+                    ws.Cells(r, "H").Value
+                    
+
+            End If
+
+            '==================================
+            ' START TIME
+            '==================================
+            If Not StartTimeAlreadySet Then
+
+            Dim LastProdDate As Date
+Dim lastShift As String
+
+LastProdDate = ws.Cells(r, "I").Value
+lastShift = ws.Cells(r, "D").Value
+
+If frmProduction.cboShift.Value <> "" _
+   And DateValue(frmProduction.txtProdDate.Value) = DateValue(LastProdDate) _
+   And frmProduction.cboShift.Value = lastShift Then
+
+    'Same Date + Same Shift
+    frmProduction.lblStartTime.Caption = _
+    Format(ws.Cells(r, "E").Value, "HH:mm")
+
+ElseIf frmProduction.cboShift.Value = "A" Then
+
+    frmProduction.lblStartTime.Caption = "09:30"
+
+ElseIf frmProduction.cboShift.Value = "B" Then
+
+    frmProduction.lblStartTime.Caption = "21:30"
+
+Else
+
+    ' Shift hasn't been picked yet (e.g. Machine was selected
+    ' first) - fall back to the current time so lblStartTime is
+    ' never left at "-", which is what was causing TimeValue() to
+    ' crash in CalculateEfficiency.
+    frmProduction.lblStartTime.Caption = Format(Now, "HH:mm")
+
+End If
+
+            End If
+
+            If frmProduction.cboPartNo.Value <> "" Then
+
+                Call LoadPartDetails
+                Call UpdateCycleTime
+
+            End If
+
+            Exit Sub
+
+        End If
+
+    Next r
+
+End Sub
+Public Sub UpdateCycleTime()
+
+    Dim CT As Variant
+
+    If frmProduction.cboMachine.Value = "" Then Exit Sub
+    If frmProduction.cboPartNo.Value = "" Then Exit Sub
+
+    CT = GetCycleTime(frmProduction.cboMachine.Value, _
+                      frmProduction.cboPartNo.Value)
+
+    If CT = "NA" Then
+
+        frmProduction.lblCycleTime.Caption = "NA"
+        frmProduction.lblTargetHr.Caption = "NA"
+
+    Else
+   
+
+    frmProduction.lblCycleTime.Caption = CT & " Sec"
+
+    frmProduction.lblTargetHr.Caption = _
+        Round(3600 / val(CT), 0) & " Shots/Hr"
+
+    End If
+
+End Sub
+Public Function GetCycleTime(MachineNo As String, PartNo As String) As Variant
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Dim TotalCT As Double
+    Dim cnt As Long
+
+    Set ws = Sheets("CYCLETIME_MASTER")
+If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    'Exact Machine + Part match
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) = Trim(MachineNo) _
+        And Trim(ws.Cells(r, "B").Value) = Trim(PartNo) Then
+
+            GetCycleTime = ws.Cells(r, "C").Value
+            Exit Function
+
+        End If
+
+    Next r
+
+    'Average cycle time for same part
+
+    TotalCT = 0
+    cnt = 0
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(PartNo) Then
+
+            TotalCT = TotalCT + val(ws.Cells(r, "C").Value)
+            cnt = cnt + 1
+
+        End If
+
+    Next r
+
+    If cnt > 0 Then
+
+        GetCycleTime = Round(TotalCT / cnt, 0)
+
+    Else
+
+        GetCycleTime = "NA"
+
+    End If
+
+End Function
+Public Sub GetLastMachineEntry()
+frmProduction.lblStartTime.Caption = Format(Now, "HH:mm")
+    Exit Sub
+
+End Sub
+
+' Fix: efficiency now compares actual shots against NET running time
+' (elapsed time MINUS logged idle/downtime minutes), not gross
+' elapsed time. Previously, honest downtime entries dragged efficiency
+' down unfairly, since the machine was being judged as if it should
+' have kept producing during time it was legitimately stopped.
+Public Sub CalculateEfficiency()
+
+    Dim RunMinutes As Double
+    Dim NetRunMinutes As Double
+    Dim ActualShots As Double
+    Dim TargetShots As Double
+    Dim Eff As Double
+    Dim CT As Double
+    Dim IdleMin As Double
+
+    If frmProduction.lblCycleTime.Caption = "NA" Then Exit Sub
+
+    If frmProduction.txtEndTime.Value = "" Then Exit Sub
+
+    ActualShots = val(frmProduction.lblShots.Caption)
+
+    CT = val(frmProduction.lblCycleTime.Caption)
+
+    Dim StartTime As Date
+Dim EndTime As Date
+
+If Not IsDate(frmProduction.lblStartTime.Caption) Then
+
+    MsgBox "Start Time is not set correctly." & vbCrLf & _
+           "Please re-select Machine and Shift before entering End Time.", _
+           vbExclamation, "Start Time Missing"
+
+    frmProduction.txtEndTime.Value = ""
+    frmProduction.txtEndTime.SetFocus
+
+    Exit Sub
+
+End If
+
+StartTime = TimeValue(frmProduction.lblStartTime.Caption)
+EndTime = TimeValue(frmProduction.txtEndTime.Value)
+
+If StartTime > EndTime Then
+    RunMinutes = ((EndTime + 1) - StartTime) * 1440
+Else
+    RunMinutes = (EndTime - StartTime) * 1440
+End If
+                If RunMinutes > 480 Then
+
+    If MsgBox("Production duration is " & _
+          Round(RunMinutes / 60, 1) & _
+          " hours. Confirm to proceed?", _
+          vbYesNo + vbQuestion, _
+          "Long Production Duration") = vbNo Then
+
+    frmProduction.txtEndTime.Value = ""
+    frmProduction.txtEndTime.SetFocus
+
+    frmProduction.lblActualCycleTime.Caption = "-"
+    frmProduction.lblEfficiency.Caption = "0%"
+    frmProduction.lblStatus.Caption = "-"
+
+    Exit Sub
+
+End If
+
+End If
+
+    If RunMinutes <= 0 Then Exit Sub
+
+    IdleMin = GetTotalDowntime()
+
+    NetRunMinutes = RunMinutes - IdleMin
+    If NetRunMinutes < 0 Then NetRunMinutes = 0
+
+    If ActualShots > 0 And NetRunMinutes > 0 Then
+    frmProduction.lblActualCycleTime.Caption = _
+        Round((NetRunMinutes * 60) / ActualShots, 1) & " Sec"
+Else
+    frmProduction.lblActualCycleTime.Caption = "NA"
+End If
+
+    TargetShots = (NetRunMinutes * 60) / CT
+
+    If TargetShots <= 0 Then Exit Sub
+
+    Eff = (ActualShots / TargetShots) * 100
+
+    frmProduction.lblEfficiency.Caption = _
+        Format(Eff, "0") & "%"
+
+   Dim BoxColor As Long
+
+If Eff >= 95 Then
+    frmProduction.lblStatus.Caption = "Excellent"
+    BoxColor = RGB(0, 176, 80)      ' green
+ElseIf Eff >= 85 Then
+    frmProduction.lblStatus.Caption = "Good"
+    BoxColor = RGB(0, 128, 0)       ' dark green
+ElseIf Eff >= 75 Then
+    frmProduction.lblStatus.Caption = "OK"
+    BoxColor = RGB(255, 140, 0)     ' orange
+Else
+    frmProduction.lblStatus.Caption = "Low"
+    BoxColor = RGB(200, 0, 0)       ' red
+End If
+
+With frmProduction.lblEfficiency
+    .BackStyle = fmBackStyleOpaque
+    .BackColor = BoxColor
+    .ForeColor = vbWhite
+End With
+
+With frmProduction.lblStatus
+    .BackStyle = fmBackStyleOpaque
+    .BackColor = BoxColor
+    .ForeColor = vbWhite
+End With
+End Sub
+
+' Closes out one mould's full load-to-unload run into MOULD_HISTORY.
+' Called from UpdateMachineStatus at the moment Mould Change is
+' saved, using the OLD part's accumulated totals before they're
+' cleared. Sheet headers:
+' Machine | Part No | Part Name | Loaded Date | Loaded Time |
+' Unloaded Date | Unloaded Time | Total Shots | Total Prod Qty |
+' Total Reject Qty | Total Net Qty | Gross Run Hours | Total Idle Min |
+' Net Run Hours | Overall Efficiency % | Mould Change Reason
+Private Sub WriteMouldHistoryEntry( _
+        MachineNo As String, PartNo As String, PartName As String, _
+        LoadedDate As Variant, LoadedTime As String, _
+        UnloadedDate As Variant, UnloadedTime As String, _
+        totalShots As Double, TotalRejectQty As Double, TotalIdleMin As Double, _
+        MouldChangeReason As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim Cavities As Double
+    Dim TotalProdQty As Double
+    Dim TotalNetQty As Double
+    Dim GrossHours As Double
+    Dim NetHours As Double
+    Dim Eff As Double
+    Dim CT As Variant
+
+    Set ws = Sheets("MOULD_HISTORY")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ' Gross Run Hours = SUM of every actual PRODUCTION_LOG session's
+    ' (EndTime - StartTime) for this Machine+Part, between the Load
+    ' and Unload dates - NOT the calendar span between Load and
+    ' Unload. A mould loaded Monday and unloaded Wednesday might only
+    ' have genuinely run a fraction of that ~48 hour window - single
+    ' shifts, days with no logged production at all, gaps between
+    ' sessions. Calendar-span arithmetic silently counts all of that
+    ' as running time, which is wrong. LoadedTime/UnloadedTime are
+    ' no longer used in this calculation at all (only for display in
+    ' columns E/G below) - this sidesteps the original time-parsing
+    ' bug entirely rather than just patching around it.
+    GrossHours = SumActualRunHours(MachineNo, PartNo, LoadedDate, UnloadedDate)
+
+    Cavities = GetCavitiesForPart(PartNo)
+    TotalProdQty = totalShots * Cavities
+    TotalNetQty = TotalProdQty - TotalRejectQty
+
+    NetHours = GrossHours - (TotalIdleMin / 60)
+    If NetHours < 0 Then NetHours = 0
+
+    CT = GetCycleTime(MachineNo, PartNo)
+
+    If IsNumeric(CT) And val(CT) > 0 And NetHours > 0 Then
+        Eff = (totalShots / ((NetHours * 3600) / val(CT))) * 100
+    Else
+        Eff = 0
+    End If
+
+    ws.Cells(LR, "A").Value = MachineNo
+    ws.Cells(LR, "B").Value = PartNo
+    ws.Cells(LR, "C").Value = PartName
+    ws.Cells(LR, "D").Value = LoadedDate
+    ws.Cells(LR, "D").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "E").Value = LoadedTime
+    ws.Cells(LR, "F").Value = UnloadedDate
+    ws.Cells(LR, "F").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(LR, "G").Value = UnloadedTime
+    ws.Cells(LR, "H").Value = totalShots
+    ws.Cells(LR, "I").Value = TotalProdQty
+    ws.Cells(LR, "J").Value = TotalRejectQty
+    ws.Cells(LR, "K").Value = TotalNetQty
+    ws.Cells(LR, "L").Value = Format(GrossHours, "0.00")
+    ws.Cells(LR, "M").Value = TotalIdleMin
+    ws.Cells(LR, "N").Value = Format(NetHours, "0.00")
+    ws.Cells(LR, "O").Value = Format(Eff, "0.0")
+    ws.Cells(LR, "P").Value = MouldChangeReason
+
+End Sub
+
+
+' Sums the actual (End-Start) duration, in hours, of every
+' PRODUCTION_LOG entry for this exact Machine+Part between the given
+' Load and Unload dates (inclusive) - the true actual running time,
+' never the calendar span between Load and Unload. Handles overnight
+' shifts (End Time earlier than Start Time) by wrapping to the next
+' day, same convention used everywhere else in this project.
+Private Function SumActualRunHours(ByVal MachineNo As String, ByVal PartNo As String, _
+                                    ByVal LoadedDate As Variant, ByVal UnloadedDate As Variant) As Double
+
+    If Not IsDate(LoadedDate) Or Not IsDate(UnloadedDate) Then
+        SumActualRunHours = 0
+        Exit Function
+    End If
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim total As Double
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    Dim loadD As Date, unloadD As Date
+    loadD = DateValue(LoadedDate)
+    unloadD = DateValue(UnloadedDate)
+
+    For r = 2 To LR
+
+        If IsDate(ws.Cells(r, "B").Value) Then
+
+            Dim EntryDate As Date
+            EntryDate = DateValue(ws.Cells(r, "B").Value)
+
+            If EntryDate >= loadD And EntryDate <= unloadD And _
+               Trim(ws.Cells(r, "D").Value) = Trim(MachineNo) And _
+               Trim(ws.Cells(r, "E").Value) = Trim(PartNo) Then
+
+                Dim startVal As Variant, endVal As Variant
+                startVal = ws.Cells(r, "H").Value
+                endVal = ws.Cells(r, "I").Value
+
+                If IsNumeric(startVal) And IsNumeric(endVal) Then
+
+                    Dim runMin As Double
+                    runMin = (CDbl(endVal) - CDbl(startVal)) * 1440
+                    If runMin < 0 Then runMin = runMin + 1440 ' overnight wrap
+
+                    total = total + (runMin / 60)
+
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+    SumActualRunHours = total
+
+End Function
+
+Public Sub UpdateMachineStatus()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim found As Boolean
+
+    Set ws = Sheets("MACHINE_STATUS")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) = _
+           Trim(frmProduction.cboMachine.Value) Then
+
+If frmProduction.chkMouldChange.Value = True Then
+
+    ' Close out the run that's ending, using the OLD part still
+    ' sitting in this row (before we clear it below) plus this
+    ' final entry's shots/reject/idle, which haven't been folded
+    ' into the running totals yet at this point in the code.
+    Dim OldPartNo As String, OldPartName As String
+    Dim OldRunDate As Variant, OldRunTime As String
+    Dim FinalShots As Double, FinalReject As Double, FinalIdle As Double
+
+    OldPartNo = ws.Cells(r, "B").Value
+    OldPartName = ws.Cells(r, "C").Value
+    OldRunDate = ws.Cells(r, "J").Value
+    OldRunTime = ws.Cells(r, "K").Value
+
+    FinalShots = val(ws.Cells(r, "G").Value) + val(frmProduction.lblShots.Caption)
+    FinalReject = val(ws.Cells(r, "L").Value) + GetTotalRejectQty()
+    FinalIdle = val(ws.Cells(r, "M").Value) + GetTotalDowntime()
+
+    If Trim(OldPartNo) <> "" And IsDate(OldRunDate) Then
+
+        Call WriteMouldHistoryEntry( _
+            frmProduction.cboMachine.Value, OldPartNo, OldPartName, _
+            OldRunDate, OldRunTime, _
+            frmProduction.txtProdDate.Value, frmProduction.txtEndTime.Value, _
+            FinalShots, FinalReject, FinalIdle, _
+            frmProduction.cboMouldChangeReason.Value)
+
+    End If
+
+    ws.Cells(r, "B").Value = ""
+    ws.Cells(r, "C").Value = ""
+    ws.Cells(r, "D").Value = frmProduction.cboShift.Value
+    ws.Cells(r, "E").Value = frmProduction.txtEndTime.Value
+    ws.Cells(r, "E").NumberFormat = "hh:mm"
+    ws.Cells(r, "F").Value = 0
+    ws.Cells(r, "G").Value = 0
+    ws.Cells(r, "H").Value = ""
+    ws.Cells(r, "I").Value = frmProduction.txtProdDate.Value
+    ws.Cells(r, "I").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(r, "J").Value = ""
+    ws.Cells(r, "K").Value = ""
+    ws.Cells(r, "L").Value = 0
+    ws.Cells(r, "M").Value = 0
+
+    found = True
+    Exit For
+
+End If
+            Dim ShotsThisEntry As Double
+            Dim NewMouldShots As Double
+            Dim NewRunReject As Double
+            Dim NewRunIdle As Double
+
+            ShotsThisEntry = val(frmProduction.lblShots.Caption)
+
+            If Trim(ws.Cells(r, "B").Value) = Trim(frmProduction.cboPartNo.Value) Then
+                ' Same Part No = same mould still running - keep accumulating
+                NewMouldShots = val(ws.Cells(r, "G").Value) + ShotsThisEntry
+                NewRunReject = val(ws.Cells(r, "L").Value) + GetTotalRejectQty()
+                NewRunIdle = val(ws.Cells(r, "M").Value) + GetTotalDowntime()
+            Else
+                ' Part No changed = new mould just loaded - counters
+                ' restart, and this moment becomes the run's Loaded
+                ' Date/Time for the eventual MOULD_HISTORY entry.
+                NewMouldShots = ShotsThisEntry
+                NewRunReject = GetTotalRejectQty()
+                NewRunIdle = GetTotalDowntime()
+
+                ws.Cells(r, "J").Value = frmProduction.txtProdDate.Value
+                ws.Cells(r, "J").NumberFormat = "dd-mmm-yyyy"
+                ws.Cells(r, "K").Value = frmProduction.lblStartTime.Caption
+            End If
+
+            ws.Cells(r, "B").Value = frmProduction.cboPartNo.Value
+            ws.Cells(r, "C").Value = frmProduction.lblPartName.Caption
+            ws.Cells(r, "D").Value = frmProduction.cboShift.Value
+            ws.Cells(r, "E").Value = frmProduction.txtEndTime.Value
+            ws.Cells(r, "E").NumberFormat = "hh:mm"
+            ws.Cells(r, "F").Value = frmProduction.txtEndMachCount.Value
+            ws.Cells(r, "G").Value = NewMouldShots
+            ws.Cells(r, "H").Value = frmProduction.cboOperator.Value
+            ws.Cells(r, "I").Value = frmProduction.txtProdDate.Value
+            ws.Cells(r, "I").NumberFormat = "dd-mmm-yyyy"
+            ws.Cells(r, "L").Value = NewRunReject
+            ws.Cells(r, "M").Value = NewRunIdle
+
+            found = True
+            Exit For
+
+        End If
+
+    Next r
+
+    If found = False Then
+
+        LR = LR + 1
+
+        ws.Cells(LR, "A").Value = frmProduction.cboMachine.Value
+        ws.Cells(LR, "B").Value = frmProduction.cboPartNo.Value
+        ws.Cells(LR, "C").Value = frmProduction.lblPartName.Caption
+        ws.Cells(LR, "D").Value = frmProduction.cboShift.Value
+        ws.Cells(LR, "E").Value = frmProduction.txtEndTime.Value
+        ws.Cells(LR, "E").NumberFormat = "hh:mm"
+        ws.Cells(LR, "F").Value = frmProduction.txtEndMachCount.Value
+        ws.Cells(LR, "G").Value = val(frmProduction.lblShots.Caption)
+        ws.Cells(LR, "H").Value = frmProduction.cboOperator.Value
+        ws.Cells(LR, "I").Value = frmProduction.txtProdDate.Value
+        ws.Cells(LR, "I").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(LR, "J").Value = frmProduction.txtProdDate.Value
+        ws.Cells(LR, "J").NumberFormat = "dd-mmm-yyyy"
+        ws.Cells(LR, "K").Value = frmProduction.lblStartTime.Caption
+        ws.Cells(LR, "L").Value = GetTotalRejectQty()
+        ws.Cells(LR, "M").Value = GetTotalDowntime()
+
+    End If
+
+End Sub
+
+Public Sub UpdateMouldLife()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Dim PartNo As String
+    Dim EntryShots As Double
+
+    Dim TotalLife As Double
+    Dim LastPM As Double
+    Dim PMFreq As Double
+    Dim PMDueIn As Double
+
+    Set ws = Sheets("MOULD_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    PartNo = Trim(frmProduction.cboPartNo.Value)
+    EntryShots = val(frmProduction.lblShots.Caption)
+
+    If PartNo = "" Then Exit Sub
+    If EntryShots <= 0 Then Exit Sub
+
+    LR = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If UCase(Trim(ws.Cells(r, "D").Value)) = _
+   UCase(Trim(PartNo)) Then
+
+            'Update Total Lifetime Shots
+            TotalLife = val(ws.Cells(r, "K").Value)
+            TotalLife = TotalLife + EntryShots
+
+            ws.Cells(r, "K").Value = TotalLife
+
+            'Calculate PM Due In
+            LastPM = val(ws.Cells(r, "N").Value)
+            PMFreq = val(ws.Cells(r, "O").Value)
+
+            If PMFreq > 0 Then
+
+                PMDueIn = (LastPM + PMFreq) - TotalLife
+
+                ws.Cells(r, "P").Value = PMDueIn
+
+                'PM Warning
+                If PMDueIn <= 5000 And PMDueIn > 0 Then
+
+                    MsgBox "Tool PM Due in " & _
+                           Format(PMDueIn, "#,##0") & _
+                           " shots.", vbExclamation, _
+                           "PM Warning"
+
+                End If
+
+                If PMDueIn <= 0 Then
+
+                    MsgBox "Tool PM OVERDUE !" & vbCrLf & _
+                           "Immediate maintenance required.", _
+                           vbCritical, _
+                           "PM Overdue"
+
+                End If
+
+            End If
+
+            Exit For
+
+        End If
+
+    Next r
+
+End Sub
+
+Public Function TimeStrToMinutesProd(ByVal t As String) As Double
+
+    t = Trim(t)
+
+    If InStr(t, ":") = 0 Then
+        TimeStrToMinutesProd = 0
+        Exit Function
+    End If
+
+    Dim parts() As String
+    parts = Split(t, ":")
+
+    TimeStrToMinutesProd = val(parts(0)) * 60 + val(IIf(UBound(parts) >= 1, parts(1), "0"))
+
+End Function

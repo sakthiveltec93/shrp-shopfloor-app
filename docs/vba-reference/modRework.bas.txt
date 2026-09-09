@@ -1,0 +1,266 @@
+Option Explicit
+
+Public Sub CreateRework( _
+        BatchNo As String, _
+        PartName As String, _
+        FromProcess As String, _
+        ToProcess As String, _
+        Weight As Double, _
+        Reason As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+
+    Set ws = Sheets("REWORK_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Date
+    ws.Cells(LR, "B").Value = BatchNo
+    ws.Cells(LR, "C").Value = PartName
+    ws.Cells(LR, "D").Value = FromProcess
+    ws.Cells(LR, "E").Value = ToProcess
+    ws.Cells(LR, "F").Value = Weight
+    ws.Cells(LR, "G").Value = Reason
+
+End Sub
+
+
+' Total weight sent to ToProcess ("Trimming" / "Inspection" / ...)
+' via REWORK_LOG for this bag. This is what widens a stage's
+' Remaining Weight ceiling beyond the bag's original weight, so
+' rejected material that gets routed back for rework can actually
+' be re-entered at that stage.
+Public Function GetPendingReworkWeight(BagCode As String, ToProcess As String) As Double
+
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+
+    Set ws = Sheets("REWORK_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    GetPendingReworkWeight = 0
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(BagCode) _
+           And UCase(Trim(ws.Cells(r, "E").Value)) = UCase(Trim(ToProcess)) Then
+
+            GetPendingReworkWeight = GetPendingReworkWeight + _
+                val(ws.Cells(r, "F").Value)
+
+        End If
+
+    Next r
+
+End Function
+
+
+' Total weight from REWORK_LOG routed to ToProcess for this bag that
+' is STILL outstanding - i.e. not yet reprocessed at that stage.
+' Unlike GetPendingReworkWeight (which just sums everything ever
+' routed, used to widen the entry ceiling), this allocates whatever
+' HAS already been reprocessed against the REWORK_LOG lines oldest
+' first (FIFO), so it reflects the true remaining amount per line,
+' not just a running total. Ties the "does this look like rework?"
+' check directly to actual reject-log-driven events rather than a
+' weight inference.
+Public Function GetTotalOutstandingRework( _
+        BagCode As String, ToProcess As String, _
+        BaseWt As Double, ProcessedLogSheet As String) As Double
+
+    Dim TotalProcessed As Double
+    Dim RemainingToConsume As Double
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+    Dim RowWeight As Double
+    Dim ConsumedFromRow As Double
+
+    TotalProcessed = GetProcessedWeight(BagCode, ProcessedLogSheet)
+    RemainingToConsume = TotalProcessed - BaseWt
+    If RemainingToConsume < 0 Then RemainingToConsume = 0
+
+    Set ws = Sheets("REWORK_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    GetTotalOutstandingRework = 0
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(BagCode) _
+           And UCase(Trim(ws.Cells(r, "E").Value)) = UCase(Trim(ToProcess)) Then
+
+            RowWeight = val(ws.Cells(r, "F").Value)
+            ConsumedFromRow = RowWeight
+            If ConsumedFromRow > RemainingToConsume Then ConsumedFromRow = RemainingToConsume
+            If ConsumedFromRow < 0 Then ConsumedFromRow = 0
+
+            GetTotalOutstandingRework = GetTotalOutstandingRework + (RowWeight - ConsumedFromRow)
+            RemainingToConsume = RemainingToConsume - ConsumedFromRow
+
+        End If
+
+    Next r
+
+End Function
+
+
+' Looks up the human-readable Part Name for a Part No (GetPartName
+' elsewhere in this project actually returns the Part NO, despite the
+' name - this one genuinely returns the display name from PART_MASTER
+' column B, for showing in the rework picker below).
+Private Function GetPartDisplayName(ByVal PartNo As String) As String
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            GetPartDisplayName = ws.Cells(r, "B").Value
+            Exit Function
+        End If
+    Next r
+
+    GetPartDisplayName = PartNo ' fallback if not found
+
+End Function
+
+
+' Fills a 2-column ComboBox with every bag that currently has
+' outstanding rework for ToProcess, so an operator who doesn't yet
+' know a bag code can pick one directly instead of only being able to
+' look up a bag already typed.
+' Column 0 (visible): "PartName - X.XXX Kg - Reason - BagCode"
+' Column 1 (hidden, width 0): the bag code alone - always read the
+' bag code back from here, never by parsing the visible text.
+Public Sub PopulateReworkBagPicker(cbo As MSForms.ComboBox, ByVal ToProcess As String)
+
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+    Dim seen As Object
+
+    Set seen = CreateObject("Scripting.Dictionary")
+    Set ws = Sheets("REWORK_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    cbo.Clear
+    cbo.ColumnCount = 2
+    cbo.ColumnWidths = "250 pt;0 pt"
+
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If UCase(Trim(ws.Cells(r, "E").Value)) = UCase(Trim(ToProcess)) Then
+
+            Dim BagCode As String
+            BagCode = Trim(ws.Cells(r, "B").Value)
+
+            If Not seen.Exists(BagCode) Then
+                seen.Add BagCode, True
+
+                Dim PartNo As String
+                Dim partNameText As String
+                Dim BaseWt As Double
+                Dim logSheet As String
+                Dim Outstanding As Double
+
+                PartNo = GetPartName(BagCode)
+                partNameText = GetPartDisplayName(PartNo)
+
+                If ToProcess = "Trimming" Then
+                    BaseWt = Getproductionweight(BagCode)
+                    logSheet = "TRIM_LOG"
+                Else ' "Inspection"
+                    If IsTrimRequired(PartNo) Then
+                        BaseWt = GetTrimmedWeight(BagCode)
+                    Else
+                        BaseWt = Getproductionweight(BagCode)
+                    End If
+                    logSheet = "INSPECTION_LOG"
+                End If
+
+                Outstanding = GetTotalOutstandingRework(BagCode, ToProcess, BaseWt, logSheet)
+
+                If Outstanding > 0.001 Then
+
+                    cbo.AddItem partNameText & " - " & Format(Outstanding, "0.000") & _
+                                " Kg - " & ws.Cells(r, "G").Value & " - " & BagCode
+
+                    cbo.List(cbo.ListCount - 1, 1) = BagCode
+
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+End Sub
+' Fills a 3-column ListBox (Reason | Outstanding Kg | Date) with
+' every REWORK_LOG line routed to ToProcess for this bag that still
+' has weight outstanding, using the same FIFO allocation as
+' GetTotalOutstandingRework above - oldest rework gets consumed
+' first as reprocessing happens.
+Public Sub PopulateOutstandingReworkList( _
+        lst As MSForms.ListBox, BagCode As String, ToProcess As String, _
+        BaseWt As Double, ProcessedLogSheet As String)
+
+    Dim TotalProcessed As Double
+    Dim RemainingToConsume As Double
+    Dim ws As Worksheet
+    Dim LastRow As Long
+    Dim r As Long
+    Dim RowWeight As Double
+    Dim ConsumedFromRow As Double
+    Dim Outstanding As Double
+
+    lst.Clear
+
+    TotalProcessed = GetProcessedWeight(BagCode, ProcessedLogSheet)
+    RemainingToConsume = TotalProcessed - BaseWt
+    If RemainingToConsume < 0 Then RemainingToConsume = 0
+
+    Set ws = Sheets("REWORK_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LastRow
+
+        If Trim(ws.Cells(r, "B").Value) = Trim(BagCode) _
+           And UCase(Trim(ws.Cells(r, "E").Value)) = UCase(Trim(ToProcess)) Then
+
+            RowWeight = val(ws.Cells(r, "F").Value)
+            ConsumedFromRow = RowWeight
+            If ConsumedFromRow > RemainingToConsume Then ConsumedFromRow = RemainingToConsume
+            If ConsumedFromRow < 0 Then ConsumedFromRow = 0
+
+            Outstanding = RowWeight - ConsumedFromRow
+            RemainingToConsume = RemainingToConsume - ConsumedFromRow
+
+            If Outstanding > 0.001 Then
+
+                lst.AddItem ws.Cells(r, "G").Value 'Reason
+                lst.List(lst.ListCount - 1, 1) = Format(Outstanding, "0.000")
+                lst.List(lst.ListCount - 1, 2) = Format(ws.Cells(r, "A").Value, "dd-mm-yyyy")
+
+            End If
+
+        End If
+
+    Next r
+
+End Sub

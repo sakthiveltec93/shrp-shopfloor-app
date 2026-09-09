@@ -1,0 +1,42 @@
+Option Explicit
+
+' ONE-TIME PATCH - adds a Status column to the Machines table
+' (missed in the original migration) and backfills it from
+' MACHINE_MASTER. Run once, then delete this module.
+
+Sub AddAndBackfillMachineStatus()
+
+    On Error Resume Next ' harmless if the column already exists
+    modDB.ExecuteSQL "ALTER TABLE Machines ADD COLUMN Status TEXT(20)"
+    On Error GoTo 0
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("MACHINE_MASTER")
+
+    Dim LR As Long
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim r As Long, updated As Long
+
+    For r = 2 To LR
+
+        Dim MachineName As String, Status As String
+        MachineName = Trim(ws.Cells(r, "A").Value)
+        Status = Trim(ws.Cells(r, "D").Value)
+
+        If MachineName <> "" Then
+
+            Dim sql As String
+            sql = "UPDATE Machines SET Status = '" & modDB.SQLEscape(Status) & "' "
+            sql = sql & "WHERE MachineName = '" & modDB.SQLEscape(MachineName) & "'"
+
+            modDB.ExecuteSQL sql
+            updated = updated + 1
+
+        End If
+
+    Next r
+
+    MsgBox "Status backfilled for " & updated & " machine(s).", vbInformation
+
+End Sub

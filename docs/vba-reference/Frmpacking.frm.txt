@@ -1,0 +1,693 @@
+Private Sub cmdSave_Click()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+
+    Dim PackedQty As Double
+    Dim PackedWt As Double
+
+    Dim i As Long
+    Dim PacketNo As String
+
+    Dim FirstPacketNo As String
+    Dim LastPacketNo As String
+
+    Dim SystemRemainQty As Double
+    Dim ActualBalanceEntered As Boolean
+    Dim ActualBalanceQty As Double
+    Dim QtyVariance As Double
+    Dim ConfirmBalance As Double
+    Dim ConfirmTotal As Double
+    Dim PriorPackedQty As Double
+
+    If Trim(txtBatch.Value) = "" Then
+
+        MsgBox "Enter Batch Number", vbExclamation
+        Exit Sub
+
+    End If
+
+    If cboOperator.Value = "" Then
+
+        MsgBox "Select Operator", vbExclamation
+        Exit Sub
+
+    End If
+
+    If val(txtPacketsPacked.Value) <= 0 And Trim(txtActualBalanceQty.Value) = "" Then
+
+        MsgBox "Enter Packets Packed" & vbCrLf & "OR" & vbCrLf & "Enter Balance Qty", _
+               vbExclamation
+
+        Exit Sub
+
+    End If
+
+    PackedQty = _
+        val(txtPacketsPacked.Value) * _
+        val(lblStdPackQty.Caption)
+
+    PackedWt = _
+        val(txtPacketsPacked.Value) * _
+        val(txtActualPacketWt.Value)
+
+    Dim AvailQtyAtSave As Double
+    Dim PW As Double
+    Dim PackTolerance As Double
+
+    AvailQtyAtSave = val(Replace(lblAvailQty.Caption, ",", ""))
+    PW = GetPartWeight(lblPart.Caption)
+    PackTolerance = GetEntryToleranceQty(AvailQtyAtSave, PW)
+
+    If PackedQty > AvailQtyAtSave + PackTolerance Then
+
+        MsgBox "Qty Too High" & vbCrLf & vbCrLf & _
+               "Entered: " & Format(PackedQty, "#,##0") & vbCrLf & _
+               "Available: " & Format(AvailQtyAtSave, "#,##0") & vbCrLf & vbCrLf & _
+               "Cannot Save", vbCritical, "Quantity Exceeds Available"
+
+        Exit Sub
+
+    End If
+
+    SystemRemainQty = val(Replace(lblRemainQty.Caption, ",", ""))
+
+    ActualBalanceEntered = (Trim(txtActualBalanceQty.Value) <> "")
+
+    If ActualBalanceEntered Then
+        ActualBalanceQty = val(txtActualBalanceQty.Value)
+        QtyVariance = ActualBalanceQty - SystemRemainQty
+    End If
+
+    ' Balance shown in the confirm = the counted figure if the
+    ' operator entered one, else the weight-based system estimate.
+    ConfirmBalance = IIf(ActualBalanceEntered, ActualBalanceQty, SystemRemainQty)
+
+    PriorPackedQty = GetPackedQty(txtBatch.Value)
+
+    ConfirmTotal = PriorPackedQty + PackedQty + ConfirmBalance
+
+    Dim PartialLabel As String
+
+    If ConfirmBalance < -0.001 Then
+        PartialLabel = "Over by " & Format(-ConfirmBalance, "#,##0") & " (OK)"
+    ElseIf ConfirmBalance > 0.001 Then
+        PartialLabel = "Partial - Bag Not Done"
+    Else
+        PartialLabel = "Bag Complete"
+    End If
+
+    If MsgBox( _
+        txtPacketsPacked.Value & " Packets" & vbCrLf & _
+        Format(PackedQty, "#,##0") & " Nos   " & Format(PackedWt, "0.000") & " Kg" & vbCrLf & vbCrLf & _
+        "Balance: " & Format(ConfirmBalance, "#,##0") & vbCrLf & _
+        PartialLabel & vbCrLf & vbCrLf & _
+        "Save?", _
+        vbQuestion + vbYesNo, "Confirm Packing") = vbNo Then
+
+        Exit Sub
+
+    End If
+
+    ' Decide label output NOW, before anything is queued or written -
+    ' both decisions (proceed? + how to output labels?) are resolved
+    ' upfront, together. Nothing below this point asks again.
+    Dim LabelChoice As String
+    LabelChoice = AskLabelOutputChoice()
+
+    'Generate and queue labels FIRST - if this fails (e.g. missing
+    ' label sheet), nothing gets written to PACKING_LOG at all,
+    ' rather than leaving a saved row with no labels/status update.
+    For i = 1 To val(txtPacketsPacked.Value)
+
+        PacketNo = GetNextPacketNo(txtBatch.Value, i)
+
+        If i = 1 Then FirstPacketNo = PacketNo
+
+        LastPacketNo = PacketNo
+
+        Call PrintPackingLabel( _
+            CStr(PacketNo), _
+            CStr(txtBatch.Value), _
+            CStr(lblPart.Caption), _
+            CLng(val(lblStdPackQty.Caption)), _
+            CStr(cboOperator.Value), _
+            CStr(GetLastInspector(txtBatch.Value)))
+
+    Next i
+
+    Set ws = Sheets("PACKING_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1
+
+    ws.Cells(LR, "A").Value = Now
+    ws.Cells(LR, "A").NumberFormat = "dd-mm-yyyy hh:mm:ss"
+
+    ws.Cells(LR, "B").Value = txtBatch.Value
+    ws.Cells(LR, "C").Value = lblPart.Caption
+    ws.Cells(LR, "D").Value = cboOperator.Value
+
+    ws.Cells(LR, "E").Value = lblStdPackQty.Caption
+    ws.Cells(LR, "F").Value = txtActualPacketWt.Value
+    ws.Cells(LR, "G").Value = txtPacketsPacked.Value
+
+    ws.Cells(LR, "H").Value = PackedQty
+    ws.Cells(LR, "I").Value = PackedWt
+
+    ws.Cells(LR, "J").Value = lblRemainQty.Caption
+    ws.Cells(LR, "K").Value = lblRemainWt.Caption
+
+    ws.Cells(LR, "L").Value = FirstPacketNo
+    ws.Cells(LR, "M").Value = LastPacketNo
+
+    If ActualBalanceEntered Then
+        ws.Cells(LR, "O").Value = ActualBalanceQty
+        ws.Cells(LR, "P").Value = QtyVariance
+    End If
+
+    ' --- Status update: gated on Inspection actually being complete,
+    ' but ONLY when this part actually requires Inspection at all -
+    ' a part with Inspection Required = N never creates INSPECTION_LOG
+    ' rows by design, so that check must be skipped entirely for them,
+    ' not treated as "never inspected, so never allowed to close".
+
+    Dim PartNoForGuard As String
+    PartNoForGuard = GetPartName(txtBatch.Value)
+
+    Dim InspReqForGuard As Boolean
+    InspReqForGuard = InspectionRequired(PartNoForGuard)
+
+    Dim StillPendingInspection As Double
+    Dim TotalEverInspected As Double
+
+    If InspReqForGuard Then
+        StillPendingInspection = RemainingInspectionWeight(txtBatch.Value)
+        TotalEverInspected = GetProcessedWeight(txtBatch.Value, "INSPECTION_LOG")
+    Else
+        StillPendingInspection = 0
+        TotalEverInspected = 1 ' dummy nonzero - guard never blocks when Inspection isn't required
+    End If
+
+    If StillPendingInspection > 0.001 Or TotalEverInspected <= 0.001 Then
+
+        ' Either material is still waiting to be inspected, or (for a
+        ' part where Inspection IS required but genuinely hasn't
+        ' started yet) nothing has been inspected at all yet - never
+        ' mark PACKED in either case.
+
+    ElseIf ActualBalanceEntered And ActualBalanceQty = 0 Then
+
+        Call UpdateBagStatus(txtBatch.Value, "PACKED", "Packing (counted zero)")
+        Call LogQtyVariance(txtBatch.Value, lblPart.Caption, "Counted")
+
+    Else
+
+        Dim ActualTrimmedWtChk As Double
+        Dim TrueBagBaseWt As Double
+
+        ActualTrimmedWtChk = GetProcessedWeight(txtBatch.Value, "TRIM_LOG")
+
+        If ActualTrimmedWtChk > 0.001 Then
+            TrueBagBaseWt = ActualTrimmedWtChk
+        Else
+            TrueBagBaseWt = Getproductionweight(txtBatch.Value)
+        End If
+
+        Call CheckAndUpdateBagStatus( _
+            txtBatch.Value, _
+            AvailablePackingWeight(txtBatch.Value), _
+            TrueBagBaseWt, _
+            "PACKED", "Packed")
+
+        If UCase(Trim(GetBagStatus(txtBatch.Value))) = "PACKED" Then
+            Call LogQtyVariance(txtBatch.Value, lblPart.Caption, "Weight-Estimate")
+        End If
+
+    End If
+
+    ' If this bag now has leftover Qty too small for another full
+    ' cover, offer to close it out and move the balance into a shared
+    ' pool for this Part - so it can be consolidated with leftovers
+    ' from other bags of the same part instead of sitting stuck,
+    ' unusable, in this one bag.
+    Dim RemainQtyAfterSave As Double
+    RemainQtyAfterSave = GetAdjustedAvailableQty(txtBatch.Value)
+
+    Dim MaxFullPackFromRemain As Long
+    MaxFullPackFromRemain = Int(RemainQtyAfterSave / val(lblStdPackQty.Caption))
+
+    If RemainQtyAfterSave > 0 And MaxFullPackFromRemain = 0 Then
+        Call UpdateBagStatus(txtBatch.Value, "PACKED", "Packing (tiny leftover swept to pool)")
+        Call AddToPackingBalancePool(lblPart.Caption, RemainQtyAfterSave, cboOperator.Value)
+
+        MsgBox "Bag closed - " & Format(RemainQtyAfterSave, "#,##0") & _
+               " Nos moved to " & lblPart.Caption & " pool", vbInformation
+
+    End If
+
+    Call CheckExtraCoverOpportunity(lblPart.Caption, val(lblStdPackQty.Caption), cboOperator.Value)
+
+    Call FlushPackingLabels(LabelChoice)
+
+    MsgBox "Packing Saved & Labels Printed", vbInformation
+
+    Call ClearForm
+
+End Sub
+
+Private Sub ClearForm()
+
+    txtBatch.Value = ""
+
+    lblPart.Caption = "-"
+    lblAvailWt.Caption = "-"
+    lblAvailQty.Caption = "-"
+    lblStdPackQty.Caption = "-"
+    lblFullPackets.Caption = "-"
+    lblBalanceQty.Caption = "-"
+    lblExpectedPacketWt.Caption = "-"
+
+    txtActualPacketWt.Value = ""
+    txtPacketsPacked.Value = ""
+    txtActualBalanceQty.Value = ""
+
+    lblRemainQty.Caption = "-"
+    lblRemainWt.Caption = "-"
+
+    cboOperator.Value = ""
+    cboPackingRejectReason.Value = ""
+
+    cboPartNoFIFO.Value = ""
+    If Not chkSelectByPart.Value Then
+        Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+    End If
+
+    lstBagsInBatch.Clear
+    lstBagsInBatch.Visible = False
+
+    If chkSelectByPart.Value Then
+        txtBatch.SetFocus
+    Else
+        cboPartNoFIFO.SetFocus
+    End If
+
+End Sub
+
+Private Sub cmdClear_Click()
+
+    Call ClearForm
+
+End Sub
+
+Private Sub cmdRejectBag_Click()
+
+    Dim RejectWt As Double
+    Dim RevertStatus As String
+
+    If Trim(txtBatch.Value) = "" Then
+        MsgBox "Enter Bag Code first", vbExclamation
+        Exit Sub
+    End If
+
+    If cboPackingRejectReason.Value = "" Then
+        MsgBox "Select a reason for rejecting this bag", vbExclamation
+        Exit Sub
+    End If
+
+    RejectWt = AvailablePackingWeight(txtBatch.Value)
+
+    If RejectWt <= 0 Then
+        MsgBox "Nothing available to reject for this bag - it may " & _
+               "already be fully packed.", vbExclamation
+        Exit Sub
+    End If
+
+    If MsgBox( _
+        "Reject this ENTIRE bag (" & Format(RejectWt, "0.000") & _
+        " Kg) and send it back to Inspection?" & vbCrLf & _
+        "Reason: " & cboPackingRejectReason.Value, _
+        vbQuestion + vbYesNo, "Confirm Bag Rejection") = vbNo Then
+
+        Exit Sub
+
+    End If
+
+    Call CreateRework( _
+        txtBatch.Value, _
+        lblPart.Caption, _
+        "Packing", _
+        "Inspection", _
+        RejectWt, _
+        cboPackingRejectReason.Value)
+
+    If IsTrimRequired(lblPart.Caption) Then
+        RevertStatus = "TRIMMED"
+    Else
+        RevertStatus = "OPEN"
+    End If
+
+    Call UpdateBagStatus(txtBatch.Value, RevertStatus, "Packing (bag rejected, sent to Inspection)")
+
+    MsgBox "Bag rejected and sent back to Inspection.", vbInformation
+
+    txtBatch.Value = ""
+    lblPart.Caption = "-"
+    lblAvailWt.Caption = "-"
+    lblAvailQty.Caption = "-"
+    lblStdPackQty.Caption = "-"
+    lblFullPackets.Caption = "-"
+    lblBalanceQty.Caption = "-"
+    lblExpectedPacketWt.Caption = "-"
+    cboPackingRejectReason.Value = ""
+
+    cboPartNoFIFO.Value = ""
+    If Not chkSelectByPart.Value Then
+        Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+    End If
+
+    lstBagsInBatch.Clear
+    lstBagsInBatch.Visible = False
+
+    txtBatch.SetFocus
+
+End Sub
+
+Private Sub Label7_Click()
+
+End Sub
+
+Private Sub txtActualPacketWt_Change()
+
+    UpdatePackingBalance
+
+End Sub
+
+Private Sub chkSelectByPart_Click()
+
+    If chkSelectByPart.Value Then
+
+        ' Checked = Select by Barcode (direct entry/scan)
+        cboPartNoFIFO.Visible = False
+        cboPartNoFIFO.Value = ""
+        txtBatch.Locked = False
+        txtBatch.Value = ""
+
+    Else
+
+        ' Unchecked (default) = Select by Part - FIFO, since barcode
+        ' labels aren't in use yet.
+        cboPartNoFIFO.Visible = True
+        txtBatch.Locked = True
+        txtBatch.Value = ""
+
+        Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+
+    End If
+
+End Sub
+
+Private Sub cboPartNoFIFO_AfterUpdate()
+
+    If cboPartNoFIFO.Value = "" Then Exit Sub
+
+    Dim StdPack As Double
+    StdPack = GetStdPackQty(cboPartNoFIFO.Value)
+
+    Dim foundBag As String
+    Dim AvailQty As Double
+    Dim attempts As Long
+    attempts = 0
+
+    Do
+
+        foundBag = GetFIFOBagForPacking(cboPartNoFIFO.Value)
+
+        If foundBag = "" Then
+
+            MsgBox "No bags currently ready for Packing for Part '" & _
+                   cboPartNoFIFO.Value & "'.", vbInformation, "No Bags Available"
+
+            txtBatch.Value = ""
+            Exit Sub
+
+        End If
+
+        AvailQty = GetAdjustedAvailableQty(foundBag)
+
+        If StdPack > 0 And AvailQty > 0 And Int(AvailQty / StdPack) = 0 Then
+
+            ' Too small a leftover to pack on its own - sweep it into
+            ' the shared pool instead of offering it as a normal
+            ' pickable bag, and try the next oldest one.
+            Call UpdateBagStatus(foundBag, "PACKED", "Packing (FIFO auto-swept tiny leftover)")
+            Call AddToPackingBalancePool(cboPartNoFIFO.Value, AvailQty, cboOperator.Value)
+
+            attempts = attempts + 1
+
+        Else
+
+            Exit Do
+
+        End If
+
+    Loop While attempts < 20
+
+    txtBatch.Value = foundBag
+    Call txtBatch_AfterUpdate
+
+End Sub
+
+Private Sub txtBatch_AfterUpdate()
+
+    Dim BatchNo As String
+    Dim PW As Double
+    Dim StdPack As Double
+    Dim AvailQty As Double
+    Dim AvailWt As Double
+
+    BatchNo = Trim(txtBatch.Value)
+
+    If BatchNo = "" Then Exit Sub
+
+    If GetPartName(BatchNo) = "" Then
+
+        MsgBox "Batch Number '" & BatchNo & _
+               "' does not exist.", _
+               vbExclamation, "Invalid Batch"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If GetBagType(BatchNo) <> "PART" And GetBagType(BatchNo) <> "" Then
+
+        MsgBox "'" & BatchNo & "' is a " & GetBagType(BatchNo) & " bag, not a Part bag." & vbCrLf & _
+               "Only Part bags go through Packing - Runner, Rejection and Lump entries are scrap/waste material.", _
+               vbExclamation, "Not a Part Bag"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If Not IsBatchInProductionLog(GetBatchNoForBag(BatchNo)) Then
+
+        MsgBox "This bag's batch (" & GetBatchNoForBag(BatchNo) & _
+               ") was not found in Production Log.", _
+               vbExclamation, "Production Log Mismatch"
+
+        txtBatch.Value = ""
+        txtBatch.SetFocus
+
+        Exit Sub
+
+    End If
+
+    If StageRank(GetBagStatus(BatchNo)) >= 3 Then
+
+        If MsgBox( _
+            "This bag is already at status '" & GetBagStatus(BatchNo) & _
+            "'." & vbCrLf & vbCrLf & _
+            "Add another Packing entry anyway?", _
+            vbQuestion + vbYesNo, "Bag Already Processed") = vbNo Then
+
+            txtBatch.Value = ""
+            txtBatch.SetFocus
+
+            Exit Sub
+
+        End If
+
+    End If
+
+    lblPart.Caption = GetPartName(BatchNo)
+
+    Call LoadBagsForBatch(lstBagsInBatch, GetBatchNoForBag(BatchNo))
+
+    Dim todaysActualWt As Double
+    todaysActualWt = GetTodaysActualPacketWt(lblPart.Caption)
+
+    If todaysActualWt > 0 Then
+        txtActualPacketWt.Value = Format(todaysActualWt, "0.000")
+    End If
+
+    If Not PackingRequired(lblPart.Caption) Then
+
+        If MsgBox( _
+            "Part Master shows Packing = N for '" & lblPart.Caption & _
+            "' - this part normally skips Packing." & vbCrLf & vbCrLf & _
+            "Confirm: do you still want to record a Packing entry for this bag?", _
+            vbQuestion + vbYesNo, "Packing Not Required") = vbNo Then
+
+            txtBatch.Value = ""
+            txtBatch.SetFocus
+
+            Exit Sub
+
+        End If
+
+    End If
+
+    PW = GetPartWeight(lblPart.Caption)
+
+    StdPack = GetStdPackQty(lblPart.Caption)
+
+    AvailQty = GetAdjustedAvailableQty(BatchNo)
+
+    AvailWt = AvailablePackingWeight(BatchNo)
+
+    lblAvailQty.Caption = Format(AvailQty, "#,##0")
+
+    lblAvailWt.Caption = Format(AvailWt, "0.00")
+
+    lblStdPackQty.Caption = StdPack
+
+    If StdPack > 0 Then
+
+        lblFullPackets.Caption = CStr(Int(CDbl(AvailQty) / CDbl(StdPack)))
+
+        lblBalanceQty.Caption = _
+            CStr(AvailQty - _
+            (CLng(lblFullPackets.Caption) * StdPack))
+
+    Else
+
+        lblFullPackets.Caption = "0"
+        lblBalanceQty.Caption = "0"
+
+    End If
+
+    lblExpectedPacketWt.Caption = _
+        Format((StdPack * PW) / 1000, "0.000")
+
+End Sub
+
+Private Sub txtPacketsPacked_Change()
+
+    UpdatePackingBalance
+
+End Sub
+Private Sub UpdatePackingBalance()
+
+    Dim AvailQty As Double
+    Dim AvailWt As Double
+
+    Dim StdPackQty As Double
+    Dim PacketsNow As Double
+
+    Dim PackedQty As Double
+    Dim PackedWt As Double
+
+    If lblAvailQty.Caption = "-" Then Exit Sub
+    If lblAvailWt.Caption = "-" Then Exit Sub
+
+    AvailQty = val(Replace(lblAvailQty.Caption, ",", ""))
+    AvailWt = val(Replace(lblAvailWt.Caption, ",", ""))
+
+    StdPackQty = val(lblStdPackQty.Caption)
+    PacketsNow = val(txtPacketsPacked.Value)
+
+    PackedQty = PacketsNow * StdPackQty
+
+    PackedWt = _
+        PacketsNow * _
+        val(txtActualPacketWt.Value)
+
+    lblRemainQty.Caption = _
+        Format(AvailQty - PackedQty, "#,##0")
+
+    lblRemainWt.Caption = _
+        Format(AvailWt - PackedWt, "0.000")
+
+End Sub
+Private Sub UserForm_Initialize()
+
+    Dim ws As Worksheet
+    Dim r As Long
+    Dim LR As Long
+
+    chkSelectByPart.Caption = "Select by Barcode (uncheck = Select by Part)"
+    chkSelectByPart.Value = False
+    cboPartNoFIFO.Visible = True
+    txtBatch.Locked = True
+    Call PopulateFIFOPartDropdown(cboPartNoFIFO)
+
+    With lstBagsInBatch
+        .ColumnCount = 4
+        .ColumnWidths = "75 pt;60 pt;60 pt;65 pt"
+        .Visible = False
+    End With
+
+    Set ws = Sheets("OperatorMaster")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        cboOperator.AddItem ws.Cells(r, "A").Value
+    Next r
+
+    Call AutoFillOperatorFromToday(cboOperator, "PACKING_LOG", "A", "D")
+
+    Dim wsReject As Worksheet
+    Dim rr As Long
+    Dim LRR As Long
+
+    Set wsReject = Sheets("REJECT_MASTER")
+    If wsReject.FilterMode Then wsReject.ShowAllData
+    LRR = wsReject.Cells(wsReject.Rows.Count, "B").End(xlUp).Row
+
+    cboPackingRejectReason.Clear
+    For rr = 2 To LRR
+        cboPackingRejectReason.AddItem wsReject.Cells(rr, "B").Value
+    Next rr
+
+End Sub
+
+
+Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+
+    If KeyCode = vbKeyReturn Then
+
+        Dim skipAdvance As Boolean
+        skipAdvance = False
+
+        On Error Resume Next
+        If TypeOf Me.ActiveControl Is MSForms.TextBox Then
+            If Me.ActiveControl.Multiline Then skipAdvance = True
+        End If
+        On Error GoTo 0
+
+        If Not skipAdvance Then
+            KeyCode = 0
+            Call MoveToNextControl(Me)
+        End If
+
+    End If
+
+End Sub

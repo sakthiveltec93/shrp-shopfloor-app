@@ -1,0 +1,114 @@
+Option Explicit
+
+' Finds the given Operator's most recent PRIOR entry (any date) in
+' the given log sheet, by actual timestamp - used to compute elapsed
+' hours since their last entry, for a per-hour throughput rate.
+' Returns Empty if this operator has no prior entry in this log yet.
+Public Function GetLastOperatorTimestamp(ByVal LogSheetName As String, _
+                                          ByVal DateCol As String, _
+                                          ByVal OperatorCol As String, _
+                                          ByVal OperatorName As String) As Variant
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestTimestamp As Date
+    Dim found As Boolean
+
+    Set ws = Sheets(LogSheetName)
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, OperatorCol).Value) = Trim(OperatorName) And IsDate(ws.Cells(r, DateCol).Value) Then
+            Dim ts As Date
+            ts = ws.Cells(r, DateCol).Value
+            If Not found Or ts > bestTimestamp Then
+                found = True
+                bestTimestamp = ts
+            End If
+        End If
+    Next r
+
+    If found Then
+        GetLastOperatorTimestamp = bestTimestamp
+    Else
+        GetLastOperatorTimestamp = Empty
+    End If
+
+End Function
+
+
+' Elapsed hours between the operator's last entry and now. Returns 0
+' if there's no prior entry (this is the FIRST entry of the day for
+' this operator in this log) - callers should skip rate calculation
+' entirely in that case, leaving the rate blank, rather than guessing
+' at a start time. Defaulting to the scheduled shift start (09:30/
+' 21:30) was considered and rejected: it would understate the rate
+' for anyone who genuinely started late, penalizing them for
+' something that has nothing to do with how fast they actually work
+' once they begin. Every rate from the SECOND entry onward compares
+' two real recorded timestamps, never an assumption.
+Public Function GetElapsedHoursSinceLastEntry(ByVal LogSheetName As String, _
+                                               ByVal DateCol As String, _
+                                               ByVal OperatorCol As String, _
+                                               ByVal OperatorName As String) As Double
+
+    Dim lastTs As Variant
+    lastTs = GetLastOperatorTimestamp(LogSheetName, DateCol, OperatorCol, OperatorName)
+
+    If IsEmpty(lastTs) Then
+        GetElapsedHoursSinceLastEntry = 0
+        Exit Function
+    End If
+
+    Dim elapsed As Double
+    elapsed = (Now - CDate(lastTs)) * 24
+
+    If elapsed <= 0 Then elapsed = 0
+
+    GetElapsedHoursSinceLastEntry = elapsed
+
+End Function
+
+
+' Auto-fills the given ComboBox with whoever's most recent entry
+' TODAY was, in the given log sheet - called on form open. Left
+' fully editable, this is just a starting guess, not a lock.
+Public Sub AutoFillOperatorFromToday(cbo As MSForms.ComboBox, ByVal LogSheetName As String, _
+                                      ByVal DateCol As String, ByVal OperatorCol As String)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim bestTimestamp As Date
+    Dim bestOperator As String
+    Dim found As Boolean
+
+    Set ws = Sheets(LogSheetName)
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+        If IsDate(ws.Cells(r, DateCol).Value) Then
+            If DateValue(ws.Cells(r, DateCol).Value) = DateValue(Now) Then
+                Dim ts As Date
+                ts = ws.Cells(r, DateCol).Value
+                If Not found Or ts > bestTimestamp Then
+                    found = True
+                    bestTimestamp = ts
+                    bestOperator = ws.Cells(r, OperatorCol).Value
+                End If
+            End If
+        End If
+    Next r
+
+    If found Then
+        cbo.Value = bestOperator
+    End If
+
+End Sub

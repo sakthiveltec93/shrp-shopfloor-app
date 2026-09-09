@@ -1,0 +1,27 @@
+Option Explicit
+
+Public Function GetPartWeight(ByVal PartNo As String) As Double
+
+Dim ws As Worksheet
+Dim LastRow As Long
+Dim r As Long
+
+Set ws = Sheets(SH_PARTMASTER)
+    If ws.FilterMode Then ws.ShowAllData
+
+LastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+For r = 2 To LastRow
+
+    If ws.Cells(r, 1).Value = PartNo Then
+
+        GetPartWeight = ws.Cells(r, 3).Value
+        Exit Function
+
+    End If
+
+Next r
+
+GetPartWeight = 0
+
+End Function

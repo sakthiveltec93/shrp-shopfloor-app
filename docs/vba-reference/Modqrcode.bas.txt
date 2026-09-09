@@ -1,0 +1,86 @@
+Option Explicit
+
+' Generalized: places a QR code for QRText into TargetSheet at
+' TargetCell, using ShapeName as its unique shape identifier (needed
+' now that up to 12 QR codes coexist on one label sheet - each slot
+' needs its own uniquely-named shape, not a single fixed "WIP_QR").
+Public Sub GenerateQR(ByVal QRText As String, ByVal TargetSheet As String, _
+                       ByVal TargetCell As String, ByVal ShapeName As String, _
+                       Optional ByVal SizePt As Double = 55)
+
+    Dim ws As Worksheet
+    Dim QRPath As String
+    Dim QRURL As String
+    Dim shp As Shape
+
+    Set ws = Sheets(TargetSheet)
+    If ws.FilterMode Then ws.ShowAllData
+
+    QRPath = Environ$("TEMP") & "\QR_" & ShapeName & ".png"
+
+    QRURL = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" & QRText
+
+    On Error Resume Next
+    Kill QRPath
+    On Error GoTo 0
+
+    On Error Resume Next
+    Err.Clear
+    Call DownloadFile(QRURL, QRPath)
+
+    If Err.Number <> 0 Or Dir(QRPath) = "" Then
+        On Error GoTo 0
+        ' Silent skip here (not a MsgBox) - with up to 12 labels being
+        ' generated in one batch, popping a dialog per failure would be
+        ' very disruptive. The label still prints/saves without its QR.
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    On Error Resume Next
+    ws.Shapes(ShapeName).Delete
+    On Error GoTo 0
+
+    On Error Resume Next
+    Err.Clear
+    Set shp = ws.Shapes.AddPicture( _
+        Filename:=QRPath, _
+        LinkToFile:=msoFalse, _
+        SaveWithDocument:=msoTrue, _
+        Left:=ws.Range(TargetCell).Left, _
+        Top:=ws.Range(TargetCell).Top, _
+        Width:=SizePt, _
+        Height:=SizePt)
+
+    If Err.Number = 0 And Not shp Is Nothing Then
+        shp.Name = ShapeName
+    End If
+    On Error GoTo 0
+
+End Sub
+
+' Kept for backward compatibility with any code still calling the
+' old single-label name/signature.
+Public Sub GenerateWIPQR(QRText As String)
+    Call GenerateQR(QRText, "WIP_LABEL_TEMPLATE", "C3", "WIP_QR")
+End Sub
+
+
+Public Sub DownloadFile(ByVal URL As String, ByVal SaveAs As String)
+
+    Dim xmlhttp As Object
+    Dim stream As Object
+
+    Set xmlhttp = CreateObject("MSXML2.XMLHTTP")
+    xmlhttp.Open "GET", URL, False
+    xmlhttp.Send
+
+    Set stream = CreateObject("ADODB.Stream")
+
+    stream.Type = 1
+    stream.Open
+    stream.Write xmlhttp.responseBody
+    stream.SaveToFile SaveAs, 2
+    stream.Close
+
+End Sub

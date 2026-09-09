@@ -1,0 +1,15 @@
+Sub Openfrmbagentry()
+
+    frmbagentry.Show
+
+End Sub
+Sub OpenProductionForm()
+
+    frmProduction.Show
+
+End Sub
+Sub OpenFrmpacking()
+
+    Frmpacking.Show
+
+End Sub

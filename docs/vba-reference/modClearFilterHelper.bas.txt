@@ -1,0 +1,16 @@
+Option Explicit
+
+' Removes any active AutoFilter on the given sheet, so a newly
+' appended row can never land outside the filter's original range
+' and go invisible. Safe to call even if no filter is active at all
+' - does nothing in that case. Call this right before writing a new
+' row to any log sheet, in every Save routine across every form.
+Public Sub ClearFilterIfAny(ws As Worksheet)
+
+    On Error Resume Next
+    If ws.AutoFilterMode Then
+        ws.AutoFilterMode = False
+    End If
+    On Error GoTo 0
+
+End Sub

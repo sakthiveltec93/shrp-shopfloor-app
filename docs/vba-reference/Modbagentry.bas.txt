@@ -1,0 +1,1028 @@
+Option Explicit
+
+Public Function GetNextBagNo(BatchNo As String) As String
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim MaxNo As Long
+    Dim s As String
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    MaxNo = 0
+
+    For r = 2 To LR
+
+        If Left(ws.Cells(r, "E").Value, Len(BatchNo)) = BatchNo Then
+
+            s = Right(ws.Cells(r, "E").Value, 3)
+
+            If IsNumeric(s) Then
+
+                If CLng(s) > MaxNo Then
+                    MaxNo = CLng(s)
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+    GetNextBagNo = Format(MaxNo + 1, "000")
+
+End Function
+Public Sub LoadBagMachines()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("MACHINE_STATUS")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    frmbagentry.cboMachine.Clear
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) <> "" Then
+
+            frmbagentry.cboMachine.AddItem _
+            ws.Cells(r, "A").Value
+
+        End If
+
+    Next r
+
+End Sub
+
+Public Sub LoadCurrentProduction()
+
+    Dim wsP As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim selectedDate As Date
+    Dim selectedMachine As String
+    Dim selectedShift As String
+
+    Const COL_DATE As String = "B"      'Production Date
+    Const COL_SHIFT As String = "C"     'Shift
+    Const COL_MACHINE As String = "D"   'Machine
+    Const COL_PART As String = "E"      'Part No
+    Const COL_BATCH As String = "S"     'Batch No
+
+    selectedMachine = Trim(frmbagentry.cboMachine.Value)
+    selectedShift = Trim(frmbagentry.cboShift.Value)
+
+    If selectedMachine = "" Then Exit Sub
+    If selectedShift = "" Then Exit Sub
+
+    If Not IsDate(frmbagentry.txtProdDate.Value) Then
+        MsgBox "Please select a valid production date.", vbExclamation
+        Exit Sub
+    End If
+
+    selectedDate = DateValue(CDate(frmbagentry.txtProdDate.Value))
+
+    Set wsP = Sheets("PRODUCTION_LOG")
+    If wsP.FilterMode Then wsP.ShowAllData
+    LR = wsP.Cells(wsP.Rows.Count, COL_DATE).End(xlUp).Row
+
+    frmbagentry.cboPartNo.Clear
+    frmbagentry.cboPartNo.Value = ""
+    frmbagentry.lblBatchNo.Caption = "-"
+
+    ' Collect every DISTINCT Part/Batch that ran on this exact
+    ' Machine + Date + Shift - a mould change mid-shift means more
+    ' than one can legitimately exist, not just one. Populate
+    ' cboPartNo (the existing dropdown) with just the matches - no
+    ' separate picker control needed.
+    Dim seen As Object
+    Set seen = CreateObject("Scripting.Dictionary")
+
+    Dim matchCount As Long
+    Dim lastPartNo As String
+    Dim lastBatchNo As String
+
+    matchCount = 0
+
+    For r = 2 To LR
+
+        If SameProductionDate(wsP.Cells(r, COL_DATE).Value, selectedDate) _
+           And MachineKey(wsP.Cells(r, COL_MACHINE).Value) = _
+               MachineKey(selectedMachine) _
+           And Trim(wsP.Cells(r, COL_SHIFT).Value) = selectedShift Then
+
+            Dim thisBatch As String
+            thisBatch = Trim(wsP.Cells(r, COL_BATCH).Value)
+
+            If thisBatch <> "" And Not seen.Exists(thisBatch) Then
+
+                seen.Add thisBatch, True
+                matchCount = matchCount + 1
+
+                lastPartNo = wsP.Cells(r, COL_PART).Value
+                lastBatchNo = thisBatch
+
+                frmbagentry.cboPartNo.AddItem wsP.Cells(r, COL_PART).Value
+
+            End If
+
+        End If
+
+    Next r
+
+    If matchCount = 0 Then
+
+        MsgBox "No production entry found for " & selectedMachine & _
+               ", Shift " & selectedShift & ", on " & Format(selectedDate, "dd-mmm-yyyy") & "." & vbCrLf & _
+               "Select the Part No manually if you know it, or double-check date/machine/shift.", _
+               vbExclamation, "No Production Found For This Date"
+
+    ElseIf matchCount = 1 Then
+
+        frmbagentry.cboPartNo.Value = lastPartNo
+        frmbagentry.lblBatchNo.Caption = lastBatchNo
+        Call LoadBagPartDetails
+
+    Else
+
+        ' More than one Part ran this Machine+Date+Shift, most likely
+        ' a mould change mid-shift - cboPartNo now holds only the
+        ' matching parts; the operator picks one, and
+        ' cboPartNo_AfterUpdate (in frmbagentry) looks up the
+        ' matching Batch No via LookupBatchForSelectedPart below.
+        MsgBox matchCount & " different parts ran on " & selectedMachine & _
+               ", Shift " & selectedShift & ", on " & Format(selectedDate, "dd-mmm-yyyy") & _
+               " (likely a mould change mid-shift)." & vbCrLf & vbCrLf & _
+               "Select which Part these bags belong to from the Part No dropdown.", _
+               vbInformation, "Multiple Parts Found"
+
+    End If
+
+End Sub
+
+
+' Once the operator picks a Part from the multi-match dropdown above,
+' finds the matching Batch No for that exact Part under the currently
+' selected Machine + Date + Shift, and loads its details.
+Public Sub LookupBatchForSelectedPart()
+
+    Dim wsP As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim selectedDate As Date
+    Dim selectedMachine As String
+    Dim selectedShift As String
+    Dim selectedPart As String
+
+    Const COL_DATE As String = "B"
+    Const COL_SHIFT As String = "C"
+    Const COL_MACHINE As String = "D"
+    Const COL_PART As String = "E"
+    Const COL_BATCH As String = "S"
+
+    selectedMachine = Trim(frmbagentry.cboMachine.Value)
+    selectedShift = Trim(frmbagentry.cboShift.Value)
+    selectedPart = Trim(frmbagentry.cboPartNo.Value)
+
+    If selectedMachine = "" Then Exit Sub
+    If selectedShift = "" Then Exit Sub
+    If selectedPart = "" Then Exit Sub
+    If Not IsDate(frmbagentry.txtProdDate.Value) Then Exit Sub
+
+    selectedDate = DateValue(CDate(frmbagentry.txtProdDate.Value))
+
+    Set wsP = Sheets("PRODUCTION_LOG")
+    If wsP.FilterMode Then wsP.ShowAllData
+    LR = wsP.Cells(wsP.Rows.Count, COL_DATE).End(xlUp).Row
+
+    For r = 2 To LR
+
+        If SameProductionDate(wsP.Cells(r, COL_DATE).Value, selectedDate) _
+           And MachineKey(wsP.Cells(r, COL_MACHINE).Value) = _
+               MachineKey(selectedMachine) _
+           And Trim(wsP.Cells(r, COL_SHIFT).Value) = selectedShift _
+           And Trim(wsP.Cells(r, COL_PART).Value) = selectedPart Then
+
+            frmbagentry.lblBatchNo.Caption = wsP.Cells(r, COL_BATCH).Value
+            Call LoadBagPartDetails
+            Exit Sub
+
+        End If
+
+    Next r
+
+End Sub
+
+' NOTE: this appears to be dead/unused code - LoadCurrentProduction
+' above already sets lblBatchNo.Caption itself, and nothing in
+' frmbagentry appears to call this separately. Left untouched and
+' NOT updated with Shift filtering since it may still be referenced
+' somewhere not visible here - worth confirming and removing if
+' genuinely unused.
+Public Sub LoadLatestBatch()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim selectedDate As Date
+
+    If Trim(frmbagentry.cboMachine.Value) = "" Then Exit Sub
+
+    If Not IsDate(frmbagentry.txtProdDate.Value) Then Exit Sub
+
+    selectedDate = DateValue(CDate(frmbagentry.txtProdDate.Value))
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    'Column B = Production Date
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    frmbagentry.lblBatchNo.Caption = "-"
+
+    'Search backwards for latest batch of selected machine ON selected date
+    For r = LR To 2 Step -1
+
+        If IsDate(ws.Cells(r, "B").Value) Then
+
+            If DateValue(CDate(ws.Cells(r, "B").Value)) = selectedDate _
+               And MachineKey(ws.Cells(r, "D").Value) = _
+                   MachineKey(frmbagentry.cboMachine.Value) Then
+
+                frmbagentry.lblBatchNo.Caption = ws.Cells(r, "S").Value
+                Exit Sub
+
+            End If
+
+        End If
+
+    Next r
+
+End Sub
+' Shows every existing BAG_LOG entry (any type - Part, Runner,
+' Rejection, Lump) already saved for the currently selected Batch
+' No, so the operator can see what's already been bagged before
+' adding more. Refreshed automatically whenever the batch is
+' determined, via LoadBagPartDetails below.
+Public Sub LoadExistingBagsForBatch()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim BatchNo As String
+
+    BatchNo = Trim(frmbagentry.lblBatchNo.Caption)
+
+    frmbagentry.lstPreviousBags.Clear
+
+    If BatchNo = "" Or BatchNo = "-" Then
+        frmbagentry.lstPreviousBags.Visible = False
+        Exit Sub
+    End If
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "C").Value) = BatchNo Then
+
+            frmbagentry.lstPreviousBags.AddItem ws.Cells(r, "E").Value 'Bag Code
+
+            frmbagentry.lstPreviousBags.List(frmbagentry.lstPreviousBags.ListCount - 1, 1) = _
+                ws.Cells(r, "F").Value 'Type
+
+            frmbagentry.lstPreviousBags.List(frmbagentry.lstPreviousBags.ListCount - 1, 2) = _
+                Format(val(ws.Cells(r, "G").Value), "0.000") 'Weight
+
+            frmbagentry.lstPreviousBags.List(frmbagentry.lstPreviousBags.ListCount - 1, 3) = _
+                Format(val(ws.Cells(r, "H").Value), "#,##0") 'Qty
+
+            frmbagentry.lstPreviousBags.List(frmbagentry.lstPreviousBags.ListCount - 1, 4) = _
+                ws.Cells(r, "J").Value 'Status
+
+        End If
+
+    Next r
+
+    frmbagentry.lstPreviousBags.Visible = (frmbagentry.lstPreviousBags.ListCount > 0)
+
+End Sub
+
+Public Sub LoadBagPartDetails()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+
+        If Trim(ws.Cells(r, "A").Value) = _
+           Trim(frmbagentry.cboPartNo.Value) Then
+
+            frmbagentry.lblPartName.Caption = _
+            ws.Cells(r, "B").Value
+
+            ' Part Weight is a plain static lookup - no separate
+            ' logging/averaging infrastructure, unlike Shot Weight
+            ' below. Any mismatch this causes is caught by the
+            ' overage-justification flow at Save instead.
+            frmbagentry.lblPartWt.Caption = Format(ws.Cells(r, "C").Value, "0.00")
+
+            Dim avgShotWt As Double
+            avgShotWt = GetAverageShotWeight(Trim(frmbagentry.cboPartNo.Value))
+
+            If avgShotWt > 0 Then
+                frmbagentry.lblShotWt.Caption = Format(avgShotWt, "0.00")
+            Else
+                ' No logged readings yet for this part - fall back to
+                ' the static PART_MASTER value until one is logged.
+                frmbagentry.lblShotWt.Caption = Format(ws.Cells(r, "K").Value, "0.00")
+            End If
+
+            frmbagentry.lblCavities.Caption = _
+            ws.Cells(r, "J").Value
+
+            Call LoadExistingBagsForBatch
+            Call WarnIfBagEntryAlreadyComplete
+Call UpdateExpectedBagWeight
+            Exit Sub
+
+        End If
+
+    Next r
+
+End Sub
+
+' NOTE: this writes to the SAME lblTotalProdWeight.Caption that
+' UpdateBagTotals (in frmbagentry) also writes to, but for a
+' DIFFERENT meaning - this one computes actual produced weight from
+' Shots x Shot Wt, while UpdateBagTotals computes what's been
+' accounted for so far via bag entries. Whichever runs last silently
+' overwrites the other in the same label. Left untouched since it's
+' outside what was asked, but flagging as a likely source of
+' confusing numbers if this Sub gets called anywhere in the flow.
+Public Sub LoadProductionWeight()
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Dim Shots As Double
+    Dim ProdWt As Double
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = LR To 2 Step -1
+
+        If Trim(ws.Cells(r, "S").Value) = _
+           Trim(frmbagentry.lblBatchNo.Caption) Then
+
+            Shots = val(ws.Cells(r, "L").Value)
+
+            ProdWt = _
+            (Shots * val(frmbagentry.lblShotWt.Caption)) / 1000
+
+            frmbagentry.lblTotalProdWeight.Caption = _
+            Format(ProdWt, "0.000")
+
+            Exit For
+
+        End If
+
+    Next r
+
+End Sub
+Public Sub LoadMachinesForSelectedDate()
+
+    Dim ws As Worksheet
+    Dim LR As Long, r As Long
+    Dim selectedDate As Date
+    Dim MachineName As String
+    Dim machines As Object
+
+    Const COL_DATE As String = "B"      'Production date column
+    Const COL_MACHINE As String = "D"   'Machine column
+
+    If Not IsDate(frmbagentry.txtProdDate.Value) Then Exit Sub
+
+    selectedDate = DateValue(CDate(frmbagentry.txtProdDate.Value))
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    Set machines = CreateObject("Scripting.Dictionary")
+
+    frmbagentry.cboMachine.Clear
+    frmbagentry.cboPartNo.Value = ""
+    frmbagentry.lblBatchNo.Caption = ""
+
+    LR = ws.Cells(ws.Rows.Count, COL_DATE).End(xlUp).Row
+
+    For r = 2 To LR
+
+        If IsDate(ws.Cells(r, COL_DATE).Value) Then
+
+            If DateValue(CDate(ws.Cells(r, COL_DATE).Value)) = selectedDate Then
+
+                MachineName = Trim(ws.Cells(r, COL_MACHINE).Value)
+
+                If MachineName <> "" Then
+                    If Not machines.Exists(MachineName) Then
+                        machines.Add MachineName, True
+                        frmbagentry.cboMachine.AddItem MachineName
+                    End If
+                End If
+
+            End If
+        End If
+
+    Next r
+
+End Sub
+
+Private Function SameProductionDate(ByVal logDate As Variant, _
+                                    ByVal selectedDate As Date) As Boolean
+
+    If IsDate(logDate) Then
+        SameProductionDate = _
+            DateValue(CDate(logDate)) = DateValue(selectedDate)
+    End If
+
+End Function
+
+Private Function MachineKey(ByVal machineValue As Variant) As String
+
+    Dim s As String
+
+    s = UCase$(CStr(machineValue))
+    s = Replace(s, ChrW(160), "")
+    s = Replace(s, " ", "")
+    s = Replace(s, "-", "")
+
+    MachineKey = Trim$(s)
+
+End Function
+
+
+' ================================================================
+' NEW FUNCTIONS - for the over-bagging tolerance check in cmdSave_Click
+' ================================================================
+
+' Total NET production for a Batch No - sums PRODUCTION_LOG column P
+' (NetQty = ProdQty - RejectQty) across every row sharing that Batch
+' No, since one batch can span multiple Production entries (e.g. a
+' shift logged in several sessions before a mould change). Uses NET
+' rather than gross, since production-stage rejects never make it
+' into a bag at all - only the net good-plus-uncaught output does.
+Public Function GetBatchTotalNetQty(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "S").Value) = Trim(BatchNo) Then
+            GetBatchTotalNetQty = GetBatchTotalNetQty + val(ws.Cells(r, "P").Value)
+        End If
+    Next r
+
+End Function
+
+
+' Sum of Approx Qty (column H) already logged in BAG_LOG for this
+' Batch No, PART bags only - Runner bags always record Qty=0 since
+' they're waste material, not countable pieces, so they don't count
+' against the batch's production quantity ceiling.
+Public Function GetAlreadyBaggedQty(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "C").Value) = Trim(BatchNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" Then
+            GetAlreadyBaggedQty = GetAlreadyBaggedQty + val(ws.Cells(r, "H").Value)
+        End If
+    Next r
+
+End Function
+
+
+' Sum of raw Kg (column G) already logged in BAG_LOG for this Batch
+' No, PART bags only - used only for the error message, so the
+' operator sees a Kg figure alongside the Nos figure.
+Public Function GetAlreadyBaggedWeight(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "C").Value) = Trim(BatchNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" Then
+            GetAlreadyBaggedWeight = GetAlreadyBaggedWeight + val(ws.Cells(r, "G").Value)
+        End If
+    Next r
+
+End Function
+
+
+' Same tolerance shape used everywhere else in this project: the
+' larger of 1% or a fixed floor - here 200 Nos rather than the 0.3
+' Kg/300g floor used for weight-based checks, since this one's
+' piece-count based.
+Public Function GetBagEntryQtyTolerance(ByVal TotalQty As Double) As Double
+
+    Dim pctTol As Double
+    pctTol = TotalQty * 0.01
+
+    If pctTol > 200 Then
+        GetBagEntryQtyTolerance = pctTol
+    Else
+        GetBagEntryQtyTolerance = 200
+    End If
+
+End Function
+
+
+' Average of every logged shot weight reading for this Part No.
+' Returns 0 if nothing has been logged yet, which the caller treats
+' as "fall back to PART_MASTER's static value".
+Public Function GetAverageShotWeight(ByVal PartNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim total As Double
+    Dim cnt As Long
+
+    Set ws = Sheets("SHOT_WEIGHT_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    total = 0
+    cnt = 0
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "B").Value) = Trim(PartNo) Then
+            total = total + val(ws.Cells(r, "C").Value)
+            cnt = cnt + 1
+        End If
+    Next r
+
+    If cnt > 0 Then
+        GetAverageShotWeight = total / cnt
+    Else
+        GetAverageShotWeight = 0
+    End If
+
+End Function
+
+
+' Sum of ALL Part-bag weight (column G) logged against this Batch No,
+' across every Bag Entry session for it - not just the current one.
+' Used to derive a ground-truth weight-per-piece once a batch is
+' fully bagged.
+Public Function GetTotalPartBaggedWeight(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BAG_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "C").Value) = Trim(BatchNo) And _
+           UCase(Trim(ws.Cells(r, "F").Value)) = "PART" Then
+            GetTotalPartBaggedWeight = GetTotalPartBaggedWeight + val(ws.Cells(r, "G").Value)
+        End If
+    Next r
+
+End Function
+
+
+' Once a batch is fully bagged (within the normal completion
+' tolerance - same test used everywhere else in this project), derives
+' the true weight-per-piece (or per-shot) from two independently
+' measured figures: total weighed Part-bag material, and the batch's
+' actual Production OK Qty (Shots x Cavities - Reject). Offers to log
+' the derived value as a new reading if it differs meaningfully from
+' the current reference. Non-blocking, informational, called after a
+' successful Bag Entry save.
+Public Sub TryReconcileWeight(ByVal BatchNo As String, ByVal PartNo As String, _
+                               ByVal WithRunnerMode As Boolean)
+
+    Dim BatchTotalQty As Double
+    Dim TotalBagged As Double
+    Dim QtyTolerance As Double
+
+    BatchTotalQty = GetBatchTotalNetQty(BatchNo)
+    If BatchTotalQty <= 0 Then Exit Sub
+
+    ' Only applies to Shot Weight - Part Weight has no separate
+    ' tracking/logging to reconcile against anymore, by design (it's
+    ' a plain static PART_MASTER lookup; any mismatch is caught by
+    ' the overage-justification flow at Save instead).
+    If Not WithRunnerMode Then Exit Sub
+
+    TotalBagged = GetAlreadyBaggedQty(BatchNo)
+    QtyTolerance = GetBagEntryQtyTolerance(BatchTotalQty)
+
+    ' Only reconcile once the batch is fully bagged - not under by
+    ' more than the normal completion tolerance. (Being over is
+    ' already handled separately by the overage-justification flow.)
+    If TotalBagged < BatchTotalQty - QtyTolerance Then Exit Sub
+
+    Dim TotalWeight As Double
+    TotalWeight = GetTotalPartBaggedWeight(BatchNo)
+
+    If TotalWeight <= 0 Then Exit Sub
+
+    Dim ImpliedWeight As Double
+    Dim CurrentReference As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim Cavities As Double
+
+    ' Implied SHOT weight - the weighed material represents Cavities
+    ' pieces per shot, so factor that back in to get a true per-shot
+    ' figure, not per-piece.
+    Set ws = Sheets("PART_MASTER")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    Cavities = 0
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+            Cavities = val(ws.Cells(r, "J").Value)
+            Exit For
+        End If
+    Next r
+
+    If Cavities <= 0 Then Exit Sub
+
+    ImpliedWeight = (TotalWeight * 1000 / BatchTotalQty) * Cavities
+    CurrentReference = GetAverageShotWeight(PartNo)
+
+    If CurrentReference <= 0 Then
+        For r = 2 To LR
+            If Trim(ws.Cells(r, "A").Value) = Trim(PartNo) Then
+                CurrentReference = val(ws.Cells(r, "K").Value)
+                Exit For
+            End If
+        Next r
+    End If
+
+    If CurrentReference <= 0 Then Exit Sub
+
+    Dim PctDiff As Double
+    PctDiff = Abs(ImpliedWeight - CurrentReference) / CurrentReference * 100
+
+    If PctDiff < 1 Then Exit Sub ' close enough - nothing worth flagging
+
+    If MsgBox("Batch " & BatchNo & " is now fully bagged." & vbCrLf & vbCrLf & _
+              "Derived Shot Weight (from actual Production Qty vs weighed material): " & _
+              Format(ImpliedWeight, "0.00") & " g" & vbCrLf & _
+              "Current reference: " & Format(CurrentReference, "0.00") & " g" & vbCrLf & _
+              "Difference: " & Format(PctDiff, "0.0") & "%" & vbCrLf & vbCrLf & _
+              "Log the derived value as a new reading?", _
+              vbQuestion + vbYesNo, "Weight Reconciliation") = vbYes Then
+
+        Dim wsLog As Worksheet
+        Dim LRLog As Long
+
+        Set wsLog = Sheets("SHOT_WEIGHT_LOG")
+    If wsLog.FilterMode Then wsLog.ShowAllData
+        LRLog = wsLog.Cells(wsLog.Rows.Count, "A").End(xlUp).Row + 1
+
+        wsLog.Cells(LRLog, "A").Value = Date
+        wsLog.Cells(LRLog, "A").NumberFormat = "dd-mmm-yyyy"
+        wsLog.Cells(LRLog, "B").Value = PartNo
+        wsLog.Cells(LRLog, "C").Value = ImpliedWeight
+        wsLog.Cells(LRLog, "D").Value = Application.UserName
+        wsLog.Cells(LRLog, "E").Value = "Auto-derived from batch completion reconciliation (Batch: " & BatchNo & ")"
+
+    End If
+
+End Sub
+
+
+' ================================================================
+' Batch-level Bag Entry completion tracking - new, since no
+' existing per-batch status field exists to update (unlike Trimming/
+' Inspection/Packing, which update a per-BAG status). One row per
+' Batch No in BATCH_BAG_ENTRY_STATUS, upserted (not appended) each
+' time completion is confirmed.
+' ================================================================
+
+Public Function IsBagEntryComplete(ByVal BatchNo As String) As Boolean
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("BATCH_BAG_ENTRY_STATUS")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(BatchNo) Then
+            IsBagEntryComplete = (UCase(Trim(ws.Cells(r, "C").Value)) = "YES")
+            Exit Function
+        End If
+    Next r
+
+    IsBagEntryComplete = False
+
+End Function
+
+
+Private Sub SetBagEntryComplete(ByVal BatchNo As String, ByVal PartNo As String, _
+                                 ByVal TotalBagged As Double, ByVal BatchTotalQty As Double)
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+    Dim found As Boolean
+    Dim TargetRow As Long
+
+    Set ws = Sheets("BATCH_BAG_ENTRY_STATUS")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    found = False
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "A").Value) = Trim(BatchNo) Then
+            found = True
+            TargetRow = r
+            Exit For
+        End If
+    Next r
+
+    If Not found Then
+        TargetRow = LR + 1
+        ws.Cells(TargetRow, "A").Value = BatchNo
+    End If
+
+    ws.Cells(TargetRow, "B").Value = PartNo
+    ws.Cells(TargetRow, "C").Value = "Yes"
+    ws.Cells(TargetRow, "D").Value = Date
+    ws.Cells(TargetRow, "D").NumberFormat = "dd-mmm-yyyy"
+    ws.Cells(TargetRow, "E").Value = Application.UserName
+    ws.Cells(TargetRow, "F").Value = TotalBagged
+    ws.Cells(TargetRow, "G").Value = BatchTotalQty
+
+End Sub
+
+
+' Called after a successful Bag Entry save. Non-blocking - if this
+' save brought the batch's cumulative bagged Qty within the normal
+' completion tolerance of its total, and it hasn't already been
+' confirmed complete, asks whether to mark it so.
+Public Sub TryConfirmBagEntryCompletion(ByVal BatchNo As String, ByVal PartNo As String)
+
+    Dim BatchTotalQty As Double
+    Dim TotalBagged As Double
+    Dim QtyTolerance As Double
+
+    BatchTotalQty = GetBatchTotalNetQty(BatchNo)
+    If BatchTotalQty <= 0 Then Exit Sub
+
+    TotalBagged = GetAlreadyBaggedQty(BatchNo)
+    QtyTolerance = GetBagEntryQtyTolerance(BatchTotalQty)
+
+    If TotalBagged < BatchTotalQty - QtyTolerance Then Exit Sub
+
+    If IsBagEntryComplete(BatchNo) Then Exit Sub ' already confirmed earlier
+
+    If MsgBox("Batch " & BatchNo & " now has " & Format(TotalBagged, "#,##0") & _
+              " / " & Format(BatchTotalQty, "#,##0") & " Nos bagged." & vbCrLf & vbCrLf & _
+              "Mark Bag Entry as COMPLETE for this batch?" & vbCrLf & _
+              "(No further bags expected for this batch once confirmed.)", _
+              vbQuestion + vbYesNo, "Confirm Bag Entry Completion") = vbYes Then
+
+        Call SetBagEntryComplete(BatchNo, PartNo, TotalBagged, BatchTotalQty)
+
+        MsgBox "Bag Entry marked COMPLETE for Batch " & BatchNo & ".", vbInformation
+
+    End If
+
+End Sub
+
+
+' Warns the moment a batch is selected/determined in Bag Entry if it
+' was already marked complete - not at Save time, so the operator
+' knows before doing any work on it, not after.
+Public Sub WarnIfBagEntryAlreadyComplete()
+
+    Dim BatchNo As String
+    BatchNo = Trim(frmbagentry.lblBatchNo.Caption)
+
+    If BatchNo = "" Or BatchNo = "-" Then Exit Sub
+
+    If Not IsBagEntryComplete(BatchNo) Then Exit Sub
+
+    Dim BatchTotalQty As Double
+    Dim TotalBagged As Double
+
+    BatchTotalQty = GetBatchTotalNetQty(BatchNo)
+    TotalBagged = GetAlreadyBaggedQty(BatchNo)
+
+    If MsgBox("Batch " & BatchNo & " is already marked as COMPLETE for Bag Entry." & vbCrLf & vbCrLf & _
+              "Bagged: " & Format(TotalBagged, "#,##0") & " / " & Format(BatchTotalQty, "#,##0") & " Nos" & vbCrLf & vbCrLf & _
+              "Do you still want to continue?", _
+              vbQuestion + vbYesNo, "Batch Already Completed") = vbNo Then
+
+        ' Clear the selection so the operator can pick a different
+        ' batch, rather than leaving a rejected selection sitting
+        ' on the form.
+        frmbagentry.cboPartNo.Value = ""
+        frmbagentry.lblBatchNo.Caption = ""
+        frmbagentry.lblPartName.Caption = ""
+        frmbagentry.lblPartWt.Caption = ""
+        frmbagentry.lblShotWt.Caption = ""
+        frmbagentry.lblCavities.Caption = ""
+        frmbagentry.lstPreviousBags.Clear
+        frmbagentry.lstPreviousBags.Visible = False
+
+    End If
+
+End Sub
+
+
+Public Function GetBatchTotalShots(ByVal BatchNo As String) As Double
+
+    Dim ws As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set ws = Sheets("PRODUCTION_LOG")
+    If ws.FilterMode Then ws.ShowAllData
+    LR = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+
+    For r = 2 To LR
+        If Trim(ws.Cells(r, "S").Value) = Trim(BatchNo) Then
+            GetBatchTotalShots = GetBatchTotalShots + val(ws.Cells(r, "L").Value)
+        End If
+    Next r
+
+End Function
+Public Sub UpdateExpectedBagWeight()
+
+    Dim BatchNo As String
+    BatchNo = Trim(frmbagentry.lblBatchNo.Caption)
+
+    If BatchNo = "" Or BatchNo = "-" Then
+        frmbagentry.lblExpectedPartWt.Caption = "-"
+        frmbagentry.lblExpectedRunnerWt.Caption = "-"
+        frmbagentry.lblExpectedTotalWt.Caption = "-"
+        Exit Sub
+    End If
+
+    Dim Shots As Double
+    Shots = GetBatchTotalShots(BatchNo)
+
+    Dim Cavities As Double
+    Cavities = val(frmbagentry.lblCavities.Caption)
+
+    Dim PartWt As Double
+    PartWt = val(frmbagentry.lblPartWt.Caption)
+
+    Dim ShotWt As Double
+    ShotWt = val(frmbagentry.lblShotWt.Caption)
+
+    If frmbagentry.chkWithRunner.Value Then
+
+        ' With Runner mode - Part+Runner weighed together at Bag
+        ' Entry, so show ONE combined figure matching that reality.
+        Dim ExpectedTotalWt As Double
+        ExpectedTotalWt = (Shots * ShotWt) / 1000
+
+        frmbagentry.lblExpectedTotalWt.Caption = Format(ExpectedTotalWt, "0.000")
+        frmbagentry.lblExpectedTotalWtCaption.Visible = True
+        frmbagentry.lblExpectedTotalWt.Visible = True
+
+        frmbagentry.lblExpectedPartWtCaption.Visible = False
+        frmbagentry.lblExpectedPartWt.Visible = False
+        frmbagentry.lblExpectedRunnerWtCaption.Visible = False
+        frmbagentry.lblExpectedRunnerWt.Visible = False
+
+    Else
+
+        ' Not With Runner - Part and Runner bagged separately, so
+        ' show them as two separate expected figures.
+        Dim ExpectedPartWt As Double
+        ExpectedPartWt = (Shots * Cavities * PartWt) / 1000
+
+        Dim RunnerWtPerShot As Double
+        RunnerWtPerShot = ShotWt - (PartWt * Cavities)
+        If RunnerWtPerShot < 0 Then RunnerWtPerShot = 0 ' guard against a bad/missing Shot Wt reference
+
+        Dim ExpectedRunnerWt As Double
+        ExpectedRunnerWt = (Shots * RunnerWtPerShot) / 1000
+
+        frmbagentry.lblExpectedPartWt.Caption = Format(ExpectedPartWt, "0.000")
+        frmbagentry.lblExpectedRunnerWt.Caption = Format(ExpectedRunnerWt, "0.000")
+
+        frmbagentry.lblExpectedPartWtCaption.Visible = True
+        frmbagentry.lblExpectedPartWt.Visible = True
+        frmbagentry.lblExpectedRunnerWtCaption.Visible = True
+        frmbagentry.lblExpectedRunnerWt.Visible = True
+
+        frmbagentry.lblExpectedTotalWtCaption.Visible = False
+        frmbagentry.lblExpectedTotalWt.Visible = False
+
+    End If
+
+End Sub
+Public Sub CheckAllBagEntriesClosedForDate()
+
+    If Not IsDate(frmbagentry.txtProdDate.Value) Then Exit Sub
+
+    Dim selectedDate As Date
+    selectedDate = DateValue(CDate(frmbagentry.txtProdDate.Value))
+
+    Dim wsP As Worksheet
+    Dim LR As Long
+    Dim r As Long
+
+    Set wsP = Sheets("PRODUCTION_LOG")
+    If wsP.FilterMode Then wsP.ShowAllData
+    LR = wsP.Cells(wsP.Rows.Count, "B").End(xlUp).Row
+
+    Dim seen As Object
+    Set seen = CreateObject("Scripting.Dictionary")
+
+    Dim allComplete As Boolean
+    allComplete = True
+
+    Dim totalBatches As Long
+    totalBatches = 0
+
+    For r = 2 To LR
+
+        If SameProductionDate(wsP.Cells(r, "B").Value, selectedDate) Then
+
+            Dim thisBatch As String
+            thisBatch = Trim(wsP.Cells(r, "S").Value)
+
+            If thisBatch <> "" And Not seen.Exists(thisBatch) Then
+
+                seen.Add thisBatch, True
+                totalBatches = totalBatches + 1
+
+                If Not IsBagEntryComplete(thisBatch) Then
+                    allComplete = False
+                End If
+
+            End If
+
+        End If
+
+    Next r
+
+    If totalBatches > 0 And allComplete Then
+
+        MsgBox "All Bag Entries have been closed for " & _
+               Format(selectedDate, "dd-mmm-yyyy") & "." & vbCrLf & vbCrLf & _
+               totalBatches & " batch(es) - all marked complete.", _
+               vbInformation, "All Bag Entries Closed"
+
+    End If
+
+End Sub

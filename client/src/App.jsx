@@ -9,6 +9,10 @@ import MouldSetup from './pages/MouldSetup'
 import Approvals from './pages/Approvals'
 import ProductionEntry from './pages/ProductionEntry'
 import TodayLog from './pages/TodayLog'
+import BagEntry from './pages/BagEntry'
+import Trimming from './pages/Trimming'
+import Inspection from './pages/Inspection'
+import Packing from './pages/Packing'
 
 export default function App() {
   return (
@@ -22,6 +26,10 @@ export default function App() {
           element={<ProtectedRoute roles={['supervisor', 'admin']}><Approvals /></ProtectedRoute>}
         />
         <Route path="/entry" element={<ProtectedRoute><ProductionEntry /></ProtectedRoute>} />
+        <Route path="/bag-entry" element={<ProtectedRoute><BagEntry /></ProtectedRoute>} />
+        <Route path="/trimming" element={<ProtectedRoute><Trimming /></ProtectedRoute>} />
+        <Route path="/inspection" element={<ProtectedRoute><Inspection /></ProtectedRoute>} />
+        <Route path="/packing" element={<ProtectedRoute><Packing /></ProtectedRoute>} />
         <Route path="/log" element={<ProtectedRoute><TodayLog /></ProtectedRoute>} />
       </Routes>
     </Layout>
