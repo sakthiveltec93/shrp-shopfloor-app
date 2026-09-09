@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+:root {
+  --bg: #14161b;
+  --panel: #1f232b;
+  --panel-raised: #262b35;
+  --line: #333947;
+  --text: #edeef0;
+  --text-muted: #8b93a3;
+  --amber: #f5a623;
+  --amber-dim: #7a5518;
+  --green: #4caf7d;
+  --red: #e5484d;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-num: 'IBM Plex Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select {
+  font-family: inherit;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

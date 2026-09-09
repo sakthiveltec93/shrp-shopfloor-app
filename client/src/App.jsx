@@ -1,0 +1,29 @@
+import { Routes, Route } from 'react-router-dom'
+import './app.css'
+import { useAuth } from './AuthContext'
+import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
+import Login from './pages/Login'
+import Home from './pages/Home'
+import MouldSetup from './pages/MouldSetup'
+import Approvals from './pages/Approvals'
+import ProductionEntry from './pages/ProductionEntry'
+import TodayLog from './pages/TodayLog'
+
+export default function App() {
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/mould-setup" element={<ProtectedRoute><MouldSetup /></ProtectedRoute>} />
+        <Route
+          path="/approvals"
+          element={<ProtectedRoute roles={['supervisor', 'admin']}><Approvals /></ProtectedRoute>}
+        />
+        <Route path="/entry" element={<ProtectedRoute><ProductionEntry /></ProtectedRoute>} />
+        <Route path="/log" element={<ProtectedRoute><TodayLog /></ProtectedRoute>} />
+      </Routes>
+    </Layout>
+  )
+}
