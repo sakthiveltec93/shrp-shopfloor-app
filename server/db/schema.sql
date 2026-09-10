@@ -221,3 +221,5 @@ CREATE TABLE IF NOT EXISTS part_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_part_files_part ON part_files(part_id, file_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_params_unique ON part_process_parameters(part_id, parameter_name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_dims_unique ON part_critical_dimensions(part_id, dimension_name);
