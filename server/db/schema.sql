@@ -86,6 +86,15 @@ CREATE TABLE IF NOT EXISTS production_entries (
 
 CREATE INDEX IF NOT EXISTS idx_production_entries_machine_date ON production_entries(machine_id, entry_date, hour_slot);
 
+-- Setup-approval timing (mould load start, first OK part) and per-entry
+-- start/end/efficiency - added via ALTER so this stays safe to re-run
+-- against a database that already has these tables from before.
+ALTER TABLE machine_assignments ADD COLUMN IF NOT EXISTS mould_load_started_at TIMESTAMPTZ;
+ALTER TABLE machine_assignments ADD COLUMN IF NOT EXISTS first_ok_part_at TIMESTAMPTZ;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS start_time TIMESTAMPTZ;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS efficiency_pct NUMERIC;
+
 CREATE TABLE IF NOT EXISTS reject_log (
   id SERIAL PRIMARY KEY,
   production_entry_id INTEGER NOT NULL REFERENCES production_entries(id),

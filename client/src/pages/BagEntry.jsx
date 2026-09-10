@@ -21,9 +21,33 @@ export default function BagEntry() {
   }, []);
 
   const assigned = assignments.find((a) => String(a.machine_id) === String(form.machine_id));
+  const unitWeightG = assigned?.unit_weight_g ? Number(assigned.unit_weight_g) : null;
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  // Auto-calc the other field from the part's unit weight - still editable after.
+  function updateWeight(value) {
+    setForm((f) => {
+      const next = { ...f, base_weight_kg: value };
+      if (unitWeightG && value !== '') {
+        const kg = Number(value);
+        if (!Number.isNaN(kg)) next.qty = String(Math.round((kg * 1000) / unitWeightG));
+      }
+      return next;
+    });
+  }
+
+  function updateQty(value) {
+    setForm((f) => {
+      const next = { ...f, qty: value };
+      if (unitWeightG && value !== '') {
+        const pieces = Number(value);
+        if (!Number.isNaN(pieces)) next.base_weight_kg = ((pieces * unitWeightG) / 1000).toFixed(3);
+      }
+      return next;
+    });
   }
 
   async function loadBatchBags(batchNo) {
@@ -101,14 +125,19 @@ export default function BagEntry() {
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="wt">Weight (kg)</label>
             <input id="wt" type="number" step="0.001" inputMode="decimal" required
-              value={form.base_weight_kg} onChange={(e) => update('base_weight_kg', e.target.value)} />
+              value={form.base_weight_kg} onChange={(e) => updateWeight(e.target.value)} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="qty">Qty (pcs)</label>
             <input id="qty" type="number" inputMode="numeric" required
-              value={form.qty} onChange={(e) => update('qty', e.target.value)} />
+              value={form.qty} onChange={(e) => updateQty(e.target.value)} />
           </div>
         </div>
+        {unitWeightG && (
+          <p className="muted" style={{ fontSize: 12, marginTop: -8, marginBottom: 14 }}>
+            Auto-calculated from part unit weight ({unitWeightG} g/pc) — edit either field freely.
+          </p>
+        )}
 
         <div className="field">
           <label htmlFor="remarks">Remarks (optional)</label>

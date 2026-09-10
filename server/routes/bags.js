@@ -5,6 +5,7 @@ const {
   isWithinTolerance, isWithinTrimTolerance, isWithinInspectionTolerance,
   isLegitimateStatusAdvance,
 } = require('../lib/bagStatus');
+const { currentShift, istDateString } = require('../lib/shift');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -39,8 +40,8 @@ router.post('/', async (req, res) => {
   const { rows } = await pool.query(
     `INSERT INTO bags (bag_code, batch_no, entry_date, shift, machine_id, part_id, bag_type,
        base_weight_kg, qty, operator_user_id, status, remarks)
-     VALUES ($1,$2,CURRENT_DATE,$3,$4,$5,$6,$7,$8,$9,'OPEN',$10) RETURNING *`,
-    [bagCode, batch_no, now.getHours() >= 9.5 && now.getHours() < 21.5 ? 'A' : 'B',
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OPEN',$11) RETURNING *`,
+    [bagCode, batch_no, istDateString(now), currentShift(now),
       machine_id, part_id, type, base_weight_kg, qty, req.user.id, remarks || null]
   );
   const bag = rows[0];

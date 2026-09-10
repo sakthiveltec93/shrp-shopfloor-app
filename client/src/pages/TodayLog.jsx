@@ -39,6 +39,7 @@ export default function TodayLog() {
                 <th>Hr</th>
                 <th>Good</th>
                 <th>Rej</th>
+                <th>Eff%</th>
                 <th>Operator</th>
               </tr>
             </thead>
@@ -50,6 +51,7 @@ export default function TodayLog() {
                   <td>{e.hour_slot}</td>
                   <td>{e.good_qty}</td>
                   <td>{e.reject_qty}</td>
+                  <td>{e.efficiency_pct != null ? e.efficiency_pct : '—'}</td>
                   <td>{e.operator_name}</td>
                 </tr>
               ))}

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
+// Local "now" formatted for a datetime-local input's default value
+function nowForInput() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function MouldSetup() {
   const [machines, setMachines] = useState([]);
   const [parts, setParts] = useState([]);
@@ -8,9 +15,11 @@ export default function MouldSetup() {
   const [machineId, setMachineId] = useState('');
   const [partId, setPartId] = useState('');
   const [notes, setNotes] = useState('');
+  const [loadStarted, setLoadStarted] = useState(nowForInput());
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [markingId, setMarkingId] = useState(null);
 
   async function loadData() {
     const [m, p, c] = await Promise.all([api.machines(), api.parts(), api.currentAssignments()]);
@@ -27,15 +36,34 @@ export default function MouldSetup() {
     setSuccess('');
     setLoading(true);
     try {
-      await api.createAssignment({ machine_id: Number(machineId), part_id: Number(partId), notes });
+      await api.createAssignment({
+        machine_id: Number(machineId),
+        part_id: Number(partId),
+        notes,
+        mould_load_started_at: loadStarted ? new Date(loadStarted).toISOString() : undefined,
+      });
       setSuccess('Submitted for supervisor approval.');
       setPartId('');
       setNotes('');
+      setLoadStarted(nowForInput());
       loadData();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function markFirstOk(assignmentId) {
+    setError('');
+    setMarkingId(assignmentId);
+    try {
+      await api.markFirstOkPart(assignmentId);
+      loadData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setMarkingId(null);
     }
   }
 
@@ -82,6 +110,12 @@ export default function MouldSetup() {
         </div>
 
         <div className="field">
+          <label htmlFor="load_started">Mould loading started</label>
+          <input id="load_started" type="datetime-local"
+            value={loadStarted} onChange={(e) => setLoadStarted(e.target.value)} required />
+        </div>
+
+        <div className="field">
           <label htmlFor="notes">Notes (optional)</label>
           <textarea id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
@@ -93,12 +127,32 @@ export default function MouldSetup() {
 
       <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>Running now</h2>
       {current.map((c) => (
-        <div key={c.machine_id} className="panel" style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontWeight: 600 }}>{c.machine_code}</div>
-            <div className="muted" style={{ fontSize: 12 }}>{c.part_code} — {c.part_name}</div>
+        <div key={c.machine_id} className="panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>{c.machine_code}</div>
+              <div className="muted" style={{ fontSize: 12 }}>{c.part_code} — {c.part_name}</div>
+            </div>
+            <span className="status-pill status-approved">Approved</span>
           </div>
-          <span className="status-pill status-approved">Approved</span>
+          {c.mould_load_started_at && (
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+              Loading started: {new Date(c.mould_load_started_at).toLocaleString()}
+            </div>
+          )}
+          {c.first_ok_part_at ? (
+            <div className="muted" style={{ fontSize: 12 }}>
+              1st OK part: {new Date(c.first_ok_part_at).toLocaleString()}
+            </div>
+          ) : (
+            <button
+              className="btn btn-secondary"
+              disabled={markingId === c.assignment_id}
+              onClick={() => markFirstOk(c.assignment_id)}
+            >
+              {markingId === c.assignment_id ? 'Marking…' : 'Mark 1st OK part taken'}
+            </button>
+          )}
         </div>
       ))}
     </div>

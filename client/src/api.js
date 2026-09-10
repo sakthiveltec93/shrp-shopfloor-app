@@ -34,7 +34,9 @@ export const api = {
   pendingAssignments: () => request('/assignments/pending'),
   createAssignment: (payload) => request('/assignments', { method: 'POST', body: payload }),
   decideAssignment: (id, decision) => request(`/assignments/${id}/decision`, { method: 'POST', body: { decision } }),
+  markFirstOkPart: (id, taken_at) => request(`/assignments/${id}/first-ok-part`, { method: 'POST', body: { taken_at } }),
   entryContext: () => request('/entries/context'),
+  lastEntry: (machineId) => request(`/entries/last?machine_id=${machineId}`),
   createEntry: (payload) => request('/entries', { method: 'POST', body: payload }),
   entriesForDate: (date) => request(`/entries${date ? `?date=${date}` : ''}`),
 

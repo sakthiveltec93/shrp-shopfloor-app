@@ -10,8 +10,9 @@ router.use(requireAuth);
 router.get('/current', async (req, res) => {
   const { rows } = await pool.query(`
     SELECT DISTINCT ON (ma.machine_id)
-      ma.machine_id, m.machine_code, ma.part_id, p.part_code, p.part_name,
-      p.cavity_count, p.standard_cycle_time_sec, ma.status, ma.approved_at
+      ma.id AS assignment_id, ma.machine_id, m.machine_code, ma.part_id, p.part_code, p.part_name,
+      p.cavity_count, p.standard_cycle_time_sec, p.unit_weight_g, ma.status, ma.approved_at,
+      ma.mould_load_started_at, ma.first_ok_part_at
     FROM machine_assignments ma
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id
@@ -35,16 +36,17 @@ router.get('/pending', requireRole('supervisor', 'admin'), async (req, res) => {
   res.json(rows);
 });
 
-// Set up a new mould/part on a machine -> goes to pending
+// Set up a new mould/part on a machine -> goes to pending. Records when
+// mould loading actually started (operator-entered, defaults to now).
 router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res) => {
-  const { machine_id, part_id, notes } = req.body;
+  const { machine_id, part_id, notes, mould_load_started_at } = req.body;
   if (!machine_id || !part_id) {
     return res.status(400).json({ error: 'machine_id and part_id are required' });
   }
   const { rows } = await pool.query(
-    `INSERT INTO machine_assignments (machine_id, part_id, set_by_user_id, notes)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [machine_id, part_id, req.user.id, notes || null]
+    `INSERT INTO machine_assignments (machine_id, part_id, set_by_user_id, notes, mould_load_started_at)
+     VALUES ($1, $2, $3, $4, COALESCE($5, now())) RETURNING *`,
+    [machine_id, part_id, req.user.id, notes || null, mould_load_started_at || null]
   );
   res.status(201).json(rows[0]);
 });
@@ -63,6 +65,22 @@ router.post('/:id/decision', requireRole('supervisor', 'admin'), async (req, res
     [decision, req.user.id, id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Pending assignment not found' });
+  res.json(rows[0]);
+});
+
+// Mark the moment the first OK (good) part was taken off this assignment -
+// this becomes the machine's start time for efficiency calculations.
+router.post('/:id/first-ok-part', async (req, res) => {
+  const { id } = req.params;
+  const { taken_at } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE machine_assignments
+     SET first_ok_part_at = COALESCE($1, now())
+     WHERE id = $2 AND status = 'approved' AND first_ok_part_at IS NULL
+     RETURNING *`,
+    [taken_at || null, id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Approved assignment not found, or 1st OK part already recorded' });
   res.json(rows[0]);
 });
 
