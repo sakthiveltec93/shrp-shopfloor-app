@@ -166,3 +166,58 @@ CREATE TABLE IF NOT EXISTS packing_entries (
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ================================================================
+-- Full part master: process parameters, critical dimensions, suitable
+-- machines, customer, and file attachments (photo/SOP/PPAP), so parts
+-- can be added and edited directly in the app instead of a spreadsheet.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS customers (
+  id SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL
+);
+
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS notes TEXT;
+
+CREATE TABLE IF NOT EXISTS part_process_parameters (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  parameter_name TEXT NOT NULL,
+  value TEXT NOT NULL,
+  unit TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS part_critical_dimensions (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  dimension_name TEXT NOT NULL,
+  nominal_value NUMERIC,
+  tol_plus NUMERIC,
+  tol_minus NUMERIC,
+  unit TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS part_machines (
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  PRIMARY KEY (part_id, machine_id)
+);
+
+-- Photo / SOP / PPAP attachments, stored directly in the database so
+-- there's no separate file-storage service to keep in sync.
+CREATE TABLE IF NOT EXISTS part_files (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  file_type TEXT NOT NULL CHECK (file_type IN ('photo', 'sop', 'ppap')),
+  filename TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  uploaded_by_user_id INTEGER NOT NULL REFERENCES users(id),
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_part_files_part ON part_files(part_id, file_type);

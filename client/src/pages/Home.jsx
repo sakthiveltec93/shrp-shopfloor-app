@@ -48,6 +48,13 @@ export default function Home() {
             <span className="tile-hint">Pending mould setups</span>
           </Link>
         )}
+        {isSupervisor && (
+          <Link to="/parts" className="tile">
+            <span className="tile-icon">📋</span>
+            <span className="tile-label">Parts</span>
+            <span className="tile-hint">Add / edit part master</span>
+          </Link>
+        )}
         <Link to="/log" className="tile">
           <span className="tile-icon">≣</span>
           <span className="tile-label">Today's Log</span>
