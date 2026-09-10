@@ -12,7 +12,6 @@ function toInputValue(isoString) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Local calendar date (YYYY-MM-DD) for an ISO timestamp, browser-local time
 function localDateOf(isoString) {
   const d = new Date(isoString);
   const pad = (n) => String(n).padStart(2, '0');
@@ -24,7 +23,7 @@ export default function ProductionEntry() {
   const [assignments, setAssignments] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
   const [context, setContext] = useState(null);
-  const [lastEntry, setLastEntry] = useState(undefined); // undefined = not checked yet, null = none today
+  const [lastEntry, setLastEntry] = useState(undefined);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -51,7 +50,6 @@ export default function ProductionEntry() {
     const last = await api.lastEntry(machineId);
     setLastEntry(last);
     if (!last) {
-      // First entry of the day for this machine - prefill from 1st OK part if it happened today
       const a = assignments.find((x) => String(x.machine_id) === String(machineId));
       if (a?.first_ok_part_at && context && localDateOf(a.first_ok_part_at) === localDateOf(context.server_time)) {
         setForm((f) => ({ ...f, manual_start_time: toInputValue(a.first_ok_part_at) }));
@@ -69,6 +67,10 @@ export default function ProductionEntry() {
     setSuccess('');
     if (!assigned) {
       setError('No approved part assigned to this machine yet.');
+      return;
+    }
+    if (lastEntry === undefined) {
+      setError('Still checking today\'s previous entry — try again in a moment.');
       return;
     }
     const startTimeIso = lastEntry ? lastEntry.end_time
@@ -131,6 +133,9 @@ export default function ProductionEntry() {
           </div>
         )}
 
+        {form.machine_id && lastEntry === undefined && (
+          <p className="muted" style={{ fontSize: 13 }}>Checking today's previous entry…</p>
+        )}
         {form.machine_id && lastEntry === null && (
           <div className="field">
             <label htmlFor="manual_start">Machine start time (first entry today)</label>
@@ -188,8 +193,8 @@ export default function ProductionEntry() {
           <textarea id="remarks" rows={2} value={form.remarks} onChange={(e) => update('remarks', e.target.value)} />
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={loading || !assigned}>
-          {loading ? 'Saving…' : 'Save entry'}
+        <button className="btn btn-primary" type="submit" disabled={loading || !assigned || lastEntry === undefined}>
+          {loading ? 'Saving…' : lastEntry === undefined ? 'Checking…' : 'Save entry'}
         </button>
       </form>
     </div>
