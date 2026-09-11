@@ -72,6 +72,7 @@ router.post('/', async (req, res) => {
       code: 'below_target',
       target_qty: Math.round(targetQty),
       good_qty: goodQty,
+      efficiency_pct: efficiencyPct,
     });
   }
 
@@ -90,19 +91,28 @@ router.post('/', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-// Entries for a given date (defaults to today in IST), for dashboard/summary views
+// Entries for a given date (defaults to today in IST). Operators only ever
+// see their own entries; supervisors/admins see everyone by default, or
+// just their own with ?mine=true.
 router.get('/', async (req, res) => {
-  const { date } = req.query;
+  const { date, mine } = req.query;
   const entryDate = date || istDateString(new Date());
+  const onlyMine = req.user.role === 'operator' || mine === 'true';
+  const params = [entryDate];
+  let where = 'pe.entry_date = $1';
+  if (onlyMine) {
+    params.push(req.user.id);
+    where += ` AND pe.operator_user_id = $${params.length}`;
+  }
   const { rows } = await pool.query(`
     SELECT pe.*, m.machine_code, p.part_code, p.part_name, u.full_name AS operator_name
     FROM production_entries pe
     JOIN machines m ON m.id = pe.machine_id
     JOIN parts p ON p.id = pe.part_id
     JOIN users u ON u.id = pe.operator_user_id
-    WHERE pe.entry_date = $1
+    WHERE ${where}
     ORDER BY pe.machine_id, pe.hour_slot
-  `, [entryDate]);
+  `, params);
   res.json(rows);
 });
 
