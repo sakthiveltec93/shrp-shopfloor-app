@@ -1,10 +1,25 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 
+const TILES = [
+  { key: 'mould_setup', to: '/mould-setup', icon: '⚙', label: 'Mould Setup', hint: 'Assign part to machine' },
+  { key: 'entry', to: '/entry', icon: '▤', label: 'Production Entry', hint: 'Log hourly count' },
+  { key: 'bag_entry', to: '/bag-entry', icon: '◧', label: 'Bag Entry', hint: 'Log a bag against a batch' },
+  { key: 'trimming', to: '/trimming', icon: '✂', label: 'Trimming', hint: 'Next bag, FIFO' },
+  { key: 'inspection', to: '/inspection', icon: '◎', label: 'Inspection', hint: 'Next bag, FIFO' },
+  { key: 'packing', to: '/packing', icon: '▧', label: 'Packing', hint: 'Next bag, FIFO' },
+  { key: 'approvals', to: '/approvals', icon: '✓', label: 'Approvals', hint: 'Pending mould setups' },
+  { key: 'parts', to: '/parts', icon: '📋', label: 'Parts', hint: 'Add / edit part master' },
+  { key: 'users', to: '/users', icon: '👤', label: 'Users', hint: 'Accounts & page access' },
+  { key: 'log', to: '/log', icon: '≣', label: "Today's Log", hint: 'All entries today' },
+];
+
 export default function Home() {
   const { user } = useAuth();
-  const isSupervisor = user.role === 'supervisor' || user.role === 'admin';
-  const isAdmin = user.role === 'admin';
+  // Admins always see every tile; everyone else sees only what's been granted.
+  const visibleTiles = user.role === 'admin'
+    ? TILES
+    : TILES.filter((t) => Array.isArray(user.pages) && user.pages.includes(t.key));
 
   return (
     <div className="screen">
@@ -12,62 +27,13 @@ export default function Home() {
       <p className="screen-sub">Shift dashboard</p>
 
       <div className="tile-grid">
-        <Link to="/mould-setup" className="tile">
-          <span className="tile-icon">⚙</span>
-          <span className="tile-label">Mould Setup</span>
-          <span className="tile-hint">Assign part to machine</span>
-        </Link>
-        <Link to="/entry" className="tile">
-          <span className="tile-icon">▤</span>
-          <span className="tile-label">Production Entry</span>
-          <span className="tile-hint">Log hourly count</span>
-        </Link>
-        <Link to="/bag-entry" className="tile">
-          <span className="tile-icon">◧</span>
-          <span className="tile-label">Bag Entry</span>
-          <span className="tile-hint">Log a bag against a batch</span>
-        </Link>
-        <Link to="/trimming" className="tile">
-          <span className="tile-icon">✂</span>
-          <span className="tile-label">Trimming</span>
-          <span className="tile-hint">Next bag, FIFO</span>
-        </Link>
-        <Link to="/inspection" className="tile">
-          <span className="tile-icon">◎</span>
-          <span className="tile-label">Inspection</span>
-          <span className="tile-hint">Next bag, FIFO</span>
-        </Link>
-        <Link to="/packing" className="tile">
-          <span className="tile-icon">▧</span>
-          <span className="tile-label">Packing</span>
-          <span className="tile-hint">Next bag, FIFO</span>
-        </Link>
-        {isSupervisor && (
-          <Link to="/approvals" className="tile">
-            <span className="tile-icon">✓</span>
-            <span className="tile-label">Approvals</span>
-            <span className="tile-hint">Pending mould setups</span>
+        {visibleTiles.map((t) => (
+          <Link key={t.key} to={t.to} className="tile">
+            <span className="tile-icon">{t.icon}</span>
+            <span className="tile-label">{t.label}</span>
+            <span className="tile-hint">{t.hint}</span>
           </Link>
-        )}
-        {isSupervisor && (
-          <Link to="/parts" className="tile">
-            <span className="tile-icon">📋</span>
-            <span className="tile-label">Parts</span>
-            <span className="tile-hint">Add / edit part master</span>
-          </Link>
-        )}
-        {isAdmin && (
-          <Link to="/users" className="tile">
-            <span className="tile-icon">👤</span>
-            <span className="tile-label">Users</span>
-            <span className="tile-hint">Accounts & page access</span>
-          </Link>
-        )}
-        <Link to="/log" className="tile">
-          <span className="tile-icon">≣</span>
-          <span className="tile-label">Today's Log</span>
-          <span className="tile-hint">All entries today</span>
-        </Link>
+        ))}
       </div>
     </div>
   );
