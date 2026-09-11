@@ -20,7 +20,9 @@ async function request(path, { method = 'GET', body } = {}) {
 
   if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.data = data; // lets callers branch on structured fields, e.g. err.data?.code
+    throw err;
   }
   return data;
 }
@@ -46,11 +48,20 @@ export const api = {
   decideAssignment: (id, decision) => request(`/assignments/${id}/decision`, { method: 'POST', body: { decision } }),
   markFirstOkPart: (id, taken_at) => request(`/assignments/${id}/first-ok-part`, { method: 'POST', body: { taken_at } }),
   entryContext: () => request('/entries/context'),
-  lastEntry: (machineId) => request(`/entries/last?machine_id=${machineId}`),
   createEntry: (payload) => request('/entries', { method: 'POST', body: payload }),
   entriesForDate: (date) => request(`/entries${date ? `?date=${date}` : ''}`),
 
+  activeSession: (machineId) => request(`/sessions/active?machine_id=${machineId}`),
+  suggestedStartCount: (machineId) => request(`/sessions/suggested-start-count?machine_id=${machineId}`),
+  startMachine: (payload) => request('/sessions/start', { method: 'POST', body: payload }),
+  offMachine: (id, payload) => request(`/sessions/${id}/off`, { method: 'POST', body: payload }),
+
+  checkItemsToday: (machineId, shift) => request(`/checksheet/today?machine_id=${machineId}&shift=${shift}`),
+  checkSheetItems: () => request('/checksheet/items'),
+  submitCheckSheet: (payload) => request('/checksheet/submit', { method: 'POST', body: payload }),
+
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
+  bagDetail: (id) => request(`/bags/${id}`),
   bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
   fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),
   trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),

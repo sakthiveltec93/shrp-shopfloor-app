@@ -102,6 +102,21 @@ router.get('/fifo', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Single bag detail - used by the printable label. Comes after /fifo (and
+// any other literal-path GETs) so it doesn't swallow them as :id="fifo".
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { rows } = await pool.query(`
+    SELECT b.*, m.machine_code, p.part_code, p.part_name
+    FROM bags b
+    JOIN machines m ON m.id = b.machine_id
+    JOIN parts p ON p.id = b.part_id
+    WHERE b.id = $1
+  `, [id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Bag not found' });
+  res.json(rows[0]);
+});
+
 async function getBag(id) {
   const { rows } = await pool.query('SELECT * FROM bags WHERE id = $1', [id]);
   return rows[0];

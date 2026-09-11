@@ -8,6 +8,8 @@ const masterRoutes = require('./routes/masters');
 const assignmentRoutes = require('./routes/assignments');
 const entryRoutes = require('./routes/entries');
 const bagRoutes = require('./routes/bags');
+const sessionRoutes = require('./routes/sessions');
+const checksheetRoutes = require('./routes/checksheet');
 
 const app = express();
 app.use(cors());
@@ -21,6 +23,8 @@ app.use('/api/masters', masterRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/entries', entryRoutes);
 app.use('/api/bags', bagRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/checksheet', checksheetRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

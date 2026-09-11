@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
 
 const empty = { machine_id: '', part_id: '', batch_no: '', bag_type: 'PART', base_weight_kg: '', qty: '', remarks: '' };
@@ -10,6 +11,7 @@ export default function BagEntry() {
   const [bags, setBags] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [lastCreatedBag, setLastCreatedBag] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function BagEntry() {
         remarks: form.remarks || null,
       });
       setSuccess(`Created bag ${bag.bag_code}`);
+      setLastCreatedBag(bag);
       setForm((f) => ({ ...f, base_weight_kg: '', qty: '', remarks: '' }));
       loadBatchBags(form.batch_no.trim());
     } catch (err) {
@@ -87,7 +90,16 @@ export default function BagEntry() {
       <p className="screen-sub">Log a bag of material against a batch</p>
 
       {error && <div className="error-banner">{error}</div>}
-      {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
+      {success && (
+        <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>
+          {success}
+          {lastCreatedBag && (
+            <Link to={`/bags/${lastCreatedBag.id}/label`} className="btn btn-secondary" style={{ marginTop: 10 }}>
+              Print label
+            </Link>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="panel">
         <div className="field">
@@ -157,7 +169,7 @@ export default function BagEntry() {
           <div className="panel" style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
-                <tr><th>Bag</th><th>Type</th><th>Wt</th><th>Qty</th><th>Status</th></tr>
+                <tr><th>Bag</th><th>Type</th><th>Wt</th><th>Qty</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {bags.map((b) => (
@@ -167,6 +179,7 @@ export default function BagEntry() {
                     <td>{b.base_weight_kg}</td>
                     <td>{b.qty}</td>
                     <td>{b.status}</td>
+                    <td><Link to={`/bags/${b.id}/label`} style={{ color: 'var(--amber)', fontSize: 12 }}>Label</Link></td>
                   </tr>
                 ))}
               </tbody>

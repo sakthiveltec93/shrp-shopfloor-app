@@ -15,6 +15,7 @@ import Inspection from './pages/Inspection'
 import Packing from './pages/Packing'
 import PartsList from './pages/PartsList'
 import PartForm from './pages/PartForm'
+import BagLabel from './pages/BagLabel'
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
           path="/parts/:id/edit"
           element={<ProtectedRoute roles={['supervisor', 'admin']}><PartForm /></ProtectedRoute>}
         />
+        <Route path="/bags/:id/label" element={<ProtectedRoute><BagLabel /></ProtectedRoute>} />
       </Routes>
     </Layout>
   )

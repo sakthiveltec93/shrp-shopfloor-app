@@ -242,3 +242,37 @@ INSERT INTO part_critical_dimensions (part_id, dimension_name, nominal_value, to
 INSERT INTO part_critical_dimensions (part_id, dimension_name, nominal_value, tol_plus, tol_minus, unit) SELECT id, 'ID (2)', 20.3, 0.2, 0.2, 'mm' FROM parts WHERE part_code = 'DM1C4UBH1B01' ON CONFLICT (part_id, dimension_name) DO UPDATE SET nominal_value = EXCLUDED.nominal_value, tol_plus = EXCLUDED.tol_plus, tol_minus = EXCLUDED.tol_minus, unit = EXCLUDED.unit;
 INSERT INTO part_critical_dimensions (part_id, dimension_name, nominal_value, tol_plus, tol_minus, unit) SELECT id, 'PART WEIGHT', 3.0, 1.0, 1.0, 'g' FROM parts WHERE part_code = 'DM1C4UBH1B01' ON CONFLICT (part_id, dimension_name) DO UPDATE SET nominal_value = EXCLUDED.nominal_value, tol_plus = EXCLUDED.tol_plus, tol_minus = EXCLUDED.tol_minus, unit = EXCLUDED.unit;
 INSERT INTO part_critical_dimensions (part_id, dimension_name, nominal_value, tol_plus, tol_minus, unit) SELECT id, 'PART WEIGHT (2)', 4.0, 1.0, 1.0, 'g' FROM parts WHERE part_code = 'DM1C4UBH1B01' ON CONFLICT (part_id, dimension_name) DO UPDATE SET nominal_value = EXCLUDED.nominal_value, tol_plus = EXCLUDED.tol_plus, tol_minus = EXCLUDED.tol_minus, unit = EXCLUDED.unit;
+-- Daily machine check sheet items - from your actual reference sheet
+-- (machine cleaning / gate safety / oil / hydraulic / hopper / poka-yoke),
+-- bilingual (English + Hindi) with an icon for the pictorial operator view.
+INSERT INTO daily_check_items (item_name, local_label, specification, icon, category, sort_order) VALUES
+  ('Machine Cleaning', 'मशीन की सफाई', 'No dirt of any kind on the machine', 'ti-wash', 'Machine', 1),
+  ('Gate Safety', 'गेट सेफ्टी', 'Mould must not close while gate is open', 'ti-shield', 'Safety', 2),
+  ('Oil Level', 'आयल लेवल', 'Oil level must not be below minimum', 'ti-droplet', 'Hydraulic', 3),
+  ('Hyd-Oil Temp (Max 40)', 'आयल टेम्प्रेचर', 'Oil temperature must not exceed 40°C', 'ti-thermometer', 'Hydraulic', 4),
+  ('Oil Leakage', 'आयल लीकेज', 'No oil leakage anywhere', 'ti-droplet-off', 'Hydraulic', 5),
+  ('Water Valve', 'वाटर वाल्व', 'No water leakage, valve fully open', 'ti-refresh', 'Hydraulic', 6),
+  ('Pump Noise', 'पम्प नॉइस', 'No abnormal sound from the pump', 'ti-volume', 'Machine', 7),
+  ('Emergency Switch', 'एमर्जेन्सी स्विच', 'Switch must work when pressed', 'ti-alert-octagon', 'Safety', 8),
+  ('Hopper Preheating System', 'हॉपर प्रीहीटिंग टेम्प्रेचर', 'Hopper preheating system must work', 'ti-flame', 'Machine', 9),
+  ('Unbearable Noise', 'असहनीय आवाज', 'No abnormal noise from the machine', 'ti-ear', 'Machine', 10),
+  ('Poka-Yoke Validation', 'पोका योके वैलिडेशन', 'Poka-yoke must not fail', 'ti-shield-check', 'Quality', 11)
+ON CONFLICT (item_name) DO UPDATE SET
+  local_label = EXCLUDED.local_label, specification = EXCLUDED.specification,
+  icon = EXCLUDED.icon, category = EXCLUDED.category, sort_order = EXCLUDED.sort_order;
+
+-- Retire the earlier generic placeholder set now that the real sheet is in
+DELETE FROM daily_check_items WHERE item_name IN (
+  'PPE worn (safety shoes, glasses, gloves as required)',
+  'Machine safety guards/doors in place and functional',
+  'Emergency stop button tested and working',
+  'Fire extinguisher accessible and unobstructed',
+  'Work area floor clean, dry, free of obstructions',
+  'Tools and gauges returned to designated place',
+  'Scrap/rejects segregated in correct bins',
+  'Hopper/material covered and free of contamination',
+  'Mould clamped and aligned correctly',
+  'First-off sample matches approved standard',
+  'Process parameters match SOP/approved setup sheet',
+  'No unauthorized process changes since last shift'
+) AND id NOT IN (SELECT DISTINCT check_item_id FROM daily_check_responses);

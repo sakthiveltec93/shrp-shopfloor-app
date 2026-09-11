@@ -16,81 +16,76 @@ router.get('/context', (req, res) => {
   });
 });
 
-// Most recent entry today for a machine - the client uses its end_time as
-// the next entry's start_time. Null means this will be the first entry of
-// the day, so the operator has to supply a start time themselves.
-router.get('/last', async (req, res) => {
-  const { machine_id } = req.query;
-  if (!machine_id) return res.status(400).json({ error: 'machine_id is required' });
-  const entryDate = istDateString(new Date());
-  const { rows } = await pool.query(
-    `SELECT * FROM production_entries
-     WHERE machine_id = $1 AND entry_date = $2
-     ORDER BY created_at DESC LIMIT 1`,
-    [machine_id, entryDate]
-  );
-  res.json(rows[0] || null);
-});
-
-// Log an hourly production entry. part_id is NOT accepted from the client -
-// it is always read from the machine's current approved assignment.
-// end_time is always "now" server-side; start_time comes from the client
-// (either the previous entry's end_time, or an operator-entered time for
-// the day's first entry). Efficiency is computed from elapsed time vs.
-// the part's standard cycle time and cavity count.
+// Log an hourly entry against a RUNNING session. start_time is always the
+// session's own clock (previous entry's end_time, or the session's own
+// start_time for the first entry) - the client never supplies it, so there
+// is no chaining logic to get wrong client-side.
+// If the resulting good_qty is below the theoretical target for the
+// elapsed time, remarks are mandatory - enforced here, not just in the UI.
 router.post('/', async (req, res) => {
   const {
-    machine_id, entry_date, hour_slot: hourSlotIn, shift, start_time,
-    start_count, end_count, reject_qty, downtime_minutes, downtime_reason_id, remarks,
+    session_id, end_count, reject_qty, downtime_minutes, downtime_reason_id, remarks,
   } = req.body;
 
-  if (!machine_id || !entry_date || !hourSlotIn || !shift || !start_time || start_count == null || end_count == null) {
-    return res.status(400).json({ error: 'machine_id, entry_date, hour_slot, shift, start_time, start_count and end_count are required' });
-  }
-  if (end_count < start_count) {
-    return res.status(400).json({ error: 'end_count cannot be less than start_count' });
+  if (!session_id || end_count == null) {
+    return res.status(400).json({ error: 'session_id and end_count are required' });
   }
 
-  const assignment = await pool.query(
-    `SELECT part_id FROM machine_assignments
-     WHERE machine_id = $1 AND status = 'approved'
-     ORDER BY approved_at DESC LIMIT 1`,
-    [machine_id]
-  );
-  if (!assignment.rows[0]) {
-    return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
-  }
-  const part_id = assignment.rows[0].part_id;
+  const sessionRes = await pool.query(`SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'`, [session_id]);
+  const session = sessionRes.rows[0];
+  if (!session) return res.status(404).json({ error: 'Running session not found' });
 
-  const partRes = await pool.query(
-    `SELECT cavity_count, standard_cycle_time_sec FROM parts WHERE id = $1`,
-    [part_id]
+  const lastEntryRes = await pool.query(
+    `SELECT * FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [session_id]
   );
+  const prevEntry = lastEntryRes.rows[0];
+  const startTime = prevEntry ? new Date(prevEntry.end_time) : new Date(session.start_time);
+  const startCount = prevEntry ? prevEntry.end_count : session.start_count;
+
+  if (end_count < startCount) {
+    return res.status(400).json({ error: 'end_count cannot be less than the previous count' });
+  }
+
+  const partRes = await pool.query(`SELECT cavity_count, standard_cycle_time_sec FROM parts WHERE id = $1`, [session.part_id]);
   const part = partRes.rows[0];
 
-  const totalQty = end_count - start_count;
+  const totalQty = end_count - startCount;
   const rejectQty = reject_qty || 0;
   const goodQty = Math.max(0, totalQty - rejectQty);
 
   const endTime = new Date();
-  const startTime = new Date(start_time);
   const elapsedSeconds = Math.max(1, (endTime.getTime() - startTime.getTime()) / 1000);
 
   let efficiencyPct = null;
+  let targetQty = null;
   if (part && part.cavity_count > 0 && part.standard_cycle_time_sec > 0) {
+    targetQty = (elapsedSeconds / Number(part.standard_cycle_time_sec)) * part.cavity_count;
     const idealSeconds = (goodQty / part.cavity_count) * Number(part.standard_cycle_time_sec);
-    efficiencyPct = Math.round((idealSeconds / elapsedSeconds) * 1000) / 10; // one decimal
+    efficiencyPct = Math.round((idealSeconds / elapsedSeconds) * 1000) / 10;
+  }
+  const belowTarget = targetQty != null && goodQty < targetQty;
+
+  if (belowTarget && !remarks) {
+    return res.status(409).json({
+      error: `Output (${goodQty}) is below the target (${Math.round(targetQty)}) for this period. Remarks are required.`,
+      code: 'below_target',
+      target_qty: Math.round(targetQty),
+      good_qty: goodQty,
+    });
   }
 
+  const now = new Date();
   const { rows } = await pool.query(
     `INSERT INTO production_entries
       (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
        start_count, end_count, good_qty, reject_qty, downtime_minutes, downtime_reason_id, remarks,
-       start_time, end_time, efficiency_pct)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-    [machine_id, part_id, req.user.id, shift, entry_date, hourSlotIn,
-      start_count, end_count, goodQty, rejectQty, downtime_minutes || 0, downtime_reason_id || null, remarks || null,
-      startTime.toISOString(), endTime.toISOString(), efficiencyPct]
+       start_time, end_time, efficiency_pct, session_id, target_qty, below_target)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+    [session.machine_id, session.part_id, req.user.id, currentShift(now), istDateString(now), hourSlot(now),
+      startCount, end_count, goodQty, rejectQty, downtime_minutes || 0, downtime_reason_id || null, remarks || null,
+      startTime.toISOString(), endTime.toISOString(), efficiencyPct, session_id,
+      targetQty != null ? Math.round(targetQty * 100) / 100 : null, belowTarget]
   );
   res.status(201).json(rows[0]);
 });

@@ -223,3 +223,75 @@ CREATE TABLE IF NOT EXISTS part_files (
 CREATE INDEX IF NOT EXISTS idx_part_files_part ON part_files(part_id, file_type);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_part_params_unique ON part_process_parameters(part_id, parameter_name);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_part_dims_unique ON part_critical_dimensions(part_id, dimension_name);
+
+-- ================================================================
+-- Machine sessions: an explicit Start Machine -> hourly entries -> Off
+-- Machine lifecycle per your operator-workflow spec. The partial unique
+-- index is what actually enforces "only one operator can run a machine
+-- at a time" at the database level - not just app logic.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS machine_sessions (
+  id SERIAL PRIMARY KEY,
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  start_time TIMESTAMPTZ NOT NULL,
+  start_count INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'RUNNING' CHECK (status IN ('RUNNING', 'OFF')),
+  off_time TIMESTAMPTZ,
+  off_count INTEGER,
+  off_reason TEXT,
+  off_remarks TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- At most one RUNNING session per machine, enforced by the database itself
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_running_session_per_machine
+  ON machine_sessions(machine_id) WHERE status = 'RUNNING';
+
+CREATE INDEX IF NOT EXISTS idx_machine_sessions_machine ON machine_sessions(machine_id, created_at DESC);
+
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS session_id INTEGER REFERENCES machine_sessions(id);
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS target_qty NUMERIC;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS below_target BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ================================================================
+-- Daily check sheet: safety/5S/IATF checks, gated in front of Start
+-- Machine. One submission per machine+shift+date.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS daily_check_items (
+  id SERIAL PRIMARY KEY,
+  item_name TEXT NOT NULL UNIQUE,
+  local_label TEXT,
+  specification TEXT,
+  icon TEXT,
+  category TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS daily_check_submissions (
+  id SERIAL PRIMARY KEY,
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  shift TEXT NOT NULL CHECK (shift IN ('A', 'B')),
+  entry_date DATE NOT NULL,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_checksheet_per_machine_shift_day
+  ON daily_check_submissions(machine_id, shift, entry_date);
+
+ALTER TABLE daily_check_items ADD COLUMN IF NOT EXISTS local_label TEXT;
+ALTER TABLE daily_check_items ADD COLUMN IF NOT EXISTS specification TEXT;
+ALTER TABLE daily_check_items ADD COLUMN IF NOT EXISTS icon TEXT;
+
+CREATE TABLE IF NOT EXISTS daily_check_responses (
+  id SERIAL PRIMARY KEY,
+  submission_id INTEGER NOT NULL REFERENCES daily_check_submissions(id) ON DELETE CASCADE,
+  check_item_id INTEGER NOT NULL REFERENCES daily_check_items(id),
+  status TEXT NOT NULL CHECK (status IN ('OK', 'NG', 'NA')),
+  remarks TEXT
+);

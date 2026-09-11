@@ -228,3 +228,30 @@ table.data-table th {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* Bag label - matches the physical WIP label layout, sized for a small sticker */
+.label-print-area {
+  width: 260px;
+  margin: 0 auto;
+  padding: 14px;
+  background: #fff;
+  color: #000;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+.label-part-name { font-weight: 700; font-size: 15px; margin-bottom: 10px; }
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 3px 0;
+  text-align: left;
+}
+.label-qr { display: block; margin: 10px auto; }
+.label-footer { font-size: 9px; margin-top: 8px; letter-spacing: 0.03em; }
+
+@media print {
+  body * { visibility: hidden; }
+  .label-print-area, .label-print-area * { visibility: visible; }
+  .label-print-area { position: absolute; top: 0; left: 0; border: none; }
+}
