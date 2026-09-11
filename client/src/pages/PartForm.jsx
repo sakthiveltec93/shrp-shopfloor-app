@@ -4,7 +4,7 @@ import { api, getToken } from '../api';
 
 const emptyBasic = {
   part_code: '', part_name: '', cavity_count: '1', standard_cycle_time_sec: '',
-  unit_weight_g: '', standard_pack_qty: '', customer_id: '', notes: '',
+  unit_weight_g: '', part_weight_g: '', batch_part_code: '', standard_pack_qty: '', customer_id: '', notes: '',
   trim_required: false, inspection_required: false, packing_required: true, dispatch_required: true,
 };
 
@@ -42,6 +42,7 @@ export default function PartForm() {
         setBasic({
           part_code: d.part_code, part_name: d.part_name, cavity_count: String(d.cavity_count),
           standard_cycle_time_sec: String(d.standard_cycle_time_sec), unit_weight_g: d.unit_weight_g ? String(d.unit_weight_g) : '',
+          part_weight_g: d.part_weight_g ? String(d.part_weight_g) : '', batch_part_code: d.batch_part_code || '',
           standard_pack_qty: d.standard_pack_qty ? String(d.standard_pack_qty) : '', customer_id: d.customer_id || '',
           notes: d.notes || '', trim_required: d.trim_required, inspection_required: d.inspection_required,
           packing_required: d.packing_required, dispatch_required: d.dispatch_required,
@@ -80,6 +81,7 @@ export default function PartForm() {
         cavity_count: Number(basic.cavity_count),
         standard_cycle_time_sec: Number(basic.standard_cycle_time_sec),
         unit_weight_g: basic.unit_weight_g ? Number(basic.unit_weight_g) : null,
+        part_weight_g: basic.part_weight_g ? Number(basic.part_weight_g) : null,
         standard_pack_qty: basic.standard_pack_qty ? Number(basic.standard_pack_qty) : null,
         customer_id: basic.customer_id || null,
       };
@@ -230,8 +232,20 @@ export default function PartForm() {
 
         <div className="btn-row" style={{ marginBottom: 14 }}>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Unit weight (g)</label>
+            <label>Shot weight (g, incl. runner)</label>
             <input type="number" step="0.01" value={basic.unit_weight_g} onChange={(e) => updateBasic('unit_weight_g', e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Part weight (g, no runner)</label>
+            <input type="number" step="0.01" value={basic.part_weight_g} onChange={(e) => updateBasic('part_weight_g', e.target.value)} />
+          </div>
+        </div>
+
+        <div className="btn-row" style={{ marginBottom: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Batch code</label>
+            <input value={basic.batch_part_code} onChange={(e) => updateBasic('batch_part_code', e.target.value)}
+              placeholder="e.g. 33" />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Standard pack qty</label>

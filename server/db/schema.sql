@@ -295,3 +295,13 @@ CREATE TABLE IF NOT EXISTS daily_check_responses (
   status TEXT NOT NULL CHECK (status IN ('OK', 'NG', 'NA')),
   remarks TEXT
 );
+
+-- Batch numbering and weighing-method fields, ported from Modproduction.bas
+-- (GetPartCode) and frmbagentry.frm (chkWithRunner logic).
+-- batch_part_code = the short numeric/alnum code from PART_MASTER col L,
+-- used to build BatchNo = batch_part_code + ddmmyy + Shift.
+-- part_weight_g = weight of the part alone, no runner (PART_MASTER col C) -
+-- distinct from the existing unit_weight_g, which is the SHOT weight
+-- (part + runner together, PART_MASTER col K "Single Shot Wt").
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS batch_part_code TEXT;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS part_weight_g NUMERIC;

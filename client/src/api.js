@@ -61,6 +61,7 @@ export const api = {
   submitCheckSheet: (payload) => request('/checksheet/submit', { method: 'POST', body: payload }),
 
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
+  bagBatchInfo: (machineId, entryDate, shift) => request(`/bags/batch-info?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}`),
   bagDetail: (id) => request(`/bags/${id}`),
   bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
   fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),

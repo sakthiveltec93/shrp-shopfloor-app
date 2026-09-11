@@ -2,12 +2,23 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 
-const empty = { machine_id: '', part_id: '', batch_no: '', bag_type: 'PART', base_weight_kg: '', qty: '', remarks: '' };
-
 export default function BagEntry() {
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [form, setForm] = useState(empty);
+  const [context, setContext] = useState(null);
+
+  const [machineId, setMachineId] = useState('');
+  const [entryDate, setEntryDate] = useState('');
+  const [shift, setShift] = useState('');
+  const [batchInfo, setBatchInfo] = useState(null); // { batch_no, cavity_count, shot_weight_g, part_weight_g }
+  const [batchError, setBatchError] = useState('');
+
+  const [bagType, setBagType] = useState('PART');
+  const [withRunner, setWithRunner] = useState(true);
+  const [weightKg, setWeightKg] = useState('');
+  const [qty, setQty] = useState('');
+  const [remarks, setRemarks] = useState('');
+
   const [bags, setBags] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -16,45 +27,64 @@ export default function BagEntry() {
 
   useEffect(() => {
     (async () => {
-      const [m, a] = await Promise.all([api.machines(), api.currentAssignments()]);
+      const [m, a, ctx] = await Promise.all([api.machines(), api.currentAssignments(), api.entryContext()]);
       setMachines(m);
       setAssignments(a);
+      setContext(ctx);
+      setEntryDate(ctx.entry_date);
+      setShift(ctx.shift);
     })();
   }, []);
 
-  const assigned = assignments.find((a) => String(a.machine_id) === String(form.machine_id));
-  const unitWeightG = assigned?.unit_weight_g ? Number(assigned.unit_weight_g) : null;
+  const assigned = assignments.find((a) => String(a.machine_id) === String(machineId));
 
-  function update(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
+  useEffect(() => {
+    if (!machineId || !entryDate || !shift) { setBatchInfo(null); return; }
+    setBatchError('');
+    api.bagBatchInfo(machineId, entryDate, shift)
+      .then(setBatchInfo)
+      .catch((err) => { setBatchInfo(null); setBatchError(err.message); });
+  }, [machineId, entryDate, shift]);
+
+  useEffect(() => {
+    if (batchInfo?.batch_no) loadBatchBags(batchInfo.batch_no);
+  }, [batchInfo?.batch_no]);
+
+  async function loadBatchBags(batchNo) {
+    setBags(await api.bagsForBatch(batchNo));
   }
 
-  // Auto-calc the other field from the part's unit weight - still editable after.
+  // Weight <-> qty auto-calc, ported from frmbagentry's chkWithRunner logic:
+  // with runner: qty = (weight_kg*1000 / shot_weight_g) * cavities
+  // separately:  qty = (weight_kg*1000 / part_weight_g)
+  function relevantWeightG() {
+    if (!batchInfo) return null;
+    return withRunner ? batchInfo.shot_weight_g : batchInfo.part_weight_g;
+  }
+
   function updateWeight(value) {
-    setForm((f) => {
-      const next = { ...f, base_weight_kg: value };
-      if (unitWeightG && value !== '') {
-        const kg = Number(value);
-        if (!Number.isNaN(kg)) next.qty = String(Math.round((kg * 1000) / unitWeightG));
+    setWeightKg(value);
+    const unitG = relevantWeightG();
+    if (unitG && value !== '') {
+      const kg = Number(value);
+      if (!Number.isNaN(kg)) {
+        const shots = (kg * 1000) / unitG;
+        const pieces = withRunner ? shots * (batchInfo.cavity_count || 1) : shots;
+        setQty(String(Math.round(pieces)));
       }
-      return next;
-    });
+    }
   }
 
   function updateQty(value) {
-    setForm((f) => {
-      const next = { ...f, qty: value };
-      if (unitWeightG && value !== '') {
-        const pieces = Number(value);
-        if (!Number.isNaN(pieces)) next.base_weight_kg = ((pieces * unitWeightG) / 1000).toFixed(3);
+    setQty(value);
+    const unitG = relevantWeightG();
+    if (unitG && value !== '') {
+      const pieces = Number(value);
+      if (!Number.isNaN(pieces)) {
+        const shots = withRunner ? pieces / (batchInfo.cavity_count || 1) : pieces;
+        setWeightKg(((shots * unitG) / 1000).toFixed(3));
       }
-      return next;
-    });
-  }
-
-  async function loadBatchBags(batchNo) {
-    if (!batchNo) { setBags([]); return; }
-    setBags(await api.bagsForBatch(batchNo));
+    }
   }
 
   async function handleSubmit(e) {
@@ -62,21 +92,22 @@ export default function BagEntry() {
     setError('');
     setSuccess('');
     if (!assigned) { setError('No approved part assigned to this machine.'); return; }
+    if (!batchInfo) { setError(batchError || 'Batch details not ready yet.'); return; }
     setLoading(true);
     try {
       const bag = await api.createBag({
-        machine_id: Number(form.machine_id),
-        part_id: assigned.part_id,
-        batch_no: form.batch_no.trim(),
-        bag_type: form.bag_type,
-        base_weight_kg: Number(form.base_weight_kg),
-        qty: Number(form.qty),
-        remarks: form.remarks || null,
+        machine_id: Number(machineId),
+        part_id: batchInfo.part_id,
+        batch_no: batchInfo.batch_no,
+        bag_type: bagType,
+        base_weight_kg: Number(weightKg),
+        qty: Number(qty),
+        remarks: remarks || null,
       });
       setSuccess(`Created bag ${bag.bag_code}`);
       setLastCreatedBag(bag);
-      setForm((f) => ({ ...f, base_weight_kg: '', qty: '', remarks: '' }));
-      loadBatchBags(form.batch_no.trim());
+      setWeightKg(''); setQty(''); setRemarks('');
+      loadBatchBags(batchInfo.batch_no);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -104,59 +135,82 @@ export default function BagEntry() {
       <form onSubmit={handleSubmit} className="panel">
         <div className="field">
           <label htmlFor="machine">Machine</label>
-          <select id="machine" value={form.machine_id} onChange={(e) => update('machine_id', e.target.value)} required>
+          <select id="machine" value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
             <option value="" disabled>Select machine</option>
             {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
           </select>
         </div>
 
-        {form.machine_id && (
+        {machineId && (
           <div className="readout" style={{ marginBottom: 14 }}>
             <div className="readout-label">Assigned part</div>
             {assigned ? `${assigned.part_code} — ${assigned.part_name}` : 'None assigned'}
           </div>
         )}
 
-        <div className="field">
-          <label htmlFor="batch">Batch no.</label>
-          <input id="batch" value={form.batch_no}
-            onChange={(e) => update('batch_no', e.target.value)}
-            onBlur={(e) => loadBatchBags(e.target.value.trim())}
-            required />
+        <div className="btn-row" style={{ marginBottom: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="date">Production date</label>
+            <input id="date" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} required />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="shift">Shift</label>
+            <select id="shift" value={shift} onChange={(e) => setShift(e.target.value)}>
+              <option value="A">A</option>
+              <option value="B">B</option>
+            </select>
+          </div>
         </div>
+
+        {batchError && <div className="error-banner">{batchError}</div>}
+        {batchInfo && (
+          <div className="readout" style={{ marginBottom: 14 }}>
+            <div className="readout-label">Batch no.</div>
+            {batchInfo.batch_no}
+          </div>
+        )}
 
         <div className="field">
           <label htmlFor="bag_type">Bag type</label>
-          <select id="bag_type" value={form.bag_type} onChange={(e) => update('bag_type', e.target.value)}>
+          <select id="bag_type" value={bagType} onChange={(e) => setBagType(e.target.value)}>
             <option value="PART">Part</option>
             <option value="RUNNER">Runner (sprue waste)</option>
           </select>
         </div>
 
+        {batchInfo && bagType === 'PART' && (
+          <div className="field">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" checked={withRunner} onChange={(e) => { setWithRunner(e.target.checked); setWeightKg(''); setQty(''); }} />
+              Weighed with runner (shot weight)
+            </label>
+            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              {withRunner
+                ? `Using shot weight ${batchInfo.shot_weight_g ?? '—'} g × ${batchInfo.cavity_count} cavities`
+                : `Using part weight ${batchInfo.part_weight_g ?? '—'} g (runner weighed separately)`}
+            </p>
+          </div>
+        )}
+
         <div className="btn-row" style={{ marginBottom: 14 }}>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="wt">Weight (kg)</label>
             <input id="wt" type="number" step="0.001" inputMode="decimal" required
-              value={form.base_weight_kg} onChange={(e) => updateWeight(e.target.value)} />
+              value={weightKg} onChange={(e) => updateWeight(e.target.value)} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="qty">Qty (pcs)</label>
             <input id="qty" type="number" inputMode="numeric" required
-              value={form.qty} onChange={(e) => updateQty(e.target.value)} />
+              value={qty} onChange={(e) => updateQty(e.target.value)} />
           </div>
         </div>
-        {unitWeightG && (
-          <p className="muted" style={{ fontSize: 12, marginTop: -8, marginBottom: 14 }}>
-            Auto-calculated from part unit weight ({unitWeightG} g/pc) — edit either field freely.
-          </p>
-        )}
 
         <div className="field">
           <label htmlFor="remarks">Remarks (optional)</label>
-          <textarea id="remarks" rows={2} value={form.remarks} onChange={(e) => update('remarks', e.target.value)} />
+          <textarea id="remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={loading || !assigned}>
+        <button className="btn btn-primary" type="submit" disabled={loading || !assigned || !batchInfo}>
           {loading ? 'Saving…' : 'Save bag'}
         </button>
       </form>
@@ -164,7 +218,7 @@ export default function BagEntry() {
       {bags.length > 0 && (
         <>
           <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>
-            Bags on batch {form.batch_no}
+            Bags on batch {batchInfo?.batch_no}
           </h2>
           <div className="panel" style={{ overflowX: 'auto' }}>
             <table className="data-table">

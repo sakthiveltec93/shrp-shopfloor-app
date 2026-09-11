@@ -276,3 +276,72 @@ DELETE FROM daily_check_items WHERE item_name IN (
   'Process parameters match SOP/approved setup sheet',
   'No unauthorized process changes since last shift'
 ) AND id NOT IN (SELECT DISTINCT check_item_id FROM daily_check_responses);
+
+-- Batch-numbering code and part-only weight (no runner), from PART_MASTER,
+-- for the same parts already cross-referenced above.
+
+UPDATE parts SET batch_part_code = '1', part_weight_g = 5.75 WHERE part_code = 'A710-BBWBA-01';
+UPDATE parts SET batch_part_code = '36', part_weight_g = 5.77 WHERE part_code = 'CA581CAWXX01';
+UPDATE parts SET batch_part_code = '37', part_weight_g = 4.92 WHERE part_code = 'CA582DDRXX01';
+UPDATE parts SET batch_part_code = '32', part_weight_g = 1.29 WHERE part_code = 'DM1C4UBH1B01';
+UPDATE parts SET batch_part_code = '2', part_weight_g = 3 WHERE part_code = 'F364-CB5AA-01';
+UPDATE parts SET batch_part_code = '4', part_weight_g = 4.33 WHERE part_code = 'F442-KQAAA-01';
+UPDATE parts SET batch_part_code = '3', part_weight_g = 3.97 WHERE part_code = 'F442-QQ7AA-01';
+UPDATE parts SET batch_part_code = '5', part_weight_g = 3.31 WHERE part_code = 'F442-WBAAA-01';
+UPDATE parts SET batch_part_code = '7', part_weight_g = 3.44 WHERE part_code = 'F710-AKYAA-01';
+UPDATE parts SET batch_part_code = '8', part_weight_g = 2.59 WHERE part_code = 'F885-BB1AA-01';
+UPDATE parts SET batch_part_code = '9', part_weight_g = 2.37 WHERE part_code = 'FC1F2AN6BA01';
+UPDATE parts SET batch_part_code = '1A', part_weight_g = 5.75 WHERE part_code = 'FC1F2CEEAA02';
+UPDATE parts SET batch_part_code = '47', part_weight_g = 2 WHERE part_code = 'FC1F2NDGAA02';
+UPDATE parts SET batch_part_code = '10', part_weight_g = 1.75 WHERE part_code = 'FC1F2SPHAA02';
+UPDATE parts SET batch_part_code = '11', part_weight_g = 2.62 WHERE part_code = 'FC1F2SULLA01';
+UPDATE parts SET batch_part_code = '12', part_weight_g = 0.8 WHERE part_code = 'FC1F2UGKCA01';
+UPDATE parts SET batch_part_code = '13', part_weight_g = 1.69 WHERE part_code = 'FC1F2UMEAB01';
+UPDATE parts SET batch_part_code = '46', part_weight_g = 2.57 WHERE part_code = 'FC1F2UMEAA01';
+UPDATE parts SET batch_part_code = '14', part_weight_g = 4.56 WHERE part_code = 'HA715L5G1A01';
+UPDATE parts SET batch_part_code = '15', part_weight_g = 3.84 WHERE part_code = 'HC442CXGAA01';
+UPDATE parts SET batch_part_code = '16', part_weight_g = 3.63 WHERE part_code = 'HC442SPHAA03';
+UPDATE parts SET batch_part_code = '35', part_weight_g = 4.44 WHERE part_code = 'HC442L3LAC01';
+UPDATE parts SET batch_part_code = '33', part_weight_g = 6.07 WHERE part_code = 'HC442L3LBB01';
+UPDATE parts SET batch_part_code = '34', part_weight_g = 7.15 WHERE part_code = 'HC442L3LBC02';
+UPDATE parts SET batch_part_code = '38', part_weight_g = 1.28 WHERE part_code = 'HC442OERAA01';
+UPDATE parts SET batch_part_code = '39', part_weight_g = 1.21 WHERE part_code = 'HC442QVEAC01';
+UPDATE parts SET batch_part_code = '40', part_weight_g = 1.5 WHERE part_code = 'HC442QVEBC01';
+UPDATE parts SET batch_part_code = '17', part_weight_g = 3.59 WHERE part_code = 'HC442SULAC01';
+UPDATE parts SET batch_part_code = '45', part_weight_g = 3.56 WHERE part_code = 'HC442UMNAA02';
+UPDATE parts SET batch_part_code = '18', part_weight_g = 1.79 WHERE part_code = 'HC443QQVBA02';
+UPDATE parts SET batch_part_code = '21', part_weight_g = 7.18 WHERE part_code = 'HR230DH7AA01';
+UPDATE parts SET batch_part_code = '20', part_weight_g = 9.34 WHERE part_code = 'HR230PDPKA02';
+UPDATE parts SET batch_part_code = '19', part_weight_g = 0.99 WHERE part_code = 'HL180F4W1A01';
+UPDATE parts SET batch_part_code = '22', part_weight_g = 1.2 WHERE part_code = 'HW773G9E1A01';
+UPDATE parts SET batch_part_code = '23', part_weight_g = 0.34 WHERE part_code = 'HW773G9E1B01';
+UPDATE parts SET batch_part_code = '24', part_weight_g = 5.99 WHERE part_code = 'R230-NC5BA-01';
+UPDATE parts SET batch_part_code = '25', part_weight_g = 6.2 WHERE part_code = 'R230-NC5BB-01';
+UPDATE parts SET batch_part_code = '26', part_weight_g = 1.68 WHERE part_code = 'V0LC-01C019-01';
+UPDATE parts SET batch_part_code = '27', part_weight_g = 1.88 WHERE part_code = 'V0LC-01C021-00';
+UPDATE parts SET batch_part_code = '28', part_weight_g = 1.62 WHERE part_code = 'V0LC-01C022-00';
+UPDATE parts SET batch_part_code = '29', part_weight_g = 2.26 WHERE part_code = 'V0LC-01C028-00';
+UPDATE parts SET batch_part_code = '30', part_weight_g = 1.71 WHERE part_code = 'VP5N1H-407721-AA';
+UPDATE parts SET batch_part_code = '31', part_weight_g = 2.24 WHERE part_code = 'VP5N1H-407721-FA';
+UPDATE parts SET batch_part_code = '41', part_weight_g = 1.87 WHERE part_code = 'RM-19D935-BA';
+UPDATE parts SET batch_part_code = 'P2', part_weight_g = 1 WHERE part_code = 'HR241BAE1B01';
+UPDATE parts SET batch_part_code = 'P1', part_weight_g = 2.36 WHERE part_code = 'FC1E1BAE1D01';
+UPDATE parts SET batch_part_code = 'B3', part_weight_g = 0.78 WHERE part_code = 'FC1P4L1E1A01';
+UPDATE parts SET batch_part_code = 'B9', part_weight_g = 0 WHERE part_code = 'VPR230-WC9AB-01';
+UPDATE parts SET batch_part_code = 'B4', part_weight_g = 0 WHERE part_code = 'HR241G6C1A01';
+UPDATE parts SET batch_part_code = 'B7', part_weight_g = 0 WHERE part_code = 'R101WC9AA01';
+UPDATE parts SET batch_part_code = 'B8', part_weight_g = 0 WHERE part_code = 'VPR230WC9AA01';
+UPDATE parts SET batch_part_code = 'W1', part_weight_g = 0 WHERE part_code = 'F390-QQDC-A02';
+UPDATE parts SET batch_part_code = 'W5', part_weight_g = 1.62 WHERE part_code = 'SHRP-T12';
+UPDATE parts SET batch_part_code = 'W6', part_weight_g = 0 WHERE part_code = 'SHRP-T3';
+UPDATE parts SET batch_part_code = 'W3', part_weight_g = 0 WHERE part_code = 'F442-KQ';
+UPDATE parts SET batch_part_code = 'W7', part_weight_g = 0 WHERE part_code = 'SHRP-T7';
+UPDATE parts SET batch_part_code = 'W4', part_weight_g = 0 WHERE part_code = 'SHRP-T10';
+UPDATE parts SET batch_part_code = 'W8', part_weight_g = 2.21 WHERE part_code = 'SHRP-T8';
+UPDATE parts SET batch_part_code = 'W14', part_weight_g = 2.69 WHERE part_code = 'WC-SCP-SC21NA-DB-01';
+UPDATE parts SET batch_part_code = 'W15', part_weight_g = 1.43 WHERE part_code = 'WC-SCP-SC21NA-LC-01';
+UPDATE parts SET batch_part_code = 'W16', part_weight_g = 3.61 WHERE part_code = 'WC-SCP-SC21NA-TB-T01';
+UPDATE parts SET batch_part_code = 'W10', part_weight_g = 2.05 WHERE part_code = 'WC-SCP-ECC21-LMF01';
+UPDATE parts SET batch_part_code = 'W12', part_weight_g = 2.73 WHERE part_code = 'WC-SCP-ECC21-SMF01';
+UPDATE parts SET batch_part_code = 'W9', part_weight_g = 2.37 WHERE part_code = 'WC-SCP-ECC21-DA01';
+UPDATE parts SET batch_part_code = 'C1', part_weight_g = 0 WHERE part_code = 'VP6TLU-11N087-AA';

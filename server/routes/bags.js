@@ -34,7 +34,7 @@ router.post('/', async (req, res) => {
     const suffix = row.bag_code.slice(-3);
     if (/^\d{3}$/.test(suffix)) maxNo = Math.max(maxNo, parseInt(suffix, 10));
   }
-  const bagCode = `${batch_no}${String(maxNo + 1).padStart(3, '0')}`;
+  const bagCode = `${batch_no}-${String(maxNo + 1).padStart(3, '0')}`;
 
   const now = new Date();
   const { rows } = await pool.query(
@@ -49,7 +49,44 @@ router.post('/', async (req, res) => {
   res.status(201).json(bag);
 });
 
-// Bags for a batch (Bag Entry summary list)
+// Derive the batch number for a machine's currently assigned part on a given
+// production date + shift, ported from Modproduction.bas's GetPartCode:
+// BatchNo = batch_part_code + ddmmyy(date) + Shift. Also returns the
+// weight fields Bag Entry needs for the with-runner/separately toggle.
+router.get('/batch-info', async (req, res) => {
+  const { machine_id, entry_date, shift } = req.query;
+  if (!machine_id || !entry_date || !shift) {
+    return res.status(400).json({ error: 'machine_id, entry_date and shift are required' });
+  }
+  const assignment = await pool.query(
+    `SELECT p.* FROM machine_assignments ma
+     JOIN parts p ON p.id = ma.part_id
+     WHERE ma.machine_id = $1 AND ma.status = 'approved'
+     ORDER BY ma.approved_at DESC LIMIT 1`,
+    [machine_id]
+  );
+  const part = assignment.rows[0];
+  if (!part) return res.status(409).json({ error: 'No approved mould/part assignment for this machine' });
+  if (!part.batch_part_code) {
+    return res.status(409).json({ error: `Part ${part.part_code} has no batch code set yet - add one in Parts before logging bags for it.` });
+  }
+
+  const [yyyy, mm, dd] = entry_date.split('-');
+  const ddmmyy = `${dd}${mm}${yyyy.slice(2)}`;
+  const batch_no = `${part.batch_part_code}${ddmmyy}${shift}`;
+
+  res.json({
+    batch_no,
+    part_id: part.id,
+    part_code: part.part_code,
+    part_name: part.part_name,
+    cavity_count: part.cavity_count,
+    shot_weight_g: part.unit_weight_g,
+    part_weight_g: part.part_weight_g,
+  });
+});
+
+
 router.get('/', async (req, res) => {
   const { batch_no, status, part_id } = req.query;
   const clauses = [];
