@@ -2,15 +2,19 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: '⌂' },
-  { to: '/mould-setup', label: 'Mould Setup', icon: '⚙' },
-  { to: '/entry', label: 'Entry', icon: '▤' },
-  { to: '/log', label: "Today's Log", icon: '≣' },
+  { to: '/', label: 'Home', icon: '⌂', key: null },
+  { to: '/mould-setup', label: 'Mould Setup', icon: '⚙', key: 'mould_setup' },
+  { to: '/entry', label: 'Entry', icon: '▤', key: 'entry' },
+  { to: '/log', label: "Today's Log", icon: '≣', key: 'log' },
 ];
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const visibleNavItems = user
+    ? NAV_ITEMS.filter((item) => !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key)))
+    : [];
 
   return (
     <div className="app-shell">
@@ -36,7 +40,7 @@ export default function Layout({ children }) {
 
       {user && (
         <nav className="bottom-nav">
-          {NAV_ITEMS.filter((item) => item.to !== '/mould-setup' || true).map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
