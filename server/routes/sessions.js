@@ -7,7 +7,9 @@ router.use(requireAuth);
 
 const OFF_REASONS = ['mould_change', 'shift_completed', 'breakdown', 'operator_change', 'other'];
 
-// The currently running session for a machine, if any
+// The currently running session for a machine, if any. Includes last_count -
+// the most recent hourly entry's end_count for this session, or the
+// session's own start_count if no hourly entry has been logged yet.
 router.get('/active', async (req, res) => {
   const { machine_id } = req.query;
   if (!machine_id) return res.status(400).json({ error: 'machine_id is required' });
@@ -19,7 +21,15 @@ router.get('/active', async (req, res) => {
     JOIN users u ON u.id = ms.operator_user_id
     WHERE ms.machine_id = $1 AND ms.status = 'RUNNING'
   `, [machine_id]);
-  res.json(rows[0] || null);
+  const session = rows[0];
+  if (!session) return res.json(null);
+
+  const lastEntry = await pool.query(
+    `SELECT end_count FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [session.id]
+  );
+  session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+  res.json(session);
 });
 
 // Suggested start count = the off_count from this machine's most recent
