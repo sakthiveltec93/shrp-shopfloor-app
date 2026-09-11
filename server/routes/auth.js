@@ -21,12 +21,15 @@ router.post('/login', async (req, res) => {
   const ok = await bcrypt.compare(pin, user.pin_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid username or PIN' });
 
+  const pagesRes = await pool.query('SELECT page_key FROM user_page_access WHERE user_id = $1', [user.id]);
+  const pages = pagesRes.rows.map((r) => r.page_key);
+
   const token = jwt.sign(
     { id: user.id, username: user.username, full_name: user.full_name, role: user.role },
     JWT_SECRET,
     { expiresIn: '12h' }
   );
-  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role, pages } });
 });
 
 module.exports = router;

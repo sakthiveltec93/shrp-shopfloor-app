@@ -345,3 +345,12 @@ UPDATE parts SET batch_part_code = 'W10', part_weight_g = 2.05 WHERE part_code =
 UPDATE parts SET batch_part_code = 'W12', part_weight_g = 2.73 WHERE part_code = 'WC-SCP-ECC21-SMF01';
 UPDATE parts SET batch_part_code = 'W9', part_weight_g = 2.37 WHERE part_code = 'WC-SCP-ECC21-DA01';
 UPDATE parts SET batch_part_code = 'C1', part_weight_g = 0 WHERE part_code = 'VP6TLU-11N087-AA';
+-- Give the default admin account full page access
+INSERT INTO user_page_access (user_id, page_key)
+SELECT u.id, p.page_key
+FROM users u, (VALUES
+  ('mould_setup'), ('entry'), ('bag_entry'), ('trimming'), ('inspection'),
+  ('packing'), ('log'), ('approvals'), ('parts'), ('users')
+) AS p(page_key)
+WHERE u.username = 'admin'
+ON CONFLICT (user_id, page_key) DO NOTHING;

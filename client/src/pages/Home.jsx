@@ -4,6 +4,7 @@ import { useAuth } from '../AuthContext';
 export default function Home() {
   const { user } = useAuth();
   const isSupervisor = user.role === 'supervisor' || user.role === 'admin';
+  const isAdmin = user.role === 'admin';
 
   return (
     <div className="screen">
@@ -53,6 +54,13 @@ export default function Home() {
             <span className="tile-icon">📋</span>
             <span className="tile-label">Parts</span>
             <span className="tile-hint">Add / edit part master</span>
+          </Link>
+        )}
+        {isAdmin && (
+          <Link to="/users" className="tile">
+            <span className="tile-icon">👤</span>
+            <span className="tile-label">Users</span>
+            <span className="tile-hint">Accounts & page access</span>
           </Link>
         )}
         <Link to="/log" className="tile">

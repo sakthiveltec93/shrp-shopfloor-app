@@ -60,6 +60,10 @@ export const api = {
   checkSheetItems: () => request('/checksheet/items'),
   submitCheckSheet: (payload) => request('/checksheet/submit', { method: 'POST', body: payload }),
 
+  users: () => request('/users'),
+  createUser: (payload) => request('/users', { method: 'POST', body: payload }),
+  updateUser: (id, payload) => request(`/users/${id}`, { method: 'PUT', body: payload }),
+
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
   bagBatchInfo: (machineId, entryDate, shift) => request(`/bags/batch-info?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}`),
   bagDetail: (id) => request(`/bags/${id}`),

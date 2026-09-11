@@ -305,3 +305,14 @@ CREATE TABLE IF NOT EXISTS daily_check_responses (
 -- (part + runner together, PART_MASTER col K "Single Shot Wt").
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS batch_part_code TEXT;
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS part_weight_g NUMERIC;
+
+-- ================================================================
+-- Per-user page access, so an admin can fine-tune exactly what each
+-- operator sees beyond the three broad roles (which still govern
+-- server-side authorization for actions like approving/creating parts).
+-- ================================================================
+CREATE TABLE IF NOT EXISTS user_page_access (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  page_key TEXT NOT NULL,
+  PRIMARY KEY (user_id, page_key)
+);
