@@ -269,6 +269,9 @@ export default function ProductionEntry() {
           {belowTargetPrompt ? (
             <div className="panel" style={{ borderColor: 'var(--amber)' }}>
               <p style={{ marginTop: 0, fontSize: 13 }}>{belowTargetPrompt.error}</p>
+              {belowTargetPrompt.efficiency_pct != null && (
+                <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>Efficiency: {belowTargetPrompt.efficiency_pct}%</p>
+              )}
               <div className="field">
                 <label htmlFor="remarks_req">Remarks (required)</label>
                 <textarea id="remarks_req" rows={2} required
@@ -284,6 +287,7 @@ export default function ProductionEntry() {
               <div className="field">
                 <label htmlFor="end_count">Machine count now</label>
                 <input id="end_count" type="number" inputMode="numeric" required
+                  placeholder={session.last_count != null ? `Last: ${session.last_count}` : ''}
                   value={entryForm.end_count} onChange={(e) => setEntryForm((f) => ({ ...f, end_count: e.target.value }))} />
               </div>
               <div className="btn-row" style={{ marginBottom: 14 }}>
