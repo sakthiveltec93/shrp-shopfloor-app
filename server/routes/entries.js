@@ -16,7 +16,11 @@ router.get('/context', (req, res) => {
   });
 });
 
-// Log an hourly entry against a RUNNING session. start_time is always the
+// Log an hourly entry against a RUNNING session. Only the operator who
+// started the session (or a supervisor/admin) may log entries against it -
+// prevents another operator who selects a still-running machine from
+// logging production against someone else's shift.
+// start_time is always the
 // session's own clock (previous entry's end_time, or the session's own
 // start_time for the first entry) - the client never supplies it, so there
 // is no chaining logic to get wrong client-side.
@@ -47,9 +51,12 @@ router.post('/', async (req, res) => {
   const rejectQty = rejectRows.reduce((sum, r) => sum + Number(r.qty), 0);
   const downtimeMinutes = downtimeRows.reduce((sum, d) => sum + Number(d.minutes), 0);
 
-  const sessionRes = await pool.query(`SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'`, [session_id]);
+  const sessionRes = await pool.query("SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'", [session_id]);
   const session = sessionRes.rows[0];
   if (!session) return res.status(404).json({ error: 'Running session not found' });
+  if (session.operator_user_id !== req.user.id && req.user.role === 'operator') {
+    return res.status(403).json({ error: 'This machine is running under another operator. You cannot log entries for it.' });
+  }
 
   const lastEntryRes = await pool.query(
     `SELECT * FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
