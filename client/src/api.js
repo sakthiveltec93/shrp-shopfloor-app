@@ -52,6 +52,7 @@ export const api = {
   entriesForDate: (date) => request(`/entries${date ? `?date=${date}` : ''}`),
 
   activeSession: (machineId) => request(`/sessions/active?machine_id=${machineId}`),
+  mySession: () => request('/sessions/mine'),
   suggestedStartCount: (machineId) => request(`/sessions/suggested-start-count?machine_id=${machineId}`),
   startMachine: (payload) => request('/sessions/start', { method: 'POST', body: payload }),
   offMachine: (id, payload) => request(`/sessions/${id}/off`, { method: 'POST', body: payload }),
