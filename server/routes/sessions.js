@@ -25,10 +25,11 @@ router.get('/active', async (req, res) => {
   if (!session) return res.json(null);
 
   const lastEntry = await pool.query(
-    `SELECT end_count FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [session.id]
   );
   session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
   res.json(session);
 });
 
@@ -48,10 +49,11 @@ router.get('/mine', async (req, res) => {
   if (!session) return res.json(null);
 
   const lastEntry = await pool.query(
-    `SELECT end_count FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [session.id]
   );
   session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
   res.json(session);
 });
 
