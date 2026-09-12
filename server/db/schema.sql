@@ -256,7 +256,7 @@ ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS session_id INTEGER REFER
 ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS target_qty NUMERIC;
 ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS below_target BOOLEAN NOT NULL DEFAULT FALSE;
 
--- ================================================================
+-- =================================================================
 -- Daily check sheet: safety/5S/IATF checks, gated in front of Start
 -- Machine. One submission per machine+shift+date.
 -- ================================================================
@@ -275,7 +275,7 @@ CREATE TABLE IF NOT EXISTS daily_check_items (
 CREATE TABLE IF NOT EXISTS daily_check_submissions (
   id SERIAL PRIMARY KEY,
   machine_id INTEGER NOT NULL REFERENCES machines(id),
-  shift TEXT NOT NULL CHECK (shift IN ('A', 'B')),
+  shift TEXT NOT NULL CHECK (shift IN ('@', 'B')),
   entry_date DATE NOT NULL,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -306,7 +306,7 @@ CREATE TABLE IF NOT EXISTS daily_check_responses (
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS batch_part_code TEXT;
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS part_weight_g NUMERIC;
 
--- ================================================================
+-- =================================================================
 -- Per-user page access, so an admin can fine-tune exactly what each
 -- operator sees beyond the three broad roles (which still govern
 -- server-side authorization for actions like approving/creating parts).
@@ -317,11 +317,11 @@ CREATE TABLE IF NOT EXISTS user_page_access (
   PRIMARY KEY (user_id, page_key)
 );
 
--- ================================================================
+-- =================================================================
 -- Itemized downtime logging, added to support multiple downtime
 -- reasons per hourly production_entries row. Mirrors reject_log,
 -- which already existed but was previously unused by the API.
--- ================================================================
+-- =================================================================
 CREATE TABLE IF NOT EXISTS downtime_log (
   id SERIAL PRIMARY KEY,
   production_entry_id INTEGER NOT NULL REFERENCES production_entries(id),
@@ -332,3 +332,51 @@ CREATE TABLE IF NOT EXISTS downtime_log (
 
 CREATE INDEX IF NOT EXISTS idx_downtime_log_entry ON downtime_log(production_entry_id);
 CREATE INDEX IF NOT EXISTS idx_reject_log_entry ON reject_log(production_entry_id);
+
+-- ============================================================
+-- In-app notifications: mould-change requests notify supervisors/
+-- admins, and approvals notify the submitting operator to mark the
+-- 1st OK part. Read status is per-recipient (user_id).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  link TEXT,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
+
+-- ============================================================
+-- Attendance: GPS-geofenced check-in/check-out, one row per
+-- user per day. app_settings holds the admin-configurable factory
+-- geofence center + radius (self-service, no coordinates hardcoded).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS attendance (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  attendance_date DATE NOT NULL,
+  check_in_at TIMESTAMPTZ,
+  check_in_lat NUMERIC,
+  check_in_lng NUMERIC,
+  check_in_distance_m NUMERIC,
+  check_in_within_geofence BOOLEAN,
+  check_out_at TIMESTAMPTZ,
+  check_out_lat NUMERIC,
+  check_out_lng NUMERIC,
+  check_out_distance_m NUMERIC,
+  check_out_within_geofence BOOLEAN,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, attendance_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
