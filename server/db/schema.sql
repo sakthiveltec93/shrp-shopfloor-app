@@ -316,3 +316,19 @@ CREATE TABLE IF NOT EXISTS user_page_access (
   page_key TEXT NOT NULL,
   PRIMARY KEY (user_id, page_key)
 );
+
+-- ================================================================
+-- Itemized downtime logging, added to support multiple downtime
+-- reasons per hourly production_entries row. Mirrors reject_log,
+-- which already existed but was previously unused by the API.
+-- ================================================================
+CREATE TABLE IF NOT EXISTS downtime_log (
+  id SERIAL PRIMARY KEY,
+  production_entry_id INTEGER NOT NULL REFERENCES production_entries(id),
+  downtime_reason_id INTEGER NOT NULL REFERENCES check_items(id),
+  minutes INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_downtime_log_entry ON downtime_log(production_entry_id);
+CREATE INDEX IF NOT EXISTS idx_reject_log_entry ON reject_log(production_entry_id);

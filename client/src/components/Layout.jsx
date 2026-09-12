@@ -27,12 +27,20 @@ export default function Layout({ children }) {
           </div>
         </div>
         {user && (
-          <button
-            className="logout-btn"
-            onClick={() => { logout(); navigate('/login'); }}
-          >
-            Sign out
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="logout-btn"
+              onClick={() => navigate('/change-pin')}
+            >
+              Change PIN
+            </button>
+            <button
+              className="logout-btn"
+              onClick={() => { logout(); navigate('/login'); }}
+            >
+              Sign out
+            </button>
+          </div>
         )}
       </header>
 

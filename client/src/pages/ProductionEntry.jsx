@@ -13,6 +13,7 @@ export default function ProductionEntry() {
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
+  const [rejectReasons, setRejectReasons] = useState([]);
   const [context, setContext] = useState(null);
   const [machineId, setMachineId] = useState('');
   const [session, setSession] = useState(undefined); // undefined = loading, null = none running
@@ -25,9 +26,12 @@ export default function ProductionEntry() {
   const [checkResponses, setCheckResponses] = useState({}); // { [item_id]: { status, remarks } }
   const [submittingCheck, setSubmittingCheck] = useState(false);
 
-  const [entryForm, setEntryForm] = useState({ end_count: '', reject_qty: '0', downtime_minutes: '0', downtime_reason_id: '', remarks: '' });
+  const [entryForm, setEntryForm] = useState({ end_count: '', remarks: '' });
+  const [rejectRows, setRejectRows] = useState([]);     // [{ reason_id, qty }]
+  const [downtimeRows, setDowntimeRows] = useState([]); // [{ reason_id, minutes }]
   const [belowTargetPrompt, setBelowTargetPrompt] = useState(null);
   const [savingEntry, setSavingEntry] = useState(false);
+  const [lastEntry, setLastEntry] = useState(null);
 
   const [showOff, setShowOff] = useState(false);
   const [offForm, setOffForm] = useState({ off_count: '', off_reason: '', off_remarks: '' });
@@ -38,12 +42,14 @@ export default function ProductionEntry() {
 
   useEffect(() => {
     (async () => {
-      const [m, a, r, ctx, items] = await Promise.all([
-        api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'), api.entryContext(), api.checkSheetItems(),
+      const [m, a, r, rr, ctx, items] = await Promise.all([
+        api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
+        api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
       ]);
       setMachines(m);
       setAssignments(a);
       setDowntimeReasons(r);
+      setRejectReasons(rr);
       setContext(ctx);
       setCheckSheetItems(items);
     })();
@@ -59,6 +65,7 @@ export default function ProductionEntry() {
     setError(''); setSuccess('');
     setBelowTargetPrompt(null);
     setShowOff(false);
+    setLastEntry(null);
     if (!id) return;
     const active = await api.activeSession(id);
     setSession(active);
@@ -105,7 +112,6 @@ export default function ProductionEntry() {
     }
   }
 
-
   async function handleStart(e) {
     e.preventDefault();
     setError(''); setSuccess('');
@@ -113,13 +119,25 @@ export default function ProductionEntry() {
     try {
       const s = await api.startMachine({ machine_id: Number(machineId), start_count: Number(startCount) });
       setSession(s);
-      setSuccess(`Machine started at ${new Date(s.start_time).toLocaleTimeString()}.`);
+      setSuccess(`Machine started at ${new Date(s.start_time).toLocaleString()}.`);
     } catch (err) {
       setError(err.message);
     } finally {
       setStarting(false);
     }
   }
+
+  function addRejectRow() { setRejectRows((r) => [...r, { reason_id: '', qty: '' }]); }
+  function updateRejectRow(i, field, value) {
+    setRejectRows((r) => r.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)));
+  }
+  function removeRejectRow(i) { setRejectRows((r) => r.filter((_, idx) => idx !== i)); }
+
+  function addDowntimeRow() { setDowntimeRows((d) => [...d, { reason_id: '', minutes: '' }]); }
+  function updateDowntimeRow(i, field, value) {
+    setDowntimeRows((d) => d.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)));
+  }
+  function removeDowntimeRow(i) { setDowntimeRows((d) => d.filter((_, idx) => idx !== i)); }
 
   async function submitEntry(withRemarks) {
     setError('');
@@ -128,15 +146,21 @@ export default function ProductionEntry() {
       const entry = await api.createEntry({
         session_id: session.id,
         end_count: Number(entryForm.end_count),
-        reject_qty: Number(entryForm.reject_qty || 0),
-        downtime_minutes: Number(entryForm.downtime_minutes || 0),
-        downtime_reason_id: entryForm.downtime_reason_id ? Number(entryForm.downtime_reason_id) : null,
+        rejects: rejectRows
+          .filter((r) => r.reason_id && r.qty)
+          .map((r) => ({ reason_id: Number(r.reason_id), qty: Number(r.qty) })),
+        downtimes: downtimeRows
+          .filter((d) => d.reason_id && d.minutes)
+          .map((d) => ({ reason_id: Number(d.reason_id), minutes: Number(d.minutes) })),
         remarks: withRemarks ? entryForm.remarks : (entryForm.remarks || undefined),
       });
       setBelowTargetPrompt(null);
+      setLastEntry(entry);
       const effText = entry.efficiency_pct != null ? ` · Efficiency ${entry.efficiency_pct}%` : '';
       setSuccess(`Hour ${context.hour_slot} logged.${effText}`);
-      setEntryForm({ end_count: '', reject_qty: '0', downtime_minutes: '0', downtime_reason_id: '', remarks: '' });
+      setEntryForm({ end_count: '', remarks: '' });
+      setRejectRows([]);
+      setDowntimeRows([]);
     } catch (err) {
       if (err.data?.code === 'below_target') {
         setBelowTargetPrompt(err.data);
@@ -263,7 +287,7 @@ export default function ProductionEntry() {
         <div className="panel">
           <div className="readout" style={{ marginBottom: 14 }}>
             <div className="readout-label">Running since</div>
-            {new Date(session.start_time).toLocaleTimeString()} · started by {session.operator_name}
+            {new Date(session.start_time).toLocaleString()} · started by {session.operator_name}
           </div>
 
           {belowTargetPrompt ? (
@@ -286,32 +310,45 @@ export default function ProductionEntry() {
             <form onSubmit={handleEntrySubmit}>
               <div className="field">
                 <label htmlFor="end_count">Machine count now</label>
+                {session.last_count != null && (
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Last count: {session.last_count}</div>
+                )}
                 <input id="end_count" type="number" inputMode="numeric" required
-                  placeholder={session.last_count != null ? `Last: ${session.last_count}` : ''}
                   value={entryForm.end_count} onChange={(e) => setEntryForm((f) => ({ ...f, end_count: e.target.value }))} />
               </div>
-              <div className="btn-row" style={{ marginBottom: 14 }}>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="reject_qty">Reject qty</label>
-                  <input id="reject_qty" type="number" inputMode="numeric"
-                    value={entryForm.reject_qty} onChange={(e) => setEntryForm((f) => ({ ...f, reject_qty: e.target.value }))} />
-                </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="downtime_minutes">Downtime (min)</label>
-                  <input id="downtime_minutes" type="number" inputMode="numeric"
-                    value={entryForm.downtime_minutes} onChange={(e) => setEntryForm((f) => ({ ...f, downtime_minutes: e.target.value }))} />
-                </div>
+
+              <div className="field">
+                <label>Rejects</label>
+                {rejectRows.map((row, i) => (
+                  <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
+                    <select value={row.reason_id} onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}>
+                      <option value="">Reason</option>
+                      {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.item_name}</option>)}
+                    </select>
+                    <input type="number" inputMode="numeric" placeholder="Qty"
+                      value={row.qty} onChange={(e) => updateRejectRow(i, 'qty', e.target.value)} />
+                    <button type="button" className="btn btn-secondary" onClick={() => removeRejectRow(i)}>✕</button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-secondary" onClick={addRejectRow}>+ Add reject reason</button>
               </div>
-              {Number(entryForm.downtime_minutes) > 0 && (
-                <div className="field">
-                  <label htmlFor="downtime_reason">Downtime reason</label>
-                  <select id="downtime_reason" value={entryForm.downtime_reason_id}
-                    onChange={(e) => setEntryForm((f) => ({ ...f, downtime_reason_id: e.target.value }))}>
-                    <option value="">Select reason</option>
-                    {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.item_name}</option>)}
-                  </select>
-                </div>
-              )}
+
+              <div className="field">
+                <label>Downtime</label>
+                {downtimeRows.map((row, i) => (
+                  <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
+                    <select value={row.reason_id} onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}>
+                      <option value="">Reason</option>
+                      {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.item_name}</option>)}
+                    </select>
+                    <input type="number" inputMode="numeric" placeholder="Minutes"
+                      value={row.minutes} onChange={(e) => updateDowntimeRow(i, 'minutes', e.target.value)} />
+                    <button type="button" className="btn btn-secondary" onClick={() => removeDowntimeRow(i)}>✕</button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-secondary" onClick={addDowntimeRow}>+ Add downtime reason</button>
+              </div>
+
               <div className="field">
                 <label htmlFor="remarks">Remarks (optional)</label>
                 <textarea id="remarks" rows={2} value={entryForm.remarks}
@@ -321,6 +358,14 @@ export default function ProductionEntry() {
                 {savingEntry ? 'Saving…' : 'Save entry'}
               </button>
             </form>
+          )}
+
+          {lastEntry && (
+            <div className="readout" style={{ marginTop: 14 }}>
+              <div className="readout-label">Last entry — Hour {lastEntry.hour_slot}</div>
+              Good {lastEntry.good_qty} · Reject {lastEntry.reject_qty} · Downtime {lastEntry.downtime_minutes}min
+              {lastEntry.efficiency_pct != null && ` · Efficiency ${lastEntry.efficiency_pct}%`}
+            </div>
           )}
 
           <button type="button" className="btn btn-secondary" style={{ marginTop: 14 }}

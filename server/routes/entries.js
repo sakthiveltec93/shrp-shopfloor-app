@@ -20,16 +20,32 @@ router.get('/context', (req, res) => {
 // session's own clock (previous entry's end_time, or the session's own
 // start_time for the first entry) - the client never supplies it, so there
 // is no chaining logic to get wrong client-side.
+//
+// rejects / downtimes are itemized arrays: [{ reason_id, qty }] and
+// [{ reason_id, minutes }]. Totals (reject_qty, downtime_minutes) are
+// always derived server-side from these arrays and inserted into
+// reject_log / downtime_log inside the same transaction as the entry -
+// the client-supplied totals are never trusted directly.
+//
 // If the resulting good_qty is below the theoretical target for the
 // elapsed time, remarks are mandatory - enforced here, not just in the UI.
 router.post('/', async (req, res) => {
   const {
-    session_id, end_count, reject_qty, downtime_minutes, downtime_reason_id, remarks,
+    session_id, end_count, rejects, downtimes, remarks,
   } = req.body;
 
   if (!session_id || end_count == null) {
     return res.status(400).json({ error: 'session_id and end_count are required' });
   }
+
+  const rejectRows = Array.isArray(rejects)
+    ? rejects.filter((r) => r.reason_id && Number(r.qty) > 0)
+    : [];
+  const downtimeRows = Array.isArray(downtimes)
+    ? downtimes.filter((d) => d.reason_id && Number(d.minutes) > 0)
+    : [];
+  const rejectQty = rejectRows.reduce((sum, r) => sum + Number(r.qty), 0);
+  const downtimeMinutes = downtimeRows.reduce((sum, d) => sum + Number(d.minutes), 0);
 
   const sessionRes = await pool.query(`SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'`, [session_id]);
   const session = sessionRes.rows[0];
@@ -51,7 +67,6 @@ router.post('/', async (req, res) => {
   const part = partRes.rows[0];
 
   const totalQty = end_count - startCount;
-  const rejectQty = reject_qty || 0;
   const goodQty = Math.max(0, totalQty - rejectQty);
 
   const endTime = new Date();
@@ -77,18 +92,46 @@ router.post('/', async (req, res) => {
   }
 
   const now = new Date();
-  const { rows } = await pool.query(
-    `INSERT INTO production_entries
-      (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
-       start_count, end_count, good_qty, reject_qty, downtime_minutes, downtime_reason_id, remarks,
-       start_time, end_time, efficiency_pct, session_id, target_qty, below_target)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
-    [session.machine_id, session.part_id, req.user.id, currentShift(now), istDateString(now), hourSlot(now),
-      startCount, end_count, goodQty, rejectQty, downtime_minutes || 0, downtime_reason_id || null, remarks || null,
-      startTime.toISOString(), endTime.toISOString(), efficiencyPct, session_id,
-      targetQty != null ? Math.round(targetQty * 100) / 100 : null, belowTarget]
-  );
-  res.status(201).json(rows[0]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `INSERT INTO production_entries
+        (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
+         start_count, end_count, good_qty, reject_qty, downtime_minutes, downtime_reason_id, remarks,
+         start_time, end_time, efficiency_pct, session_id, target_qty, below_target)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+      [session.machine_id, session.part_id, req.user.id, currentShift(now), istDateString(now), hourSlot(now),
+        startCount, end_count, goodQty, rejectQty, downtimeMinutes, rejectRows[0]?.reason_id || null, remarks || null,
+        startTime.toISOString(), endTime.toISOString(), efficiencyPct, session_id,
+        targetQty != null ? Math.round(targetQty * 100) / 100 : null, belowTarget]
+    );
+    const entry = rows[0];
+
+    for (const r of rejectRows) {
+      await client.query(
+        `INSERT INTO reject_log (production_entry_id, reject_reason_id, qty) VALUES ($1,$2,$3)`,
+        [entry.id, r.reason_id, r.qty]
+      );
+    }
+    for (const d of downtimeRows) {
+      await client.query(
+        `INSERT INTO downtime_log (production_entry_id, downtime_reason_id, minutes) VALUES ($1,$2,$3)`,
+        [entry.id, d.reason_id, d.minutes]
+      );
+    }
+
+    await client.query('COMMIT');
+    entry.rejects = rejectRows;
+    entry.downtimes = downtimeRows;
+    res.status(201).json(entry);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 // Entries for a given date (defaults to today in IST). Operators only ever

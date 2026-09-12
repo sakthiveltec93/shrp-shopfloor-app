@@ -18,6 +18,7 @@ import PartForm from './pages/PartForm'
 import BagLabel from './pages/BagLabel'
 import UsersList from './pages/UsersList'
 import UserForm from './pages/UserForm'
+import PinChange from './pages/PinChange'
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
           path="/users/:id/edit"
           element={<ProtectedRoute roles={['admin']} page="users"><UserForm /></ProtectedRoute>}
         />
+        <Route path="/change-pin" element={<ProtectedRoute><PinChange /></ProtectedRoute>} />
       </Routes>
     </Layout>
   )
