@@ -337,7 +337,10 @@ export default function ProductionEntry() {
               <div className="field">
                 <label htmlFor="end_count">Machine count now</label>
                 {session.last_count != null && (
-                  <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Last count: {session.last_count}</div>
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+                    Last count: {session.last_count}
+                    {session.last_entry_time && ` at ${new Date(session.last_entry_time).toLocaleTimeString()}`}
+                  </div>
                 )}
                 <input id="end_count" type="number" inputMode="numeric" required
                   value={entryForm.end_count} onChange={(e) => setEntryForm((f) => ({ ...f, end_count: e.target.value }))} />
