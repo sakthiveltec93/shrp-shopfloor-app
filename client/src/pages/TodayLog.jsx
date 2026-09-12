@@ -8,6 +8,16 @@ function todayLocal() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// "Hr 5" means the 5th hour slot counted from shift start (Shift A starts
+// 09:30 IST, Shift B 21:30 IST) - not the 5th hour of the calendar day.
+// Showing the entry's own start_time-end_time next to it makes that concrete
+// instead of requiring operators to do the shift-start math themselves.
+function timeRange(e) {
+  if (!e.start_time || !e.end_time) return null;
+  const fmt = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${fmt(e.start_time)}–${fmt(e.end_time)}`;
+}
+
 export default function TodayLog() {
   const { user } = useAuth();
   const [date, setDate] = useState(todayLocal());
@@ -85,6 +95,9 @@ export default function TodayLog() {
       {entries.length > 0 && (
         <>
           <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>Hourly entries</h2>
+          <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 10 }}>
+            "Hr" counts hours since the shift started (Shift A 9:30 AM, Shift B 9:30 PM) - the clock time next to it is the actual window.
+          </p>
           <div className="panel" style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
@@ -103,7 +116,10 @@ export default function TodayLog() {
                   <tr key={e.id}>
                     <td>{e.machine_code}</td>
                     <td>{e.part_code}</td>
-                    <td>{e.hour_slot}</td>
+                    <td>
+                      {e.hour_slot}
+                      {timeRange(e) && <div className="muted" style={{ fontSize: 11 }}>{timeRange(e)}</div>}
+                    </td>
                     <td>{e.good_qty}</td>
                     <td>{e.reject_qty}</td>
                     <td>{e.efficiency_pct != null ? e.efficiency_pct : '—'}</td>
