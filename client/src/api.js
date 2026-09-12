@@ -74,6 +74,21 @@ export const api = {
   trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),
   inspectBag: (id, payload) => request(`/bags/${id}/inspect`, { method: 'POST', body: payload }),
   packBag: (id, payload) => request(`/bags/${id}/pack`, { method: 'POST', body: payload }),
+
+  notifications: {
+    list: () => request('/notifications'),
+    markRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
+    markAllRead: () => request('/notifications/read-all', { method: 'POST' }),
+  },
+
+  attendance: {
+    today: () => request('/attendance/today'),
+    checkIn: (lat, lng) => request('/attendance/check-in', { method: 'POST', body: { lat, lng } }),
+    checkOut: (lat, lng) => request('/attendance/check-out', { method: 'POST', body: { lat, lng } }),
+    settings: () => request('/attendance/settings'),
+    updateSettings: (payload) => request('/attendance/settings', { method: 'PUT', body: payload }),
+    roster: (date) => request(`/attendance${date ? `?date=${date}` : ''}`),
+  },
 };
 
 export { getToken };
