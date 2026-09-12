@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../AuthContext';
 
 // Local "now" formatted for a datetime-local input's default value
 function nowForInput() {
@@ -9,6 +10,8 @@ function nowForInput() {
 }
 
 export default function MouldSetup() {
+  const { user } = useAuth();
+  const canCorrect = user.role === 'supervisor' || user.role === 'admin';
   const [machines, setMachines] = useState([]);
   const [parts, setParts] = useState([]);
   const [current, setCurrent] = useState([]);
@@ -20,6 +23,8 @@ export default function MouldSetup() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [markingId, setMarkingId] = useState(null);
+  const [okTimes, setOkTimes] = useState({}); // { [assignment_id]: 'YYYY-MM-DDTHH:mm' }
+  const [editingId, setEditingId] = useState(null);
 
   async function loadData() {
     const [m, p, c] = await Promise.all([api.machines(), api.parts(), api.currentAssignments()]);
@@ -54,11 +59,17 @@ export default function MouldSetup() {
     }
   }
 
+  function timeFor(assignmentId) {
+    return okTimes[assignmentId] ?? nowForInput();
+  }
+
   async function markFirstOk(assignmentId) {
     setError('');
     setMarkingId(assignmentId);
     try {
-      await api.markFirstOkPart(assignmentId);
+      const takenAt = okTimes[assignmentId];
+      await api.markFirstOkPart(assignmentId, takenAt ? new Date(takenAt).toISOString() : undefined);
+      setEditingId(null);
       loadData();
     } catch (err) {
       setError(err.message);
@@ -140,18 +151,41 @@ export default function MouldSetup() {
               Loading started: {new Date(c.mould_load_started_at).toLocaleString()}
             </div>
           )}
-          {c.first_ok_part_at ? (
-            <div className="muted" style={{ fontSize: 12 }}>
+
+          {c.first_ok_part_at && editingId !== c.assignment_id ? (
+            <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
               1st OK part: {new Date(c.first_ok_part_at).toLocaleString()}
+              {canCorrect && (
+                <button type="button" className="btn btn-secondary" style={{ width: 'auto', padding: '4px 10px', fontSize: 11 }}
+                  onClick={() => { setOkTimes((t) => ({ ...t, [c.assignment_id]: nowForInput() })); setEditingId(c.assignment_id); }}>
+                  Correct time
+                </button>
+              )}
             </div>
           ) : (
-            <button
-              className="btn btn-secondary"
-              disabled={markingId === c.assignment_id}
-              onClick={() => markFirstOk(c.assignment_id)}
-            >
-              {markingId === c.assignment_id ? 'Marking…' : 'Mark 1st OK part taken'}
-            </button>
+            <div>
+              <div className="field" style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 12 }} htmlFor={`ok_time_${c.assignment_id}`}>
+                  {c.first_ok_part_at ? 'Corrected 1st OK part time' : "1st OK part time (if not marked right now, set the real time it happened)"}
+                </label>
+                <input id={`ok_time_${c.assignment_id}`} type="datetime-local"
+                  value={timeFor(c.assignment_id)}
+                  onChange={(e) => setOkTimes((t) => ({ ...t, [c.assignment_id]: e.target.value }))} />
+              </div>
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={markingId === c.assignment_id}
+                  onClick={() => markFirstOk(c.assignment_id)}
+                >
+                  {markingId === c.assignment_id ? 'Saving…' : c.first_ok_part_at ? 'Save corrected time' : 'Mark 1st OK part taken'}
+                </button>
+                {c.first_ok_part_at && (
+                  <button type="button" className="btn btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                )}
+              </div>
+            </div>
           )}
         </div>
       ))}
