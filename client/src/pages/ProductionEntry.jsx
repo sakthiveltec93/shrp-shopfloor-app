@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../AuthContext';
 
 const OFF_REASONS = [
   { value: 'mould_change', label: 'Mould Change' },
@@ -10,6 +11,7 @@ const OFF_REASONS = [
 ];
 
 export default function ProductionEntry() {
+  const { user } = useAuth();
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
@@ -42,9 +44,10 @@ export default function ProductionEntry() {
 
   useEffect(() => {
     (async () => {
-      const [m, a, r, rr, ctx, items] = await Promise.all([
+      const [m, a, r, rr, ctx, items, mine] = await Promise.all([
         api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
         api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
+        api.mySession(),
       ]);
       setMachines(m);
       setAssignments(a);
@@ -52,10 +55,19 @@ export default function ProductionEntry() {
       setRejectReasons(rr);
       setContext(ctx);
       setCheckSheetItems(items);
+      // If this operator already has a machine running, jump straight to it -
+      // no need to reselect from the dropdown every time they open this screen.
+      if (mine) {
+        setMachineId(String(mine.machine_id));
+        setSession(mine);
+        setOffForm({ off_count: '', off_reason: '', off_remarks: '' });
+      }
     })();
   }, []);
 
   const assigned = assignments.find((a) => String(a.machine_id) === String(machineId));
+  const isOwnSession = !!(session && user && session.operator_user_id === user.id);
+  const lockedByOther = !!(session && user && session.operator_user_id !== user.id);
 
   async function selectMachine(id) {
     setMachineId(id);
@@ -283,7 +295,21 @@ export default function ProductionEntry() {
         )}
       </div>
 
-      {session && (
+      {session && lockedByOther && (
+        <div className="panel" style={{ borderColor: 'var(--amber)' }}>
+          <div className="readout" style={{ marginBottom: 8 }}>
+            <div className="readout-label">Running since</div>
+            {new Date(session.start_time).toLocaleString()} · started by {session.operator_name}
+          </div>
+          <p style={{ fontSize: 13, marginBottom: 0 }}>
+            This machine is running under <strong>{session.operator_name}</strong>. You can't log entries or switch
+            it off from your login — pick a different machine, or ask {session.operator_name} (or a supervisor) to
+            close it out first.
+          </p>
+        </div>
+      )}
+
+      {session && isOwnSession && (
         <div className="panel">
           <div className="readout" style={{ marginBottom: 14 }}>
             <div className="readout-label">Running since</div>
