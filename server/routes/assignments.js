@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { notifyUser, notifyRoles } = require('../lib/notify');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -38,6 +39,7 @@ router.get('/pending', requireRole('supervisor', 'admin'), async (req, res) => {
 
 // Set up a new mould/part on a machine -> goes to pending. Records when
 // mould loading actually started (operator-entered, defaults to now).
+// Notifies every supervisor/admin so approval doesn't sit unnoticed.
 router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res) => {
   const { machine_id, part_id, notes, mould_load_started_at } = req.body;
   if (!machine_id || !part_id) {
@@ -48,10 +50,25 @@ router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res
      VALUES ($1, $2, $3, $4, COALESCE($5, now())) RETURNING *`,
     [machine_id, part_id, req.user.id, notes || null, mould_load_started_at || null]
   );
-  res.status(201).json(rows[0]);
+  const assignment = rows[0];
+
+  const [machine, part] = await Promise.all([
+    pool.query('SELECT machine_code FROM machines WHERE id = $1', [machine_id]),
+    pool.query('SELECT part_code FROM parts WHERE id = $1', [part_id]),
+  ]);
+  await notifyRoles(
+    ['supervisor', 'admin'],
+    'mould_setup_pending',
+    `New mould setup: ${machine.rows[0]?.machine_code} -> ${part.rows[0]?.part_code} (by ${req.user.full_name}). Needs approval.`,
+    '/approvals'
+  );
+
+  res.status(201).json(assignment);
 });
 
-// Approve or reject a pending assignment - supervisor/admin only
+// Approve or reject a pending assignment - supervisor/admin only.
+// Notifies the operator who submitted it either way, so they know to go
+// mark the 1st OK part (if approved) instead of finding out cold.
 router.post('/:id/decision', requireRole('supervisor', 'admin'), async (req, res) => {
   const { id } = req.params;
   const { decision } = req.body; // 'approved' | 'rejected'
@@ -65,7 +82,33 @@ router.post('/:id/decision', requireRole('supervisor', 'admin'), async (req, res
     [decision, req.user.id, id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Pending assignment not found' });
-  res.json(rows[0]);
+  const assignment = rows[0];
+
+  const info = await pool.query(
+    `SELECT m.machine_code, p.part_code FROM machine_assignments ma
+     JOIN machines m ON m.id = ma.machine_id
+     JOIN parts p ON p.id = ma.part_id
+     WHERE ma.id = $1`,
+    [id]
+  );
+  const { machine_code, part_code } = info.rows[0] || {};
+  if (decision === 'approved') {
+    await notifyUser(
+      assignment.set_by_user_id,
+      'mould_setup_approved',
+      `Your mould setup for ${machine_code} (${part_code}) was approved. Mark 1st OK part when ready.`,
+      '/mould-setup'
+    );
+  } else {
+    await notifyUser(
+      assignment.set_by_user_id,
+      'mould_setup_rejected',
+      `Your mould setup for ${machine_code} (${part_code}) was rejected.`,
+      '/mould-setup'
+    );
+  }
+
+  res.json(assignment);
 });
 
 // Mark the moment the first OK (good) part was taken off this assignment -
