@@ -322,8 +322,8 @@ export default function ProductionEntry() {
                 {rejectRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}>
-                      <option value="">Reason</option>
-                      {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.item_name}</option>)}
+                    <option value="">Reason</option>
+                      {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.code ? `${r.code} - ${r.item_name}` : r.item_name}</option>)}
                     </select>
                     <input type="number" inputMode="numeric" placeholder="Qty"
                       value={row.qty} onChange={(e) => updateRejectRow(i, 'qty', e.target.value)} />
@@ -339,7 +339,7 @@ export default function ProductionEntry() {
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}>
                       <option value="">Reason</option>
-                      {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.item_name}</option>)}
+                      {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.related_to ? `${r.item_name} (${r.related_to})` : r.item_name}</option>)}
                     </select>
                     <input type="number" inputMode="numeric" placeholder="Minutes"
                       value={row.minutes} onChange={(e) => updateDowntimeRow(i, 'minutes', e.target.value)} />
