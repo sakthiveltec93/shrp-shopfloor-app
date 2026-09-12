@@ -1,1 +1,120 @@
-aW1wb3J0IHsgdXNlRWZmZWN0LCB1c2VTdGF0ZSB9IGZyb20gJ3JlYWN0JzsKaW1wb3J0IHsgYXBpIH0gZnJvbSAnLi4vYXBpJzsKaW1wb3J0IHsgdXNlQXV0aCB9IGZyb20gJy4uL0F1dGhDb250ZXh0JzsKCmZ1bmN0aW9uIHRvZGF5TG9jYWwoKSB7CiAgY29uc3QgZCA9IG5ldyBEYXRlKCk7CiAgY29uc3QgcGFkID0gKG4pID0+IFN0cmluZyhuKS5wYWRTdGFydCgyLCAnMCcpOwogIHJldHVybiBgJHtkLmdldEZ1bGxZZWFyKCl9LSR7cGFkKGQuZ2V0TW9udGgoKSArIDEpfS0ke3BhZChkLmdldERhdGUoKSl9YDsKfQoKZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gVG9kYXlMb2coKSB7CiAgY29uc3QgeyB1c2VyIH0gPSB1c2VBdXRoKCk7CiAgY29uc3QgW2RhdGUsIHNldERhdGVdID0gdXNlU3RhdGUodG9kYXlMb2NhbCgpKTsKICBjb25zdCBbZW50cmllcywgc2V0RW50cmllc10gPSB1c2VTdGF0ZShbXSk7CiAgY29uc3QgaXNPcGVyYXRvciA9IHVzZXIucm9sZSA9PT0gJ29wZXJhdG9yJzsKCiAgdXNlRWZmZWN0KCgpID0+IHsKICAgIGFwaS5lbnRyaWVzRm9yRGF0ZShkYXRlKS50aGVuKHNldEVudHJpZXMpOwogIH0sIFtkYXRlXSk7CgogIGNvbnN0IHRvdGFsR29vZCA9IGVudHJpZXMucmVkdWNlKChzdW0sIGUpID0+IHN1bSArIGUuZ29vZF9xdHksIDApOwogIGNvbnN0IHRvdGFsUmVqZWN0ID0gZW50cmllcy5yZWR1Y2UoKHN1bSwgZSkgPT4gc3VtICsgZS5yZWplY3RfcXR5LCAwKTsKICBjb25zdCBlZmZFbnRyaWVzID0gZW50cmllcy5maWx0ZXIoKGUpID0+IGUuZWZmaWNpZW5jeV9wY3QgIT0gbnVsbCk7CiAgY29uc3QgYXZnRWZmID0gZWZmRW50cmllcy5sZW5ndGgKICAgID8gTWF0aC5yb3VuZCgoZWZmRW50cmllcy5yZWR1Y2UoKHN1bSwgZSkgPT4gc3VtICsgTnVtYmVyKGUuZWZmaWNpZW5jeV9wY3QpLCAwKSAvIGVmZkVudHJpZXMubGVuZ3RoKSAqIDEwKSAvIDEwCiAgICA6IG51bGw7CgogIGNvbnN0IGJ5UGFydCA9IHt9OwogIGZvciAoY29uc3QgZSBvZiBlbnRyaWVzKSB7CiAgICBjb25zdCBrZXkgPSBlLnBhcnRfY29kZTsKICAgIGlmICghYnlQYXJ0W2tleV0pIGJ5UGFydFtrZXldID0geyBwYXJ0X2NvZGU6IGUucGFydF9jb2RlLCBwYXJ0X25hbWU6IGUucGFydF9uYW1lLCBnb29kOiAwLCByZWplY3Q6IDAgfTsKICAgIGJ5UGFydFtrZXldLmdvb2QgKz0gZS5nb29kX3F0eTsKICAgIGJ5UGFydFtrZXldLnJlamVjdCArPSBlLnJlamVjdF9xdHk7CiAgfQogIGNvbnN0IHBhcnRSb3dzID0gT2JqZWN0LnZhbHVlcyhieVBhcnQpOwoKICByZXR1cm4gKAogICAgPGRpdiBjbGFzc05hbWU9InNjcmVlbiI+CiAgICAgIDxoMSBjbGFzc05hbWU9InNjcmVlbi10aXRsZSI+e2lzT3BlcmF0b3IgPyAnTXkgTG9nJyA6ICdQcm9kdWN0aW9uIExvZyd9PC9oMT4KCiAgICAgIDxkaXYgY2xhc3NOYW1lPSJmaWVsZCI+CiAgICAgICAgPGxhYmVsIGh0bWxGb3I9ImRhdGUiPkRhdGU8L2xhYmVsPgogICAgICAgIDxpbnB1dCBpZD0iZGF0ZSIgdHlwZT0iZGF0ZSIgdmFsdWU9e2RhdGV9IG9uQ2hhbmdlPXsoZSkgPT4gc2V0RGF0ZShlLnRhcmdldC52YWx1ZSl9IC8+CiAgICAgIDwvZGl2PgoKICAgICAgPGRpdiBjbGFzc05hbWU9ImJ0bi1yb3ciIHN0eWxlPXt7IG1hcmdpbkJvdHRvbTogMTYgfX0+CiAgICAgICAgPGRpdiBjbGFzc05hbWU9InJlYWRvdXQiIHN0eWxlPXt7IGZsZXg6IDEgfX0+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icmVhZG91dC1sYWJlbCI+R29vZCBxdHk8L2Rpdj4KICAgICAgICAgIHt0b3RhbEdvb2R9CiAgICAgICAgPC9kaXY+CiAgICAgICAgPGRpdiBjbGFzc05hbWU9InJlYWRvdXQiIHN0eWxlPXt7IGZsZXg6IDEgfX0+CiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0icmVhZG91dC1sYWJlbCI+UmVqZWN0czwvZGl2PgogICAgICAgICAge3RvdGFsUmVqZWN0fQogICAgICAgIDwvZGl2PgogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJyZWFkb3V0IiBzdHlsZT17eyBmbGV4OiAxIH19PgogICAgICAgICAgPGRpdiBjbGFzc05hbWU9InJlYWRvdXQtbGFiZWwiPkF2ZyBlZmZpY2llbmN5PC9kaXY+CiAgICAgICAgICB7YXZnRWZmICE9IG51bGwgPyBgJHthdmdFZmZ9JWAgOiAn4oCUJ30KICAgICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CgogICAgICB7ZW50cmllcy5sZW5ndGggPT09IDAgJiYgPHAgY2xhc3NOYW1lPSJtdXRlZCI+Tm8gZW50cmllcyBsb2dnZWQgZm9yIHRoaXMgZGF0ZS48L3A+fQoKICAgICAge3BhcnRSb3dzLmxlbmd0aCA+IDAgJiYgKAogICAgICAgIDw+CiAgICAgICAgICA8aDIgc3R5bGU9e3sgZm9udFNpemU6IDE0LCBjb2xvcjogJ3ZhcigtLXRleHQtbXV0ZWQpJywgbWFyZ2luOiAnMjBweCAwIDEwcHgnIH19PkJ5IHBhcnQ8L2gyPgogICAgICAgICAgPGRpdiBjbGFzc05hbWU9InBhbmVsIiBzdHlsZT17eyBvdmVyZmxvd1g6ICdhdXRvJyB9fT4KICAgICAgICAgICAgPHRhYmxlIGNsYXNzTmFtZT0iZGF0YS10YWJsZSI+CiAgICAgICAgICAgICAgPHRoZWFkPgogICAgICAgICAgICAgICAgPHRyPjx0aD5QYXJ0PC90aD48dGg+R29vZDwvdGg+PHRoPlJlajwvdGg+PC90cj4KICAgICAgICAgICAgICA8L3RoZWFkPgogICAgICAgICAgICAgIDx0Ym9keT4KICAgICAgICAgICAgICAgIHtwYXJ0Um93cy5tYXAoKHApID0+ICgKICAgICAgICAgICAgICAgICAgPHRyIGtleT17cC5wYXJ0X2NvZGV9PgogICAgICAgICAgICAgICAgICAgIDx0ZD57cC5wYXJ0X2NvZGV9IOKAlCB7cC5wYXJ0X25hbWV9PC90ZD4KICAgICAgICAgICAgICAgICAgICA8dGQ+e3AuZ29vZH08L3RkPgogICAgICAgICAgICAgICAgICAgIDx0ZD57cC5yZWplY3R9PC90ZD4KICAgICAgICAgICAgICAgICAgPC90cj4KICAgICAgICAgICAgICAgICkpfQogICAgICAgICAgICAgIDwvdGJvZHk+CiAgICAgICAgICAgIDwvdGFibGU+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICA8Lz4KICAgICAgKX0KCiAgICAgIHtlbnRyaWVzLmxlbmd0aCA+IDAgJiYgKAogICAgICAgIDw+CiAgICAgICAgICA8aDIgc3R5bGU9e3sgZm9udFNpemU6IDE0LCBjb2xvcjogJ3ZhcigtLXRleHQtbXV0ZWQpJywgbWFyZ2luOiAnMjBweCAwIDEwcHgnIH19PkhvdXJseSBlbnRyaWVzPC9oMj4KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJwYW5lbCIgc3R5bGU9e3sgb3ZlcmZsb3dYOiAnYXV0bycgfX0+CiAgICAgICAgICAgIDx0YWJsZSBjbGFzc05hbWU9ImRhdGEtdGFibGUiPgogICAgICAgICAgICAgIDx0aGVhZD4KICAgICAgICAgICAgICAgIDx0cj4KICAgICAgICAgICAgICAgICAgPHRoPk1hY2hpbmU8L3RoPgogICAgICAgICAgICAgICAgICA8dGg+UGFydDwvdGg+CiAgICAgICAgICAgICAgICAgIDx0aD5Ijwvdgg+CiAgICAgICAgICAgICAgICAgIDx0aD5Hb29kPC90aD4KICAgICAgICAgICAgICAgICAgPHRoPlJlajwvdGg+CiAgICAgICAgICAgICAgICAgIDx0aD5FZmYlPC90aD4KICAgICAgICAgICAgICAgICAgeyFpc09wZXJhdG9yICYmIDx0aD5PcGVyYXRvcjwvdGg+fQogICAgICAgICAgICAgICAgPC90cj4KICAgICAgICAgICAgICA8L3RoZWFkPgogICAgICAgICAgICAgIDx0Ym9keT4KICAgICAgICAgICAgICAgIHtlbnRyaWVzLm1hcCgoZSkgPT4gKAogICAgICAgICAgICAgICAgICA8dHIga2V5PXtlLmlkfT4KICAgICAgICAgICAgICAgICAgICA8dGQ+e2UubWFjaGluZV9jb2RlfTwvdGQ+CiAgICAgICAgICAgICAgICAgICAgPHRkPntlLnBhcnRfY29kZX08L3RkPgogICAgICAgICAgICAgICAgICAgIDx0ZD57ZS5ob3VyX3Nsb3R9PC90ZD4KICAgICAgICAgICAgICAgICAgICA8dGQ+e2UuZ29vZF9xdHl9PC90ZD4KICAgICAgICAgICAgICAgICAgICA8dGQ+e2UucmVqZWN0X3F0eX08L3RkPgogICAgICAgICAgICAgICAgICAgIDx0ZD57ZS5lZmZpY2llbmN5X3BjdCAhPSBudWxsID8gZS5lZmZpY2llbmN5X3BjdCA6ICfigJQnfTwvdGQ+CiAgICAgICAgICAgICAgICAgICAgeyFpc09wZXJhdG9yICYmIDx0ZD57ZS5vcGVyYXRvcl9uYW1lfTwvdGQ+fQogICAgICAgICAgICAgICAgICA8L3RyPgogICAgICAgICAgICAgICAgKSl9CiAgICAgICAgICAgICAgPC90Ym9keT4KICAgICAgICAgICAgPC90YWJsZT4KICAgICAgICAgIDwvZGl2PgogICAgICAgIDwvPgogICAgICApfQogICAgPC9kaXY+CiAgKTsKfQo=
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+import { useAuth } from '../AuthContext';
+
+function todayLocal() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export default function TodayLog() {
+  const { user } = useAuth();
+  const [date, setDate] = useState(todayLocal());
+  const [entries, setEntries] = useState([]);
+  const isOperator = user.role === 'operator';
+
+  useEffect(() => {
+    api.entriesForDate(date).then(setEntries);
+  }, [date]);
+
+  const totalGood = entries.reduce((sum, e) => sum + e.good_qty, 0);
+  const totalReject = entries.reduce((sum, e) => sum + e.reject_qty, 0);
+  const effEntries = entries.filter((e) => e.efficiency_pct != null);
+  const avgEff = effEntries.length
+    ? Math.round((effEntries.reduce((sum, e) => sum + Number(e.efficiency_pct), 0) / effEntries.length) * 10) / 10
+    : null;
+
+  const byPart = {};
+  for (const e of entries) {
+    const key = e.part_code;
+    if (!byPart[key]) byPart[key] = { part_code: e.part_code, part_name: e.part_name, good: 0, reject: 0 };
+    byPart[key].good += e.good_qty;
+    byPart[key].reject += e.reject_qty;
+  }
+  const partRows = Object.values(byPart);
+
+  return (
+    <div className="screen">
+      <h1 className="screen-title">{isOperator ? 'My Log' : 'Production Log'}</h1>
+
+      <div className="field">
+        <label htmlFor="date">Date</label>
+        <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </div>
+
+      <div className="btn-row" style={{ marginBottom: 16 }}>
+        <div className="readout" style={{ flex: 1 }}>
+          <div className="readout-label">Good qty</div>
+          {totalGood}
+        </div>
+        <div className="readout" style={{ flex: 1 }}>
+          <div className="readout-label">Rejects</div>
+          {totalReject}
+        </div>
+        <div className="readout" style={{ flex: 1 }}>
+          <div className="readout-label">Avg efficiency</div>
+          {avgEff != null ? `${avgEff}%` : '—'}
+        </div>
+      </div>
+
+      {entries.length === 0 && <p className="muted">No entries logged for this date.</p>}
+
+      {partRows.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>By part</h2>
+          <div className="panel" style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr><th>Part</th><th>Good</th><th>Rej</th></tr>
+              </thead>
+              <tbody>
+                {partRows.map((p) => (
+                  <tr key={p.part_code}>
+                    <td>{p.part_code} — {p.part_name}</td>
+                    <td>{p.good}</td>
+                    <td>{p.reject}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {entries.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>Hourly entries</h2>
+          <div className="panel" style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Machine</th>
+                  <th>Part</th>
+                  <th>Hr</th>
+                  <th>Good</th>
+                  <th>Rej</th>
+                  <th>Eff%</th>
+                  {!isOperator && <th>Operator</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id}>
+                    <td>{e.machine_code}</td>
+                    <td>{e.part_code}</td>
+                    <td>{e.hour_slot}</td>
+                    <td>{e.good_qty}</td>
+                    <td>{e.reject_qty}</td>
+                    <td>{e.efficiency_pct != null ? e.efficiency_pct : '—'}</td>
+                    {!isOperator && <td>{e.operator_name}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
