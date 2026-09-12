@@ -70,17 +70,31 @@ router.post('/:id/decision', requireRole('supervisor', 'admin'), async (req, res
 
 // Mark the moment the first OK (good) part was taken off this assignment -
 // this becomes the machine's start time for efficiency calculations.
+// Accepts an explicit taken_at so it can be backdated when the operator
+// forgets to mark it in real time. Once set, only a supervisor/admin can
+// correct it (operators get one shot; mistakes go through a supervisor).
 router.post('/:id/first-ok-part', async (req, res) => {
   const { id } = req.params;
   const { taken_at } = req.body;
+
+  const existing = await pool.query(
+    `SELECT * FROM machine_assignments WHERE id = $1 AND status = 'approved'`,
+    [id]
+  );
+  const assignment = existing.rows[0];
+  if (!assignment) return res.status(404).json({ error: 'Approved assignment not found' });
+
+  if (assignment.first_ok_part_at != null && !['supervisor', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: '1st OK part time is already set. Ask a supervisor to correct it.' });
+  }
+
   const { rows } = await pool.query(
     `UPDATE machine_assignments
      SET first_ok_part_at = COALESCE($1, now())
-     WHERE id = $2 AND status = 'approved' AND first_ok_part_at IS NULL
+     WHERE id = $2 AND status = 'approved'
      RETURNING *`,
     [taken_at || null, id]
   );
-  if (!rows[0]) return res.status(404).json({ error: 'Approved assignment not found, or 1st OK part already recorded' });
   res.json(rows[0]);
 });
 
