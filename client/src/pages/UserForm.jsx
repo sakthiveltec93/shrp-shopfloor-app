@@ -181,9 +181,30 @@ export default function UserForm() {
           </div>
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={saving}>
-          {saving ? 'Saving…' : isNew ? 'Create user' : 'Save changes'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button className="btn btn-primary" type="submit" disabled={saving} style={{ flex: 1 }}>
+            {saving ? 'Saving…' : isNew ? 'Create user' : 'Save changes'}
+          </button>
+          {!isNew && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ background: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5' }}
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to delete user "${username}"? Their access will be revoked and this username will be released.`)) {
+                  try {
+                    await api.deleteUser(id);
+                    navigate('/users');
+                  } catch (err) {
+                    setError(err.message || 'Failed to delete user');
+                  }
+                }
+              }}
+            >
+              🗑 Delete
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

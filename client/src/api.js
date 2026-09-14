@@ -143,6 +143,9 @@ export const api = {
   users: () => request('/users'),
   createUser: (payload) => request('/users', { method: 'POST', body: payload }),
   updateUser: (id, payload) => request(`/users/${id}`, { method: 'PUT', body: payload }),
+  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+  userActivityReport: (date) => request(`/users/activity-report${date ? `?date=${date}` : ''}`),
+  sendHeartbeat: (page) => request('/users/heartbeat', { method: 'POST', body: { page } }),
   changePin: (payload) => request('/account/change-pin', { method: 'POST', body: payload }),
 
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),

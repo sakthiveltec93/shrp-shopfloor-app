@@ -29,6 +29,26 @@ router.post('/login', async (req, res) => {
     JWT_SECRET,
     { expiresIn: '12h' }
   );
+
+  // Record login activity
+  try {
+    await pool.query(
+      `UPDATE users SET last_login_at = now(), last_active_at = now() WHERE id = $1`,
+      [user.id]
+    );
+    await pool.query(
+      `INSERT INTO user_activity_log (user_id, activity_date, first_login_at, last_active_at, active_minutes, actions_count, last_page)
+       VALUES ($1, CURRENT_DATE, now(), now(), 1, 1, '/home')
+       ON CONFLICT (user_id, activity_date)
+       DO UPDATE SET
+         last_active_at = now(),
+         actions_count = user_activity_log.actions_count + 1`,
+      [user.id]
+    );
+  } catch (logErr) {
+    console.warn('Failed to log login activity:', logErr.message);
+  }
+
   res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role, pages } });
 });
 

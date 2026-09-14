@@ -832,5 +832,29 @@ CREATE TABLE IF NOT EXISTS shopfloor_wip_rm_pool (
   UNIQUE(date, shift, machine_id, material_id)
 );
 
+-- ================================================================
+-- USER ACTIVITY & LIVE SESSION MONITORING
+-- ================================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id);
+
+CREATE TABLE IF NOT EXISTS user_activity_log (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  activity_date DATE NOT NULL,
+  first_login_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_active_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  active_minutes INTEGER NOT NULL DEFAULT 1,
+  actions_count INTEGER NOT NULL DEFAULT 1,
+  last_page TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, activity_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity_log(activity_date, user_id);
+
+
 
 

@@ -1,5 +1,7 @@
-import { Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import './app.css'
+import { api } from './api'
 import { useAuth } from './AuthContext'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -30,9 +32,30 @@ import RMStockRegister from './pages/RMStockRegister'
 import PartRecipes from './pages/PartRecipes'
 import ErrorBoundary from './components/ErrorBoundary'
 
+function HeartbeatTracker() {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!user) return;
+    api.sendHeartbeat(location.pathname);
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        api.sendHeartbeat(location.pathname);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [user, location.pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <Layout>
+      <HeartbeatTracker />
       <ErrorBoundary>
         <Routes>
         <Route path="/login" element={<Login />} />

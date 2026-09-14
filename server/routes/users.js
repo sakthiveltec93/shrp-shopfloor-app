@@ -1,15 +1,15 @@
-const express = require('express');
+﻿const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth);
-router.use(requireRole('admin'));
 
 const VALID_PAGES = [
   'mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection',
   'packing', 'dispatch', 'log', 'approvals', 'parts', 'users', 'attendance',
+  'rm_inward', 'rm_stock', 'recipes', 'machines', 'moulds', 'reports', 'rework',
 ];
 
 async function pagesForUser(userId) {
@@ -17,12 +17,124 @@ async function pagesForUser(userId) {
   return rows.map((r) => r.page_key);
 }
 
-router.get('/', async (req, res) => {
-  const { rows } = await pool.query('SELECT id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at FROM users ORDER BY full_name');
-  const withPages = await Promise.all(rows.map(async (u) => ({ ...u, pages: await pagesForUser(u.id) })));
-  res.json(withPages);
+// ============================================================
+// 1. User Heartbeat (All Authenticated Users)
+// ============================================================
+router.post('/heartbeat', async (req, res) => {
+  const userId = req.user.id;
+  const { page } = req.body;
+
+  try {
+    // 1. Update user last active timestamp
+    await pool.query(
+      `UPDATE users SET last_active_at = now() WHERE id = $1`,
+      [userId]
+    );
+
+    // 2. Upsert daily activity row
+    await pool.query(
+      `INSERT INTO user_activity_log (user_id, activity_date, first_login_at, last_active_at, active_minutes, actions_count, last_page)
+       VALUES ($1, CURRENT_DATE, now(), now(), 1, 1, $2)
+       ON CONFLICT (user_id, activity_date)
+       DO UPDATE SET
+         last_active_at = now(),
+         active_minutes = user_activity_log.active_minutes + 1,
+         last_page = COALESCE($2, user_activity_log.last_page)`,
+      [userId, page || null]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('Heartbeat error:', err.message);
+    res.json({ ok: false, error: err.message });
+  }
 });
 
+// Admin-Only Routes Beyond This Point
+router.use(requireRole('admin'));
+
+// ============================================================
+// 2. User Accounts List with Live Online & Activity Metrics
+// ============================================================
+router.get('/', async (req, res) => {
+  try {
+    const { rows: users } = await pool.query(`
+      SELECT u.id, u.username, u.full_name, u.role, u.active,
+             u.can_override_fifo, u.can_approve_tolerance,
+             u.created_at, u.last_login_at, u.last_active_at,
+             CASE
+               WHEN u.last_active_at >= now() - INTERVAL '5 minutes' THEN TRUE
+               ELSE FALSE
+             END AS is_online,
+             COALESCE(ual.active_minutes, 0) AS today_active_minutes,
+             COALESCE(ual.actions_count, 0) AS today_actions_count,
+             ual.first_login_at AS today_first_login,
+             ual.last_page AS last_viewed_page,
+             ms.machine_code AS running_machine_code
+      FROM users u
+      LEFT JOIN user_activity_log ual ON ual.user_id = u.id AND ual.activity_date = CURRENT_DATE
+      LEFT JOIN machine_sessions ms ON ms.operator_user_id = u.id AND ms.status = 'RUNNING'
+      WHERE u.deleted_at IS NULL
+      ORDER BY u.active DESC, u.last_active_at DESC NULLS LAST, u.full_name
+    `);
+
+    const withPages = await Promise.all(users.map(async (u) => ({
+      ...u,
+      pages: await pagesForUser(u.id),
+    })));
+
+    res.json(withPages);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// ============================================================
+// 3. Daily User App Activity & Time-Spent Report
+// ============================================================
+router.get('/activity-report', async (req, res) => {
+  const targetDate = req.query.date || new Date().toISOString().slice(0, 10);
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT u.id AS user_id,
+             u.username,
+             u.full_name,
+             u.role,
+             u.active AS user_active,
+             u.last_active_at,
+             ual.activity_date,
+             ual.first_login_at,
+             ual.last_active_at AS day_last_active_at,
+             COALESCE(ual.active_minutes, 0) AS active_minutes,
+             COALESCE(ual.actions_count, 0) AS total_actions_count,
+             ual.last_page,
+             CASE
+               WHEN u.last_active_at >= now() - INTERVAL '5 minutes' THEN TRUE
+               ELSE FALSE
+             END AS is_online_now,
+             -- Count transactions logged on this date
+             (SELECT COUNT(*) FROM production_entries pe WHERE pe.operator_user_id = u.id AND pe.entry_date = $1::date) AS production_entries_count,
+             (SELECT COUNT(*) FROM bags b WHERE b.operator_user_id = u.id AND b.created_at::date = $1::date) AS bags_created_count,
+             (SELECT COUNT(*) FROM trim_entries te WHERE te.operator_user_id = u.id AND te.created_at::date = $1::date) AS trim_entries_count,
+             (SELECT COUNT(*) FROM inspection_entries ie WHERE ie.inspector_user_id = u.id AND ie.created_at::date = $1::date) AS inspection_entries_count
+      FROM users u
+      LEFT JOIN user_activity_log ual ON ual.user_id = u.id AND ual.activity_date = $1::date
+      WHERE u.deleted_at IS NULL
+      ORDER BY ual.active_minutes DESC NULLS LAST, u.full_name
+    `, [targetDate]);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching user activity report:', err);
+    res.status(500).json({ error: 'Failed to generate user activity report' });
+  }
+});
+
+// ============================================================
+// 4. Create New User
+// ============================================================
 router.post('/', async (req, res) => {
   const { username, pin, full_name, role, pages, can_override_fifo, can_approve_tolerance } = req.body;
   if (!username || !pin || !full_name || !['operator', 'supervisor', 'admin'].includes(role)) {
@@ -39,9 +151,10 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance) VALUES ($1,$2,$3,$4,$5,$6)
+      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance, active)
+       VALUES ($1,$2,$3,$4,$5,$6, TRUE)
        RETURNING id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at`,
-      [username.trim().toLowerCase(), pinHash, full_name, role, !!can_override_fifo, !!can_approve_tolerance]
+      [username.trim().toLowerCase(), pinHash, full_name.trim(), role, !!can_override_fifo, !!can_approve_tolerance]
     );
     const user = rows[0];
     for (const page of pages || []) {
@@ -58,6 +171,9 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ============================================================
+// 5. Update User
+// ============================================================
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { full_name, role, active, pin, pages, can_override_fifo, can_approve_tolerance } = req.body;
@@ -100,6 +216,84 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================================
+// 6. Delete Inactive User
+// ============================================================
+router.delete('/:id', async (req, res) => {
+  const userId = Number(req.params.id);
+
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot delete your own admin account while logged in' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Fetch user
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (userRows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const targetUser = userRows[0];
+
+    // Check if user has dependent production / stage entries
+    const { rows: prodCheck } = await client.query(
+      `SELECT COUNT(*) AS count FROM production_entries WHERE operator_user_id = $1`,
+      [userId]
+    );
+    const { rows: bagCheck } = await client.query(
+      `SELECT COUNT(*) AS count FROM bags WHERE operator_user_id = $1`,
+      [userId]
+    );
+
+    const hasHistory = Number(prodCheck[0].count) > 0 || Number(bagCheck[0].count) > 0;
+
+    if (!hasHistory) {
+      // 1. Pure Purge: no production history linked
+      await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM user_activity_log WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM attendance WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+      await client.query('COMMIT');
+      return res.json({ ok: true, mode: 'purged', message: `User "${targetUser.username}" deleted completely from database.` });
+    } else {
+      // 2. Safe Archive & Username Release: has historical production entries for IATF compliance
+      const deletedUsername = `${targetUser.username}_del_${Date.now()}`;
+      await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
+      await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+      await client.query(
+        `UPDATE users
+         SET active = FALSE,
+             deleted_at = now(),
+             deleted_by = $1,
+             username = $2
+         WHERE id = $3`,
+        [req.user.id, deletedUsername, userId]
+      );
+
+      await client.query('COMMIT');
+      return res.json({
+        ok: true,
+        mode: 'archived',
+        message: `User "${targetUser.full_name}" has been deleted and access revoked. The username "${targetUser.username}" is now released and can be reused.`,
+      });
+    }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
