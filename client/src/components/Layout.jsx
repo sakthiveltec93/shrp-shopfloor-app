@@ -306,7 +306,11 @@ export default function Layout({ children }) {
                 }}
               >
                 {/* User Info Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid var(--line)', marginBottom: 12 }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid var(--line)', marginBottom: 12, cursor: 'pointer' }}
+                  onClick={() => { setShowSettings(false); navigate('/profile'); }}
+                  title="View My Profile"
+                >
                   <div style={{
                     width: 36,
                     height: 36,
@@ -318,15 +322,21 @@ export default function Layout({ children }) {
                     justifyContent: 'center',
                     fontWeight: 800,
                     fontSize: 15,
+                    overflow: 'hidden',
                   }}>
-                    {user.full_name ? user.full_name[0].toUpperCase() : 'U'}
+                    {user.avatar_data ? (
+                      <img src={user.avatar_data} alt={user.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      user.full_name ? user.full_name[0].toUpperCase() : 'U'
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {user.full_name}
+                    <div style={{ fontWeight: 700, fontSize: 13, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>{user.full_name}</span>
+                      <span style={{ fontSize: 11, color: 'var(--amber)' }}>✏️</span>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {user.role}
+                      {user.role} • Profile
                     </div>
                   </div>
                 </div>
@@ -361,6 +371,15 @@ export default function Layout({ children }) {
 
                 {/* Navigation Shortcuts */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12, borderColor: 'rgba(217,119,6,0.4)', background: 'rgba(217,119,6,0.08)' }}
+                    onClick={() => { setShowSettings(false); navigate('/profile'); }}
+                  >
+                    <span>👤</span>
+                    <span style={{ fontWeight: 600, color: 'var(--amber)' }}>My Profile & HR Portal</span>
+                  </button>
                   {hasReportsAccess && (
                     <button
                       type="button"

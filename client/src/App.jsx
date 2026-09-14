@@ -30,6 +30,7 @@ import Rework from './pages/Rework'
 import RMInward from './pages/RMInward'
 import RMStockRegister from './pages/RMStockRegister'
 import PartRecipes from './pages/PartRecipes'
+import Profile from './pages/Profile'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function HeartbeatTracker() {
@@ -106,6 +107,7 @@ export default function App() {
           element={<ProtectedRoute roles={['admin']} page="users"><UserForm /></ProtectedRoute>}
         />
         <Route path="/change-pin" element={<ProtectedRoute><PinChange /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       </Routes>
       </ErrorBoundary>
     </Layout>

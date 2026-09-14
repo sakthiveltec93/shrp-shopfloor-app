@@ -107,6 +107,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const api = {
+  request,
   login: (username, pin) => request('/auth/login', { method: 'POST', body: { username, pin } }),
   machines: () => request('/masters/machines'),
   parts: () => request('/masters/parts'),

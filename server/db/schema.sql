@@ -840,6 +840,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id);
 
+-- HR Profile & Personal Details
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS aadhaar_no TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_account_no TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_ifsc TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nominee_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nominee_relation TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS default_language TEXT DEFAULT 'en';
+
 CREATE TABLE IF NOT EXISTS user_activity_log (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -854,6 +865,28 @@ CREATE TABLE IF NOT EXISTS user_activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_activity_date ON user_activity_log(activity_date, user_id);
+
+-- Leave & Permission Requests
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_type TEXT NOT NULL CHECK (request_type IN ('LEAVE', 'PERMISSION')),
+  leave_type TEXT, -- Casual, Sick, Earned, Festival, Medical
+  from_date DATE NOT NULL,
+  to_date DATE NOT NULL,
+  from_time TIME,
+  to_time TIME,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+  reviewed_by INTEGER REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  review_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leave_requests_user ON leave_requests(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status, created_at DESC);
+
 
 
 
