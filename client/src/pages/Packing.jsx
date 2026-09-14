@@ -220,11 +220,16 @@ export default function Packing() {
             <label htmlFor="part">{t('common.part')}</label>
             <select id="part" value={partId} onChange={(e) => selectPart(e.target.value)}>
               <option value="" disabled>{t('common.selectPart')}</option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.shrp_part_code || p.part_code} — {p.part_name}
-                </option>
-              ))}
+              {parts.map((p) => {
+                const ready = Number(p.ready_bag_count || 0);
+                const active = Number(p.active_bag_count || 0);
+                const badge = ready > 0 ? `🟢 [${ready} Ready] ` : active > 0 ? `🟡 ` : '';
+                return (
+                  <option key={p.id} value={p.id}>
+                    {badge}{p.shrp_part_code || p.part_code} — {p.part_name}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

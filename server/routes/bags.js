@@ -316,7 +316,7 @@ router.get('/batch-info', async (req, res) => {
   });
 });
 
-// Stage-eligible parts: returns only parts that have bags entered in the system
+// Stage-eligible parts: returns all active parts ordered by ready_bag_count
 router.get('/stage-parts', async (req, res) => {
   const { stage } = req.query;
   const { rows } = await pool.query(`
@@ -340,11 +340,28 @@ router.get('/stage-parts', async (req, res) => {
              )
            ) AS ready_bag_count
     FROM parts p
-    JOIN bags b ON b.part_id = p.id
+    LEFT JOIN bags b ON b.part_id = p.id
     WHERE p.active = TRUE
     GROUP BY p.id
-    HAVING COUNT(b.id) > 0
-    ORDER BY p.part_code
+    ORDER BY (
+      COUNT(b.id) FILTER (
+        WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND (
+          ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
+          ($1 = 'inspect' AND (
+            (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+            (NOT p.trim_required AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
+          )) OR
+          ($1 = 'pack' AND (
+            (p.inspection_required AND b.status = 'INSPECTED') OR
+            (NOT p.inspection_required AND p.trim_required AND b.status = 'TRIMMED') OR
+            (NOT p.inspection_required AND NOT p.trim_required AND b.status = 'OPEN')
+          )) OR
+          ($1 = 'dispatch' AND b.status = 'PACKED')
+        )
+      )
+    ) DESC,
+    COUNT(b.id) FILTER (WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND b.status != 'SCRAPPED') DESC,
+    p.part_code ASC
   `, [stage || '']);
   res.json(rows);
 });

@@ -91,7 +91,13 @@ export function useFifoBag(stage) {
         setSelectedBatch(oldest.batch_no);
       } else {
         setBag(null);
-        setError(`No bag ready for ${stage === 'trim' ? 'trimming' : stage === 'inspect' ? 'inspection' : stage === 'pack' ? 'packing' : 'dispatch'} on this part.`);
+        const stageName = stage === 'trim' ? 'trimming' : stage === 'inspect' ? 'inspection' : stage === 'pack' ? 'packing' : 'dispatch';
+        const pInfo = parts.find((p) => String(p.id) === String(pid));
+        if (pInfo && Number(pInfo.active_bag_count) > 0) {
+          setError(`No bags currently ready for ${stageName} on this part. Bags may still be in previous stages or already completed.`);
+        } else {
+          setError(`No bag entry has been done for this part yet. Please create bags in Bag Entry first.`);
+        }
       }
     } catch (err) {
       setBag(null);
