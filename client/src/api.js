@@ -109,6 +109,12 @@ if (typeof window !== 'undefined') {
 export const api = {
   request,
   login: (username, pin) => request('/auth/login', { method: 'POST', body: { username, pin } }),
+  masters: {
+    machines: () => request('/masters/machines'),
+    parts: () => request('/masters/parts'),
+    partDetail: (id) => request(`/masters/parts/${id}/detail`),
+    customers: () => request('/masters/customers'),
+  },
   machines: () => request('/masters/machines'),
   parts: () => request('/masters/parts'),
   partDetail: (id) => request(`/masters/parts/${id}/detail`),

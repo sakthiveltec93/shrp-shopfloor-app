@@ -48,11 +48,20 @@ Default login after migrate: **admin / 0000** — change this PIN immediately on
 - `production_entries.part_id` is always resolved server-side from the latest **approved** assignment for that machine — the API rejects a client-supplied part_id entirely, so entry and assignment can never drift apart.
 - Machine list and shift timings are seeded from SHRP's actuals (10 machines, Shift A/B).
 
-## Known gaps / next steps
+## 🎨 UI/UX & Layman Design Standard (Project Instructions)
 
-- No PIN-change or user-management screen yet (add users via SQL for now: `INSERT INTO users (username, pin_hash, full_name, role) VALUES (...)` — hash the PIN with bcrypt).
-- No offline queueing yet — the service worker caches the app shell so it *loads* offline, but entries need a network connection to save. If shop-floor wifi is unreliable, this is the next thing to build (queue entries locally, sync on reconnect).
-- `parts` needs your real PART_MASTER data (currently only one demo part) — either via the `/api/masters/parts` POST endpoint or directly in SQL, or send me your actual part/mould list and I'll write a proper import.
-- Reject reasons on Production Entry are logged as a single `reject_qty` on the entry; a `reject_log` table exists in the schema for itemized multi-reason rejects if you want that granularity in the form.
-- The bag pipeline (Bag Entry/Trimming/Inspection/Packing) is a faithful port of the *core* status/tolerance/FIFO logic, but not the full original system — see `docs/vba-reference/README.md` for exactly what's ported vs. still reference-only VBA source (rework, packing balance-pool, quality gates, labels/QR, machine stats).
-- Batch numbers are entered manually on Bag Entry right now — the original system generates them from production runs, which wasn't ported.
+All screens in this application MUST adhere to these mandatory shopfloor design guidelines:
+1. **Layman-Friendly & Visual First**:
+   - Short, simple wording. No wall-of-text paragraphs or complex legalistic instructions.
+   - Use meaningful visual icons (🏭 Machines, 🛢️ Virgin Polymer, ♻️ Regrind, 🎨 Masterbatch, 📦 Stock, 🔬 QA Inspection, 👤 Profile).
+2. **Clear 3-Color Status Badges**:
+   - 🟢 **Green**: Online Active / Accepted / Healthy / Passed.
+   - 🟡 **Yellow / Amber**: Online Idle / Pending QA / Warnings / Quarantine.
+   - 🔴 **Red**: Offline / Rejected / Low Stock / Faults.
+3. **Streamlined Filtering & Actions**:
+   - Compact dropdown menus for status/role/category filtering.
+   - Inline pure icon buttons (✏️ Edit, 🗑️ Delete, 🔬 Inspect, 📦 Issue).
+   - Form inputs inside modal dialogs with auto-calculated previews (e.g. Bags × Std Weight = Total kg).
+4. **Native CSS System**:
+   - Use `client/src/app.css` design variables (`var(--panel)`, `var(--line)`, `var(--amber)`, `var(--green)`, `var(--red)`, `var(--text)`, `var(--text-muted)`). Avoid uncompiled Tailwind classes.
+

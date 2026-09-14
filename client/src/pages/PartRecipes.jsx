@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 
@@ -36,9 +36,9 @@ export default function PartRecipes() {
     setError(null);
     try {
       const [recipeList, partList, matList] = await Promise.all([
-        api.rawMaterials.recipes(),
-        api.masters.parts(),
-        api.rawMaterials.list(),
+        api.rawMaterials.recipes().catch(() => []),
+        api.parts().catch(() => []),
+        api.rawMaterials.list().catch(() => []),
       ]);
       setRecipes(Array.isArray(recipeList) ? recipeList : []);
       setParts(Array.isArray(partList) ? partList : []);
@@ -71,8 +71,7 @@ export default function PartRecipes() {
         mixing_instructions: existingRecipe.mixing_instructions || '',
       });
     } else {
-      // Default to LDPE primary
-      const defaultPrimary = materials.find((m) => m.material_code.includes('LDPE')) || materials[0];
+      const defaultPrimary = materials.find((m) => m.material_code && m.material_code.includes('LDPE')) || materials[0];
       setForm({
         part_id: part.id,
         primary_material_id: defaultPrimary?.id || '',
@@ -97,7 +96,7 @@ export default function PartRecipes() {
     try {
       await api.rawMaterials.saveRecipe(form.part_id, form);
       setShowModal(false);
-      setSuccessMsg(`Dual-layer recipe for ${selectedPart?.part_name} saved!`);
+      setSuccessMsg('Compounding recipe for ' + (selectedPart?.part_name || 'part') + ' saved!');
       setTimeout(() => setSuccessMsg(''), 5000);
       loadData();
     } catch (err) {
@@ -107,363 +106,408 @@ export default function PartRecipes() {
     }
   };
 
-  const totalRatio =
+  const filteredParts = parts.filter((p) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const matchName = p.part_name && p.part_name.toLowerCase().includes(q);
+    const matchCode = p.part_code && p.part_code.toLowerCase().includes(q);
+    const matchCustNo = p.customer_part_no && p.customer_part_no.toLowerCase().includes(q);
+    return matchName || matchCode || matchCustNo;
+  });
+
+  const totalCalculatedPct =
     Number(form.primary_ratio_pct || 0) +
     Number(form.secondary_ratio_pct || 0) +
     Number(form.regrind_ratio_pct || 0) +
     Number(form.masterbatch_ratio_pct || 0);
 
-  const filteredParts = parts.filter((p) => {
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return (
-        p.part_name?.toLowerCase().includes(q) ||
-        p.part_code?.toLowerCase().includes(q) ||
-        p.shrp_part_code?.toLowerCase().includes(q) ||
-        p.customer_part_no?.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
   return (
-    <div className="screen">
-      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-        <div>
-          <h1 className="screen-title">Dual-Layer Compounding & Part Recipes</h1>
-          <p className="screen-sub">Internal Compounding Ratios (LDPE + LLDPE + Regrind + MB) vs Confidential Customer TC</p>
-        </div>
-        <input
-          type="text"
-          placeholder="Search part code, name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-1.5 text-xs rounded border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-slate-500 w-64"
-        />
+    <div className="screen" style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 40 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 16 }}>
+        <h1 className="screen-title" style={{ margin: 0, fontSize: 20 }}>🧪 Dual-Layer Compounding & Part Recipes</h1>
+        <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+          Standard virgin grade for customer COA & exact shopfloor blend ratios
+        </p>
       </div>
 
+      {/* Concise Tip Banner */}
+      <div style={{
+        background: 'rgba(217,119,6,0.08)',
+        border: '1px solid rgba(217,119,6,0.3)',
+        borderRadius: 10,
+        padding: '10px 14px',
+        marginBottom: 16,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        fontSize: 12,
+        color: 'var(--text)',
+      }}>
+        <span style={{ fontSize: 18 }}>🛡️</span>
+        <div>
+          <strong>Dual-Layer Recipe Protection:</strong> Customer inspection reports display only the Primary Virgin grade. Internal shopfloor material mixing uses the exact blend configured below.
+        </div>
+      </div>
+
+      {/* Alerts */}
       {successMsg && (
-        <div className="p-3 mb-4 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-medium">
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.12)', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 13, marginBottom: 16, fontWeight: 600 }}>
           ✓ {successMsg}
         </div>
       )}
       {error && (
-        <div className="p-3 mb-4 rounded bg-rose-50 text-rose-800 border border-rose-200 text-sm font-medium">
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 13, marginBottom: 16, fontWeight: 600 }}>
           ⚠ {error}
         </div>
       )}
 
-      {/* Info Banner */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4 flex items-start gap-3">
-        <span className="text-xl">🔒</span>
-        <div className="text-xs text-indigo-950">
-          <strong className="font-bold">Dual-Layer Recipe Separation Principle:</strong> Customer-facing Inspection Reports and Certificates of Analysis (COA) automatically read <em>only</em> the <strong>Primary Virgin Material</strong> to protect company compounding intellectual property. Internal shopfloor material issuance uses the exact secondary and regrind blend ratios configured below.
-        </div>
+      {/* Search Input */}
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="🔍 Search part code, part name, customer part no..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            color: 'var(--text)',
+            fontSize: 13,
+          }}
+        />
       </div>
 
-      {/* Parts Table */}
+      {/* Parts & Recipe Card Grid */}
       {loading ? (
-        <div className="p-8 text-center text-slate-500">Loading parts & compounding recipes...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          🔄 Loading compounding recipes...
+        </div>
+      ) : filteredParts.length === 0 ? (
+        <div style={{
+          padding: 40,
+          textAlign: 'center',
+          background: 'var(--panel)',
+          border: '1px solid var(--line)',
+          borderRadius: 10,
+          color: 'var(--text-muted)',
+          fontSize: 13,
+        }}>
+          No parts found matching search.
+        </div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
-                <th className="p-3">SHRP Code / Part Name</th>
-                <th className="p-3">Customer Part No</th>
-                <th className="p-3">Customer-Facing Grade (COA)</th>
-                <th className="p-3">Internal Blend Breakdown</th>
-                <th className="p-3 text-center">Max Regrind %</th>
-                <th className="p-3 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredParts.map((part) => {
-                const recipe = recipes.find((r) => r.part_id === part.id);
-                return (
-                  <tr key={part.id} className="hover:bg-slate-50/80">
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded text-[11px] border">
-                          {part.shrp_part_code || part.part_code}
-                        </span>
-                        <span className="font-semibold text-slate-800">{part.part_name}</span>
-                      </div>
-                      <div className="text-slate-400 text-[11px] font-mono mt-0.5">{part.part_code}</div>
-                    </td>
-                    <td className="p-3 font-mono text-slate-700">
-                      {part.customer_part_no || part.part_code}
-                    </td>
-                    <td className="p-3">
-                      {recipe ? (
-                        <div>
-                          <span className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">
-                            {recipe.primary_material_code}
-                          </span>
-                          <div className="text-[10px] text-slate-500 mt-0.5">{recipe.primary_material_name}</div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">Not configured</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filteredParts.map((part) => {
+            const recipe = recipes.find((r) => r.part_id === part.id);
+            const hasRecipe = Boolean(recipe);
+
+            return (
+              <div
+                key={part.id}
+                style={{
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
+                      {part.part_name}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--amber)', fontWeight: 600 }}>{part.part_code}</span>
+                      {part.customer_part_no && ' • Cust No: ' + part.customer_part_no}
+                      {part.customer_name && ' • ' + part.customer_name}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleOpenEdit(part, recipe)}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{hasRecipe ? '✏️' : '➕'}</span>
+                    <span>{hasRecipe ? 'Edit Recipe' : 'Configure Recipe'}</span>
+                  </button>
+                </div>
+
+                {/* Blend Visualization Bar */}
+                {hasRecipe ? (
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                      <span><strong>COA Grade:</strong> {recipe.primary_material_name || 'Standard Virgin'}</span>
+                      <span><strong>Max Regrind:</strong> {recipe.max_allowed_regrind_pct || 15}%</span>
+                    </div>
+
+                    {/* Multi-segment Progress Bar */}
+                    <div style={{ height: 12, borderRadius: 6, overflow: 'hidden', display: 'flex', background: '#222' }}>
+                      <div
+                        style={{
+                          width: (recipe.primary_ratio_pct || 0) + '%',
+                          background: '#3b82f6',
+                          height: '100%',
+                        }}
+                        title={'Primary: ' + recipe.primary_ratio_pct + '%'}
+                      />
+                      {Number(recipe.secondary_ratio_pct || 0) > 0 && (
+                        <div
+                          style={{
+                            width: recipe.secondary_ratio_pct + '%',
+                            background: '#06b6d4',
+                            height: '100%',
+                          }}
+                          title={'Secondary: ' + recipe.secondary_ratio_pct + '%'}
+                        />
                       )}
-                    </td>
-                    <td className="p-3">
-                      {recipe ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1 text-[11px]">
-                            <span className="font-bold text-slate-700">{recipe.primary_ratio_pct}%</span>
-                            <span className="text-slate-500">{recipe.primary_material_name}</span>
-                          </div>
-                          {Number(recipe.secondary_ratio_pct) > 0 && (
-                            <div className="flex items-center gap-1 text-[11px] text-indigo-700">
-                              <span className="font-bold">+{recipe.secondary_ratio_pct}%</span>
-                              <span>{recipe.secondary_material_name}</span>
-                            </div>
-                          )}
-                          {Number(recipe.regrind_ratio_pct) > 0 && (
-                            <div className="flex items-center gap-1 text-[11px] text-emerald-700">
-                              <span className="font-bold">+{recipe.regrind_ratio_pct}%</span>
-                              <span>{recipe.regrind_material_name || 'Regrind Granules'}</span>
-                            </div>
-                          )}
-                          {Number(recipe.masterbatch_ratio_pct) > 0 && (
-                            <div className="flex items-center gap-1 text-[11px] text-purple-700">
-                              <span className="font-bold">+{recipe.masterbatch_ratio_pct}%</span>
-                              <span>{recipe.masterbatch_material_name || 'Masterbatch'}</span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">Standard 100% Virgin</span>
+                      {Number(recipe.regrind_ratio_pct || 0) > 0 && (
+                        <div
+                          style={{
+                            width: recipe.regrind_ratio_pct + '%',
+                            background: 'var(--green)',
+                            height: '100%',
+                          }}
+                          title={'Regrind: ' + recipe.regrind_ratio_pct + '%'}
+                        />
                       )}
-                    </td>
-                    <td className="p-3 text-center font-semibold text-slate-700">
-                      {recipe ? `${recipe.max_allowed_regrind_pct || 15}%` : '15%'}
-                    </td>
-                    <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleOpenEdit(part, recipe)}
-                        className="px-3 py-1.5 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-xs"
-                      >
-                        ⚙ Configure Blend
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {Number(recipe.masterbatch_ratio_pct || 0) > 0 && (
+                        <div
+                          style={{
+                            width: recipe.masterbatch_ratio_pct + '%',
+                            background: '#c084fc',
+                            height: '100%',
+                          }}
+                          title={'Masterbatch: ' + recipe.masterbatch_ratio_pct + '%'}
+                        />
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8, fontSize: 11 }}>
+                      <span style={{ color: '#60a5fa' }}>🛢️ Virgin {recipe.primary_ratio_pct}%</span>
+                      {Number(recipe.secondary_ratio_pct || 0) > 0 && (
+                        <span style={{ color: '#67e8f9' }}>🛢️ Sec {recipe.secondary_ratio_pct}%</span>
+                      )}
+                      {Number(recipe.regrind_ratio_pct || 0) > 0 && (
+                        <span style={{ color: 'var(--green)' }}>♻️ Regrind {recipe.regrind_ratio_pct}%</span>
+                      )}
+                      {Number(recipe.masterbatch_ratio_pct || 0) > 0 && (
+                        <span style={{ color: '#d8b4fe' }}>🎨 MB {recipe.masterbatch_ratio_pct}%</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(0,0,0,0.15)', padding: 8, borderRadius: 6 }}>
+                    No compounding blend recipe configured yet (Defaults to 100% Primary Virgin).
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Edit Recipe Modal */}
+      {/* ============================================================ */}
+      {/* Recipe Modal */}
+      {/* ============================================================ */}
       {showModal && selectedPart && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 relative my-6">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 14,
+        }}>
+          <div style={{
+            background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12,
+            width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 20,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div>
-                <h2 className="text-base font-bold text-slate-900">Compounding Formulation Recipe</h2>
-                <p className="text-xs text-slate-500">
-                  Part: <strong className="text-slate-800">{selectedPart.part_name}</strong> ({selectedPart.shrp_part_code || selectedPart.part_code})
-                </p>
+                <strong style={{ fontSize: 16 }}>🧪 Recipe: {selectedPart.part_name}</strong>
+                <div style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'monospace' }}>{selectedPart.part_code}</div>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSaveRecipe} className="space-y-4">
-              {/* Primary Material (Customer Facing) */}
-              <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200">
-                <label className="block text-xs font-bold text-blue-950 mb-1">
-                  1. Primary Material Grade (Customer Facing / COA) *
+            <form onSubmit={handleSaveRecipe} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Primary Material */}
+              <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: 10 }}>
+                <label style={{ display: 'block', fontSize: 12, color: '#60a5fa', marginBottom: 4, fontWeight: 700 }}>
+                  Primary Virgin Material (Shown on Customer COA) *
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <select
-                      required
-                      value={form.primary_material_id}
-                      onChange={(e) => setForm({ ...form, primary_material_id: e.target.value })}
-                      className="w-full p-2 text-xs border rounded bg-white font-medium"
-                    >
-                      <option value="">-- Choose Primary Grade --</option>
-                      {materials.filter(m => m.category === 'VIRGIN_POLYMER').map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.material_code} - {m.material_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="100"
-                        required
-                        value={form.primary_ratio_pct}
-                        onChange={(e) => setForm({ ...form, primary_ratio_pct: e.target.value })}
-                        className="w-full p-2 text-xs border rounded font-bold"
-                      />
-                      <span className="absolute right-2 top-2 text-xs text-slate-400">%</span>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                  <select
+                    value={form.primary_material_id}
+                    onChange={(e) => setForm({ ...form, primary_material_id: e.target.value })}
+                    required
+                    style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                  >
+                    <option value="">-- Select Primary Virgin --</option>
+                    {materials.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.material_name} ({m.material_code})
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.primary_ratio_pct}
+                      onChange={(e) => setForm({ ...form, primary_ratio_pct: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Secondary Material (Internal Compounding Blend) */}
-              <div className="p-3 bg-indigo-50/40 rounded-lg border border-indigo-200">
-                <label className="block text-xs font-bold text-indigo-950 mb-1">
-                  2. Secondary Modifying Polymer (e.g. LLDPE for tear strength)
+              {/* Secondary Virgin */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Secondary Virgin Polymer (Optional blend)
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <select
-                      value={form.secondary_material_id}
-                      onChange={(e) => setForm({ ...form, secondary_material_id: e.target.value })}
-                      className="w-full p-2 text-xs border rounded bg-white"
-                    >
-                      <option value="">-- None (100% Single Polymer) --</option>
-                      {materials.filter(m => m.category === 'VIRGIN_POLYMER' || m.category === 'RUBBER_COMPOUND').map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.material_code} - {m.material_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="100"
-                        value={form.secondary_ratio_pct}
-                        onChange={(e) => setForm({ ...form, secondary_ratio_pct: e.target.value })}
-                        className="w-full p-2 text-xs border rounded font-bold"
-                      />
-                      <span className="absolute right-2 top-2 text-xs text-slate-400">%</span>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                  <select
+                    value={form.secondary_material_id}
+                    onChange={(e) => setForm({ ...form, secondary_material_id: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                  >
+                    <option value="">-- None --</option>
+                    {materials.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.material_name} ({m.material_code})
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.secondary_ratio_pct}
+                      onChange={(e) => setForm({ ...form, secondary_ratio_pct: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Regrind Runner Granules */}
-              <div className="p-3 bg-emerald-50/40 rounded-lg border border-emerald-200">
-                <label className="block text-xs font-bold text-emerald-950 mb-1">
-                  3. Regrind Runner Granules (De-dusted In-House)
+              {/* Regrind Blend */}
+              <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, padding: 10 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--green)', marginBottom: 4, fontWeight: 700 }}>
+                  ♻️ Regrind Granules Ratio
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <select
-                      value={form.regrind_material_id}
-                      onChange={(e) => setForm({ ...form, regrind_material_id: e.target.value })}
-                      className="w-full p-2 text-xs border rounded bg-white"
-                    >
-                      <option value="">-- None (0% Regrind) --</option>
-                      {materials.filter(m => m.category === 'REGRIND' || m.material_code.includes('REGRIND')).map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.material_code} - {m.material_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="50"
-                        value={form.regrind_ratio_pct}
-                        onChange={(e) => setForm({ ...form, regrind_ratio_pct: e.target.value })}
-                        className="w-full p-2 text-xs border rounded font-bold"
-                      />
-                      <span className="absolute right-2 top-2 text-xs text-slate-400">%</span>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                  <select
+                    value={form.regrind_material_id}
+                    onChange={(e) => setForm({ ...form, regrind_material_id: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                  >
+                    <option value="">-- Auto Match Regrind --</option>
+                    {materials.filter(m => m.category === 'REGRIND' || m.material_code.includes('REG')).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.material_name} ({m.material_code})
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.regrind_ratio_pct}
+                      onChange={(e) => setForm({ ...form, regrind_ratio_pct: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Masterbatch / Additives */}
-              <div className="p-3 bg-purple-50/40 rounded-lg border border-purple-200">
-                <label className="block text-xs font-bold text-purple-950 mb-1">
-                  4. Masterbatch / Colorant Additive
+              {/* Masterbatch */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  🎨 Masterbatch / Colorant Ratio
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <select
-                      value={form.masterbatch_material_id}
-                      onChange={(e) => setForm({ ...form, masterbatch_material_id: e.target.value })}
-                      className="w-full p-2 text-xs border rounded bg-white"
-                    >
-                      <option value="">-- None (Natural Color) --</option>
-                      {materials.filter(m => m.category === 'MASTERBATCH' || m.category === 'CHEMICAL_ADDITIVE').map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.material_code} - {m.material_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="20"
-                        value={form.masterbatch_ratio_pct}
-                        onChange={(e) => setForm({ ...form, masterbatch_ratio_pct: e.target.value })}
-                        className="w-full p-2 text-xs border rounded font-bold"
-                      />
-                      <span className="absolute right-2 top-2 text-xs text-slate-400">%</span>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                  <select
+                    value={form.masterbatch_material_id}
+                    onChange={(e) => setForm({ ...form, masterbatch_material_id: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                  >
+                    <option value="">-- None / Natural --</option>
+                    {materials.filter(m => m.category === 'MASTERBATCH').map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.material_name} ({m.material_code})
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.masterbatch_ratio_pct}
+                      onChange={(e) => setForm({ ...form, masterbatch_ratio_pct: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Formulation Total Meter */}
-              <div className="flex justify-between items-center bg-slate-100 p-2.5 rounded border">
-                <span className="text-xs font-bold text-slate-700">Total Blend Ratio:</span>
-                <span className={`text-sm font-black ${Math.abs(totalRatio - 100) < 0.1 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {totalRatio.toFixed(1)}% {Math.abs(totalRatio - 100) < 0.1 ? '✓ Balanced' : '⚠ Must equal 100%'}
+              {/* Total Percentage Calculation Warning */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '8px 12px', borderRadius: 6,
+                background: totalCalculatedPct === 100 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                border: '1px solid ' + (totalCalculatedPct === 100 ? 'var(--green)' : 'var(--red)'),
+                fontSize: 12, fontWeight: 700,
+              }}>
+                <span>Total Compounding Ratio:</span>
+                <span style={{ color: totalCalculatedPct === 100 ? 'var(--green)' : 'var(--red)' }}>
+                  {totalCalculatedPct}% {totalCalculatedPct === 100 ? '✓ Exact (100%)' : '⚠ Must equal 100%'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Max Allowed Regrind %</label>
-                  <input
-                    type="number"
-                    value={form.max_allowed_regrind_pct}
-                    onChange={(e) => setForm({ ...form, max_allowed_regrind_pct: e.target.value })}
-                    className="w-full p-2 text-xs border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mixing SOP Instruction</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 7 bags LDPE + 3 bags LLDPE + 3.5 bags runner"
-                    value={form.mixing_instructions}
-                    onChange={(e) => setForm({ ...form, mixing_instructions: e.target.value })}
-                    className="w-full p-2 text-xs border rounded"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded text-xs font-medium border text-slate-700 hover:bg-slate-100"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, padding: 10 }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                  disabled={saving || totalCalculatedPct !== 100}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: 10, fontWeight: 700 }}
                 >
-                  {saving ? 'Saving...' : 'Save Recipe'}
+                  {saving ? 'Saving…' : '✓ Save Compounding Recipe'}
                 </button>
               </div>
             </form>

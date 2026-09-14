@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -152,8 +152,8 @@ router.get('/inward', async (req, res) => {
              rm.material_name,
              rm.category AS material_category,
              rm.grade_code,
-             u_insp.name AS inspector_name,
-             u_appr.name AS approved_by_name
+             u_insp.full_name AS inspector_name,
+             u_appr.full_name AS approved_by_name
       FROM rm_inward_entries inw
       JOIN raw_materials rm ON rm.id = inw.material_id
       LEFT JOIN users u_insp ON u_insp.id = inw.inspector_user_id
@@ -178,8 +178,8 @@ router.get('/inward/:id', async (req, res) => {
               rm.grade_code,
               rm.density_g_cm3,
               rm.mfi_g_10min,
-              u_insp.name AS inspector_name,
-              u_appr.name AS approved_by_name
+              u_insp.full_name AS inspector_name,
+              u_appr.full_name AS approved_by_name
        FROM rm_inward_entries inw
        JOIN raw_materials rm ON rm.id = inw.material_id
        LEFT JOIN users u_insp ON u_insp.id = inw.inspector_user_id
@@ -544,7 +544,7 @@ router.get('/wip-pool', async (req, res) => {
              m.machine_code,
              rm.material_code,
              rm.material_name,
-             u.name AS approver_name
+             u.full_name AS approver_name
       FROM shopfloor_wip_rm_pool p
       JOIN machines m ON m.id = p.machine_id
       JOIN raw_materials rm ON rm.id = p.material_id
