@@ -394,6 +394,8 @@ END $$;
 -- ============================================================
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS shrp_part_code TEXT;
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS customer_part_no TEXT;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS tolerance_pct NUMERIC DEFAULT 2;
+UPDATE parts SET tolerance_pct = 2 WHERE tolerance_pct IS NULL;
 
 -- Backfill customer_part_no with part_code if not set
 UPDATE parts SET customer_part_no = part_code WHERE customer_part_no IS NULL;

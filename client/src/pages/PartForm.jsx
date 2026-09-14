@@ -5,6 +5,7 @@ import { api, getToken } from '../api';
 const emptyBasic = {
   part_code: '', shrp_part_code: '', customer_part_no: '', part_name: '', cavity_count: '1', standard_cycle_time_sec: '',
   unit_weight_g: '', part_weight_g: '', batch_part_code: '', standard_pack_qty: '', customer_id: '', notes: '',
+  tolerance_pct: '2',
   trim_required: false, inspection_required: false, packing_required: true, dispatch_required: true,
 };
 
@@ -45,7 +46,8 @@ export default function PartForm() {
           standard_cycle_time_sec: String(d.standard_cycle_time_sec), unit_weight_g: d.unit_weight_g ? String(d.unit_weight_g) : '',
           part_weight_g: d.part_weight_g ? String(d.part_weight_g) : '', batch_part_code: d.batch_part_code || '',
           standard_pack_qty: d.standard_pack_qty ? String(d.standard_pack_qty) : '', customer_id: d.customer_id || '',
-          notes: d.notes || '', trim_required: d.trim_required, inspection_required: d.inspection_required,
+          notes: d.notes || '', tolerance_pct: d.tolerance_pct != null ? String(d.tolerance_pct) : '2',
+          trim_required: d.trim_required, inspection_required: d.inspection_required,
           packing_required: d.packing_required, dispatch_required: d.dispatch_required,
         });
         setSelectedMachines(d.suitable_machine_ids);
@@ -84,6 +86,7 @@ export default function PartForm() {
         unit_weight_g: basic.unit_weight_g ? Number(basic.unit_weight_g) : null,
         part_weight_g: basic.part_weight_g ? Number(basic.part_weight_g) : null,
         standard_pack_qty: basic.standard_pack_qty ? Number(basic.standard_pack_qty) : null,
+        tolerance_pct: basic.tolerance_pct ? Number(basic.tolerance_pct) : 2,
         customer_id: basic.customer_id || null,
       };
       if (isNew) {
@@ -262,6 +265,10 @@ export default function PartForm() {
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Standard pack qty</label>
             <input type="number" value={basic.standard_pack_qty} onChange={(e) => updateBasic('standard_pack_qty', e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Tolerance (%)</label>
+            <input type="number" step="0.1" value={basic.tolerance_pct} onChange={(e) => updateBasic('tolerance_pct', e.target.value)} placeholder="e.g. 2" />
           </div>
         </div>
 

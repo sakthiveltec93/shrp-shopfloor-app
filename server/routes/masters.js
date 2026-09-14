@@ -71,21 +71,21 @@ router.post('/parts', requireRole('admin', 'supervisor'), async (req, res) => {
   const {
     part_code, part_name, cavity_count, standard_cycle_time_sec, unit_weight_g,
     trim_required, inspection_required, packing_required, dispatch_required, standard_pack_qty,
-    customer_id, notes, batch_part_code, part_weight_g, shrp_part_code, customer_part_no,
+    customer_id, notes, batch_part_code, part_weight_g, shrp_part_code, customer_part_no, tolerance_pct,
   } = req.body;
-  if (!part_code || !part_name || !standard_cycle_time_sec) {
+  if (!part_code || !part_name || standard_cycle_time_sec === undefined || standard_cycle_time_sec === null || standard_cycle_time_sec === '') {
     return res.status(400).json({ error: 'part_code, part_name and standard_cycle_time_sec are required' });
   }
   const { rows } = await pool.query(
     `INSERT INTO parts (part_code, part_name, cavity_count, standard_cycle_time_sec, unit_weight_g,
        trim_required, inspection_required, packing_required, dispatch_required, standard_pack_qty,
-       customer_id, notes, batch_part_code, part_weight_g, shrp_part_code, customer_part_no)
-     VALUES ($1, $2, COALESCE($3, 1), $4, $5, COALESCE($6,FALSE), COALESCE($7,FALSE), COALESCE($8,TRUE), COALESCE($9,TRUE), $10, $11, $12, $13, $14, $15, $16)
+       customer_id, notes, batch_part_code, part_weight_g, shrp_part_code, customer_part_no, tolerance_pct)
+     VALUES ($1, $2, COALESCE($3, 1), $4, $5, COALESCE($6,FALSE), COALESCE($7,FALSE), COALESCE($8,TRUE), COALESCE($9,TRUE), $10, $11, $12, $13, $14, $15, $16, COALESCE($17, 2))
      RETURNING *`,
     [part_code, part_name, cavity_count, standard_cycle_time_sec, unit_weight_g,
       trim_required, inspection_required, packing_required, dispatch_required, standard_pack_qty,
       customer_id || null, notes || null, batch_part_code || null, part_weight_g || null,
-      shrp_part_code || null, customer_part_no || part_code]
+      shrp_part_code || null, customer_part_no || part_code, tolerance_pct != null ? Number(tolerance_pct) : 2]
   );
   res.status(201).json(rows[0]);
 });
@@ -96,7 +96,7 @@ router.put('/parts/:id', requireRole('admin', 'supervisor'), async (req, res) =>
   const {
     part_code, part_name, cavity_count, standard_cycle_time_sec, unit_weight_g,
     trim_required, inspection_required, packing_required, dispatch_required, standard_pack_qty,
-    customer_id, notes, active, batch_part_code, part_weight_g, shrp_part_code, customer_part_no,
+    customer_id, notes, active, batch_part_code, part_weight_g, shrp_part_code, customer_part_no, tolerance_pct,
   } = req.body;
   const { rows } = await pool.query(
     `UPDATE parts SET
@@ -116,12 +116,13 @@ router.put('/parts/:id', requireRole('admin', 'supervisor'), async (req, res) =>
        batch_part_code = $14,
        part_weight_g = $15,
        shrp_part_code = COALESCE($16, shrp_part_code),
-       customer_part_no = COALESCE($17, customer_part_no)
-     WHERE id = $18 RETURNING *`,
+       customer_part_no = COALESCE($17, customer_part_no),
+       tolerance_pct = COALESCE($18, tolerance_pct)
+     WHERE id = $19 RETURNING *`,
     [part_code, part_name, cavity_count, standard_cycle_time_sec, unit_weight_g,
       trim_required, inspection_required, packing_required, dispatch_required, standard_pack_qty,
       customer_id || null, notes || null, active, batch_part_code || null, part_weight_g || null,
-      shrp_part_code || null, customer_part_no || null, id]
+      shrp_part_code || null, customer_part_no || null, tolerance_pct != null ? Number(tolerance_pct) : null, id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Part not found' });
   res.json(rows[0]);

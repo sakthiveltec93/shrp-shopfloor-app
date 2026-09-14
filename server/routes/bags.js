@@ -35,6 +35,16 @@ async function checkFifo(partId, requiredStatus, currentBagId, entryDate, shift,
   return rows[0] || null;
 }
 
+async function getBag(id) {
+  const { rows } = await pool.query('SELECT * FROM bags WHERE id = $1', [id]);
+  return rows[0];
+}
+
+async function getPart(id) {
+  const { rows } = await pool.query('SELECT * FROM parts WHERE id = $1', [id]);
+  return rows[0];
+}
+
 // --- Production visibility during bagging ---
 router.get('/production-visibility', async (req, res) => {
   const { machine_id, entry_date, shift, part_id } = req.query;
@@ -116,8 +126,9 @@ router.get('/production-visibility', async (req, res) => {
   const runner_weight_kg = Number(((production_qty * runnerWeightPerPartG) / 1000).toFixed(3));
   const remaining_weight_kg = Number(Math.max(0, production_weight_kg - already_bagged_weight_kg).toFixed(3));
 
-  // Tolerance Rule: Greater of 200 Nos OR 1% of Production Qty
-  const tolerance_qty = Math.max(200, Math.round(production_qty * 0.01));
+  // Tolerance Rule: Greater of 200 Nos OR tolerance % of Production Qty
+  const tolerancePct = (part && part.tolerance_pct ? Number(part.tolerance_pct) : 2) / 100;
+  const tolerance_qty = Math.max(200, Math.round(production_qty * tolerancePct));
   const max_allowed_qty = production_qty + tolerance_qty;
 
   // Completion check
@@ -186,7 +197,9 @@ router.post('/', async (req, res) => {
       );
       const alreadyBagged = baggedRes.rows[0].total_bagged_qty;
       const newTotal = alreadyBagged + Number(qty);
-      const toleranceQty = Math.max(200, Math.round(prodQty * 0.01));
+      const part = await getPart(part_id);
+      const tolerancePct = (part && part.tolerance_pct ? Number(part.tolerance_pct) : 2) / 100;
+      const toleranceQty = Math.max(200, Math.round(prodQty * tolerancePct));
       const maxAllowed = prodQty + toleranceQty;
 
       if (newTotal > maxAllowed) {
@@ -422,15 +435,6 @@ router.get('/:id', async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'Bag not found' });
   res.json(rows[0]);
 });
-
-async function getBag(id) {
-  const { rows } = await pool.query('SELECT * FROM bags WHERE id = $1', [id]);
-  return rows[0];
-}
-async function getPart(id) {
-  const { rows } = await pool.query('SELECT * FROM parts WHERE id = $1', [id]);
-  return rows[0];
-}
 
 // --- Trimming entry ---
 router.post('/:id/trim', async (req, res) => {
