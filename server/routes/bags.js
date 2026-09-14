@@ -447,7 +447,23 @@ router.get('/log/history', async (req, res) => {
              LEFT JOIN users hu ON hu.id = hl.hold_by_user_id
              LEFT JOIN users ru ON ru.id = hl.released_by_user_id
              WHERE hl.bag_id = b.id
-           ) AS hold_history
+           ) AS hold_history,
+           (
+             SELECT json_agg(json_build_object(
+               'id', brl.id,
+               'stage', brl.stage,
+               'reject_reason', ci.item_name,
+               'reject_wt_kg', brl.reject_wt_kg,
+               'reject_qty', brl.reject_qty,
+               'disposition', brl.disposition,
+               'operator_name', ou.full_name,
+               'created_at', brl.created_at
+             ) ORDER BY brl.created_at ASC)
+             FROM bag_reject_log brl
+             LEFT JOIN check_items ci ON ci.id = brl.reject_reason_id
+             LEFT JOIN users ou ON ou.id = brl.operator_user_id
+             WHERE brl.bag_id = b.id
+           ) AS reject_history
     FROM bags b
     JOIN machines m ON m.id = b.machine_id
     JOIN parts p ON p.id = b.part_id
@@ -698,12 +714,29 @@ router.post('/:id/hold', async (req, res) => {
   res.json({ message: 'Bag placed on HOLD', status: 'HOLD' });
 });
 
-// --- Release from HOLD (Supervisor / Admin) ---
+// --- Release from HOLD (Supervisor / Admin or Operator with Supervisor PIN) ---
 router.post('/:id/release-hold', async (req, res) => {
   const { id } = req.params;
-  const { release_remarks } = req.body;
-  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
-    return res.status(403).json({ error: 'Only supervisor or admin can release a bag from HOLD' });
+  const { release_remarks, supervisor_pin } = req.body;
+
+  let releasingUser = null;
+  if (req.user.role === 'admin' || req.user.role === 'supervisor') {
+    releasingUser = req.user;
+  } else if (supervisor_pin) {
+    const supRes = await pool.query(
+      `SELECT id, pin_hash, full_name, role FROM users WHERE role IN ('supervisor', 'admin') AND active = TRUE`
+    );
+    for (const sup of supRes.rows) {
+      const match = await bcrypt.compare(String(supervisor_pin), sup.pin_hash);
+      if (match) {
+        releasingUser = sup;
+        break;
+      }
+    }
+  }
+
+  if (!releasingUser) {
+    return res.status(403).json({ error: 'Supervisor approval or PIN is required to release a bag from HOLD' });
   }
 
   const bag = await getBag(id);
@@ -730,14 +763,40 @@ router.post('/:id/release-hold', async (req, res) => {
   if (hold) {
     await pool.query(
       `UPDATE bag_hold_log SET is_active = FALSE, released_by_user_id = $1, released_at = now(), release_remarks = $2 WHERE id = $3`,
-      [req.user.id, release_remarks || 'Released by supervisor', hold.id]
+      [releasingUser.id, release_remarks || 'Released by supervisor', hold.id]
     );
   }
 
   await pool.query(`UPDATE bags SET status = $1 WHERE id = $2`, [restoreStatus, id]);
-  await logHistory(pool, id, 'HOLD', restoreStatus, `Hold Released: ${release_remarks || 'Supervisor release'}`);
+  await logHistory(pool, id, 'HOLD', restoreStatus, `Hold Released by ${releasingUser.full_name}: ${release_remarks || 'Supervisor release'}`);
 
   res.json({ message: `Bag released to ${restoreStatus}`, status: restoreStatus });
+});
+
+// --- List HOLD bags for a stage or part ---
+router.get('/hold-bags', async (req, res) => {
+  const { stage, part_id } = req.query;
+  const clauses = ["b.status = 'HOLD'"];
+  const params = [];
+  if (part_id) {
+    params.push(part_id);
+    clauses.push(`b.part_id = $${params.length}`);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const { rows } = await pool.query(`
+    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+           hl.reason AS hold_reason, hl.stage AS hold_stage, hl.hold_at, hu.full_name AS hold_by_name
+    FROM bags b
+    JOIN machines m ON m.id = b.machine_id
+    JOIN parts p ON p.id = b.part_id
+    LEFT JOIN bag_hold_log hl ON hl.bag_id = b.id AND hl.is_active = TRUE
+    LEFT JOIN users hu ON hu.id = hl.hold_by_user_id
+    ${where}
+    ORDER BY hl.hold_at DESC NULLS LAST, b.created_at DESC
+  `, params);
+
+  res.json(rows);
 });
 
 // --- Get Trimming History / Pass Details for a Bag ---
@@ -773,7 +832,7 @@ router.get('/:id/trim-summary', async (req, res) => {
   });
 });
 
-// --- Enhanced Multi-Pass Trimming entry ---
+// --- Enhanced Multi-Pass Trimming entry with multiple rejects and auto-rework ---
 router.post('/:id/trim', async (req, res) => {
   const { id } = req.params;
   const {
@@ -781,7 +840,8 @@ router.post('/:id/trim', async (req, res) => {
     runner_wt_kg = 0,
     reject_wt_kg = 0,
     reject_reason_id = null,
-    remaining_wt_kg, // optional override
+    rejects = [], // Array of { reason_id, weight_kg, qty }
+    remaining_wt_kg,
     is_partial = false,
     confirm = false,
     fifo_override,
@@ -793,6 +853,10 @@ router.post('/:id/trim', async (req, res) => {
   if (bag.status === 'HOLD') {
     return res.status(403).json({ error: 'Bag is currently on HOLD. Must be released before trimming.' });
   }
+
+  const part = await getPart(bag.part_id);
+  const cavityCount = part.cavity_count || 1;
+  const partWeightG = Number(part.part_weight_g || (part.unit_weight_g ? part.unit_weight_g / cavityCount : 0));
 
   // FIFO check
   const older = await checkFifo(bag.part_id, 'OPEN', bag.id, bag.entry_date, bag.shift, bag.created_at);
@@ -820,11 +884,23 @@ router.post('/:id/trim', async (req, res) => {
     );
   }
 
+  // Parse reject rows
+  let parsedRejects = [];
+  if (Array.isArray(rejects) && rejects.length > 0) {
+    parsedRejects = rejects.filter(r => r && r.reason_id && (Number(r.weight_kg) > 0 || Number(r.qty) > 0));
+  } else if (reject_reason_id && (Number(reject_wt_kg) > 0 || Number(req.body.reject_qty) > 0)) {
+    parsedRejects = [{ reason_id: Number(reject_reason_id), weight_kg: Number(reject_wt_kg || 0), qty: Number(req.body.reject_qty || 0) }];
+  }
+
+  const totalRejectWeight = parsedRejects.length > 0
+    ? parsedRejects.reduce((s, r) => s + Number(r.weight_kg || 0), 0)
+    : Number(reject_wt_kg || 0);
+
   // Calculate pass number & remaining weight
   const countRes = await pool.query(`SELECT count(*)::integer as pass_count FROM trim_entries WHERE bag_id = $1`, [id]);
   const passNumber = (countRes.rows[0].pass_count || 0) + 1;
 
-  const currentPassWeight = Number(trimmed_wt_kg || 0) + Number(runner_wt_kg || 0) + Number(reject_wt_kg || 0);
+  const currentPassWeight = Number(trimmed_wt_kg || 0) + Number(runner_wt_kg || 0) + totalRejectWeight;
 
   // Previous passes
   const sumRes = await pool.query(
@@ -836,11 +912,39 @@ router.post('/:id/trim', async (req, res) => {
   const calculatedRemaining = Number(Math.max(0, Number(bag.base_weight_kg) - (totalPrev + currentPassWeight)).toFixed(3));
   const finalRemaining = remaining_wt_kg != null ? Number(remaining_wt_kg) : calculatedRemaining;
 
-  await pool.query(
+  const primaryRejectReasonId = parsedRejects.length > 0 ? parsedRejects[0].reason_id : reject_reason_id;
+
+  const trimRes = await pool.query(
     `INSERT INTO trim_entries (bag_id, trimmed_wt_kg, runner_wt_kg, reject_wt_kg, reject_reason_id, remaining_wt_kg, is_partial, pass_number, operator_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id, trimmed_wt_kg, runner_wt_kg, reject_wt_kg, reject_reason_id || null, finalRemaining, is_partial, passNumber, req.user.id]
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [id, trimmed_wt_kg, runner_wt_kg, totalRejectWeight, primaryRejectReasonId || null, finalRemaining, is_partial, passNumber, req.user.id]
   );
+  const trimEntryId = trimRes.rows[0].id;
+
+  // Save each reject breakdown row and auto-route to rework if disposition is reworkable
+  for (const r of parsedRejects) {
+    const itemRes = await pool.query(`SELECT id, item_name, default_disposition FROM check_items WHERE id = $1`, [r.reason_id]);
+    const checkItem = itemRes.rows[0];
+    const disposition = checkItem?.default_disposition || 'SCRAP';
+    const reasonName = checkItem?.item_name || '';
+    const rejQty = r.qty ? Number(r.qty) : (partWeightG > 0 ? Math.round((Number(r.weight_kg || 0) * 1000) / partWeightG) : 0);
+
+    await pool.query(
+      `INSERT INTO bag_reject_log (bag_id, stage, entry_id, reject_reason_id, reject_wt_kg, reject_qty, disposition, operator_user_id)
+       VALUES ($1, 'TRIMMING', $2, $3, $4, $5, $6, $7)`,
+      [id, trimEntryId, r.reason_id, Number(r.weight_kg || 0), rejQty, disposition, req.user.id]
+    );
+
+    // Auto move to rework if disposition is reworkable
+    const isReworkable = disposition === 'Return To Trimming' || disposition === 'REWORK' || reasonName.toLowerCase().includes('flash') || disposition.toLowerCase().includes('trimming');
+    if (isReworkable && rejQty > 0) {
+      await pool.query(
+        `INSERT INTO rework_log (bag_id, part_id, stage, source_reject_reason_id, rework_qty, created_by_user_id)
+         VALUES ($1, $2, 'TRIMMING', $3, $4, $5)`,
+        [id, bag.part_id, r.reason_id, rejQty, req.user.id]
+      );
+    }
+  }
 
   const isComplete = !is_partial && (finalRemaining <= 0.001 || isWithinTrimTolerance(finalRemaining, bag.base_weight_kg));
 
@@ -858,7 +962,6 @@ router.post('/:id/trim', async (req, res) => {
     });
   }
 
-  const part = await getPart(bag.part_id);
   if (!isLegitimateStatusAdvance(bag.status, 'TRIMMED', part.trim_required, part.inspection_required)) {
     return res.status(409).json({ error: `Bag is currently '${bag.status}' - not ready to advance to TRIMMED` });
   }
@@ -884,7 +987,7 @@ router.post('/:id/trim', async (req, res) => {
   res.json({ bag: { ...bag, status: 'TRIMMED' }, closed: true, remaining_wt_kg: finalRemaining });
 });
 
-// --- Enhanced Tiered Inspection entry ---
+// --- Enhanced Tiered Inspection entry with multiple rejects and auto-rework ---
 router.post('/:id/inspect', async (req, res) => {
   const { id } = req.params;
   const {
@@ -892,7 +995,7 @@ router.post('/:id/inspect', async (req, res) => {
     remaining_wt_kg = 0,
     reject_wt_kg = 0,
     reject_reason_id,
-    sent_to_rework_qty = 0,
+    rejects = [], // Array of { reason_id, weight_kg, qty }
     remarks,
     confirm,
     fifo_override,
@@ -906,6 +1009,8 @@ router.post('/:id/inspect', async (req, res) => {
   }
 
   const part = await getPart(bag.part_id);
+  const cavityCount = part.cavity_count || 1;
+  const partWeightG = Number(part.part_weight_g || (part.unit_weight_g ? part.unit_weight_g / cavityCount : 0));
   const requiredStatus = part.trim_required ? 'TRIMMED' : 'OPEN';
 
   // FIFO check
@@ -934,9 +1039,21 @@ router.post('/:id/inspect', async (req, res) => {
     );
   }
 
+  // Parse rejects breakdown
+  let parsedRejects = [];
+  if (Array.isArray(rejects) && rejects.length > 0) {
+    parsedRejects = rejects.filter(r => r && r.reason_id && (Number(r.weight_kg) > 0 || Number(r.qty) > 0));
+  } else if (reject_reason_id && (Number(reject_wt_kg) > 0 || Number(req.body.reject_qty) > 0)) {
+    parsedRejects = [{ reason_id: Number(reject_reason_id), weight_kg: Number(reject_wt_kg || 0), qty: Number(req.body.reject_qty || 0) }];
+  }
+
+  const totalRejectWeight = parsedRejects.length > 0
+    ? parsedRejects.reduce((s, r) => s + Number(r.weight_kg || 0), 0)
+    : Number(reject_wt_kg || 0);
+
   const actualInspected = inspected_wt_kg != null ? Number(inspected_wt_kg) : Number(bag.base_weight_kg) - Number(remaining_wt_kg || 0);
   const { getInspectionToleranceTier } = require('../lib/bagStatus');
-  const toleranceCheck = getInspectionToleranceTier(actualInspected, Number(bag.base_weight_kg));
+  const toleranceCheck = getInspectionToleranceTier(actualInspected + totalRejectWeight, Number(bag.base_weight_kg));
 
   // If Tier 3 (>2% or >200g) and no remarks provided, block and require remarks
   if (toleranceCheck.tier === 'REMARKS_REQUIRED' && (!remarks || !remarks.trim())) {
@@ -959,20 +1076,46 @@ router.post('/:id/inspect', async (req, res) => {
     });
   }
 
-  // Insert inspection record
-  await pool.query(
-    `INSERT INTO inspection_entries (bag_id, inspected_wt_kg, remaining_wt_kg, reject_wt_kg, reject_reason_id, sent_to_rework_qty, variance_tier, remarks, operator_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id, actualInspected, remaining_wt_kg || 0, reject_wt_kg || 0, reject_reason_id || null, sent_to_rework_qty || 0, toleranceCheck.tier, remarks || null, req.user.id]
-  );
+  const primaryRejectReasonId = parsedRejects.length > 0 ? parsedRejects[0].reason_id : reject_reason_id;
 
-  // If sent to rework, log into rework_log
-  if (sent_to_rework_qty > 0) {
+  // Insert inspection record
+  const inspRes = await pool.query(
+    `INSERT INTO inspection_entries (bag_id, inspected_wt_kg, remaining_wt_kg, reject_wt_kg, reject_reason_id, sent_to_rework_qty, variance_tier, remarks, operator_user_id)
+     VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8) RETURNING id`,
+    [id, actualInspected, remaining_wt_kg || 0, totalRejectWeight, primaryRejectReasonId || null, toleranceCheck.tier, remarks || null, req.user.id]
+  );
+  const inspEntryId = inspRes.rows[0].id;
+
+  // Save each reject breakdown and automatically route reworkable reasons to rework_log
+  let totalAutoReworkQty = 0;
+  for (const r of parsedRejects) {
+    const itemRes = await pool.query(`SELECT id, item_name, default_disposition FROM check_items WHERE id = $1`, [r.reason_id]);
+    const checkItem = itemRes.rows[0];
+    const disposition = checkItem?.default_disposition || 'SCRAP';
+    const reasonName = checkItem?.item_name || '';
+    const rejQty = r.qty ? Number(r.qty) : (partWeightG > 0 ? Math.round((Number(r.weight_kg || 0) * 1000) / partWeightG) : 0);
+
     await pool.query(
-      `INSERT INTO rework_log (bag_id, part_id, stage, source_reject_reason_id, rework_qty, created_by_user_id)
-       VALUES ($1, $2, 'INSPECTION', $3, $4, $5)`,
-      [id, bag.part_id, reject_reason_id || null, sent_to_rework_qty, req.user.id]
+      `INSERT INTO bag_reject_log (bag_id, stage, entry_id, reject_reason_id, reject_wt_kg, reject_qty, disposition, operator_user_id)
+       VALUES ($1, 'INSPECTION', $2, $3, $4, $5, $6, $7)`,
+      [id, inspEntryId, r.reason_id, Number(r.weight_kg || 0), rejQty, disposition, req.user.id]
     );
+
+    // Auto move to rework if disposition is reworkable
+    const isReworkable = disposition === 'Return To Trimming' || disposition === 'REWORK' || reasonName.toLowerCase().includes('flash') || disposition.toLowerCase().includes('trimming');
+    if (isReworkable && rejQty > 0) {
+      totalAutoReworkQty += rejQty;
+      await pool.query(
+        `INSERT INTO rework_log (bag_id, part_id, stage, source_reject_reason_id, rework_qty, created_by_user_id)
+         VALUES ($1, $2, 'INSPECTION', $3, $4, $5)`,
+        [id, bag.part_id, r.reason_id, rejQty, req.user.id]
+      );
+    }
+  }
+
+  // Update sent_to_rework_qty on inspection_entries
+  if (totalAutoReworkQty > 0) {
+    await pool.query(`UPDATE inspection_entries SET sent_to_rework_qty = $1 WHERE id = $2`, [totalAutoReworkQty, inspEntryId]);
   }
 
   if (!isLegitimateStatusAdvance(bag.status, 'INSPECTED', part.trim_required, part.inspection_required)) {
@@ -980,7 +1123,7 @@ router.post('/:id/inspect', async (req, res) => {
   }
 
   await pool.query(`UPDATE bags SET status = 'INSPECTED' WHERE id = $1`, [id]);
-  await logHistory(pool, id, bag.status, 'INSPECTED', `Inspection completed (Tier: ${toleranceCheck.tier})`);
+  await logHistory(pool, id, bag.status, 'INSPECTED', `Inspection completed (Tier: ${toleranceCheck.tier}${totalAutoReworkQty > 0 ? `, Rework: ${totalAutoReworkQty} Nos` : ''})`);
 
   await logAudit(pool, {
     process: 'inspection',
@@ -997,8 +1140,9 @@ router.post('/:id/inspect', async (req, res) => {
     oldest_bag_code: older?.bag_code || null,
   });
 
-  res.json({ bag: { ...bag, status: 'INSPECTED' }, closed: true });
+  res.json({ bag: { ...bag, status: 'INSPECTED' }, closed: true, auto_rework_qty: totalAutoReworkQty });
 });
+
 
 // --- Packing Balance Pool: Get Available Balance for a Part ---
 router.get('/balance-pool/:part_id', async (req, res) => {

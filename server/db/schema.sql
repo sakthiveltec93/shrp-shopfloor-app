@@ -247,6 +247,19 @@ CREATE TABLE IF NOT EXISTS rework_log (
   completed_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS bag_reject_log (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  stage TEXT NOT NULL CHECK (stage IN ('TRIMMING', 'INSPECTION')),
+  entry_id INTEGER,
+  reject_reason_id INTEGER NOT NULL REFERENCES check_items(id),
+  reject_wt_kg NUMERIC NOT NULL DEFAULT 0,
+  reject_qty INTEGER NOT NULL DEFAULT 0,
+  disposition TEXT,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ================================================================
 -- Full part master: process parameters, critical dimensions, suitable
 -- machines, customer, and file attachments (photo/SOP/PPAP), so parts

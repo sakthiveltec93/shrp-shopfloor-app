@@ -165,6 +165,11 @@ export const api = {
   dispatchBag: (id, payload) => request(`/bags/${id}/dispatch`, { method: 'POST', body: payload }),
   holdBag: (id, payload) => request(`/bags/${id}/hold`, { method: 'POST', body: payload }),
   releaseHoldBag: (id, payload) => request(`/bags/${id}/release-hold`, { method: 'POST', body: payload }),
+  releaseHold: (id, payload) => request(`/bags/${id}/release-hold`, { method: 'POST', body: payload }),
+  holdBags: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/bags/hold-bags${qs ? `?${qs}` : ''}`);
+  },
   balancePool: (partId) => request(`/bags/balance-pool/${partId}`),
   packPacketFromPool: (partId) => request(`/bags/balance-pool/${partId}/pack-packet`, { method: 'POST' }),
   reworkPending: () => request('/bags/rework/pending'),

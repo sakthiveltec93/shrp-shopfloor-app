@@ -100,7 +100,7 @@ export default function TodayLog() {
     const headers = [
       'Bag Code', 'Batch No', 'Entry Date', 'Shift', 'Machine',
       'Part Short Code', 'Customer Part No', 'Bag Type', 'Base Weight (kg)', 'Quantity',
-      'Current Status', 'Created By', 'Trimming Summary', 'Inspection Summary', 'Packing Summary', 'Created At'
+      'Current Status', 'Created By', 'Trimming Summary', 'Inspection Summary', 'Rejections & Dispositions', 'Packing Summary', 'Created At'
     ];
 
     const rows = filteredBags.map((b) => {
@@ -110,6 +110,10 @@ export default function TodayLog() {
 
       const inspSummary = (b.inspection_history || []).map((i) =>
         `Insp ${i.inspected_wt_kg}kg, Rej ${i.reject_wt_kg}kg, Rework ${i.sent_to_rework_qty}pcs (${i.variance_tier || 'Tier 1'}) by ${i.operator_name || 'Op'}`
+      ).join(' | ');
+
+      const rejSummary = (b.reject_history || []).map((r) =>
+        `[${r.stage}] ${r.reject_reason || 'Defect'}: ${r.reject_wt_kg}kg (~${r.reject_qty}pcs) -> ${r.disposition}`
       ).join(' | ');
 
       const packSummary = (b.packing_history || []).map((p) =>
@@ -131,6 +135,7 @@ export default function TodayLog() {
         `"${b.created_by_name || ''}"`,
         `"${trimSummary}"`,
         `"${inspSummary}"`,
+        `"${rejSummary}"`,
         `"${packSummary}"`,
         `"${new Date(b.created_at).toLocaleString('en-GB')}"`
       ].join(',');
@@ -651,10 +656,37 @@ export default function TodayLog() {
                     </div>
                   )}
 
-                  {/* Step 4: Packing */}
+                  {/* Step 4: Rejection & Quality Log */}
+                  {selectedBagDetail.reject_history && selectedBagDetail.reject_history.length > 0 && (
+                    <div style={{ borderLeft: '3px solid #f59e0b', paddingLeft: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#f59e0b' }}>Quality Rejection Breakdown ({selectedBagDetail.reject_history.length} Defects Logged)</div>
+                      {selectedBagDetail.reject_history.map((r, idx) => (
+                        <div key={idx} style={{ fontSize: 12, marginTop: 4, background: 'rgba(245,158,11,0.08)', padding: 6, borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div>
+                            <strong>[{r.stage}] {r.reject_reason || 'Defect'}</strong>: {r.reject_wt_kg} kg (~{r.reject_qty} Nos)
+                            <div className="muted" style={{ fontSize: 11 }}>Logged by {r.operator_name || 'Operator'} · {new Date(r.created_at).toLocaleString('en-GB')}</div>
+                          </div>
+                          <div>
+                            <span style={{
+                              background: r.disposition === 'Return To Trimming' || r.disposition === 'REWORK' ? 'rgba(245,166,35,0.2)' : 'rgba(255,255,255,0.1)',
+                              color: r.disposition === 'Return To Trimming' || r.disposition === 'REWORK' ? 'var(--amber)' : '#aaa',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 700
+                            }}>
+                              {r.disposition === 'Return To Trimming' || r.disposition === 'REWORK' ? '🛠️ Rework Pool' : r.disposition}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Step 5: Packing */}
                   {selectedBagDetail.packing_history && selectedBagDetail.packing_history.length > 0 && (
                     <div style={{ borderLeft: '3px solid #10b981', paddingLeft: 10 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#10b981' }}>4. Packing Stage</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#10b981' }}>5. Packing Stage</div>
                       {selectedBagDetail.packing_history.map((p, idx) => (
                         <div key={idx} style={{ fontSize: 12, marginTop: 4, background: 'rgba(255,255,255,0.03)', padding: 6, borderRadius: 4 }}>
                           <div>Packed Qty: <strong>{p.packed_qty} pcs</strong> ({p.packed_wt_kg} kg)</div>
@@ -665,7 +697,7 @@ export default function TodayLog() {
                     </div>
                   )}
 
-                  {/* Step 5: Hold History if any */}
+                  {/* Step 6: Hold History if any */}
                   {selectedBagDetail.hold_history && selectedBagDetail.hold_history.length > 0 && (
                     <div style={{ borderLeft: '3px solid #ef4444', paddingLeft: 10 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#ef4444' }}>Quarantine & Hold Events</div>
