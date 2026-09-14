@@ -34,8 +34,8 @@ router.get('/parts', async (req, res) => {
 router.get('/check-items', async (req, res) => {
   const { category } = req.query;
   const { rows } = category
-    ? await pool.query('SELECT * FROM check_items WHERE category = $1 ORDER BY item_name', [category])
-    : await pool.query('SELECT * FROM check_items ORDER BY category, item_name');
+    ? await pool.query('SELECT * FROM check_items WHERE category = $1 ORDER BY code NULLS LAST, item_name', [category])
+    : await pool.query('SELECT * FROM check_items ORDER BY category, code NULLS LAST, item_name');
   res.json(rows);
 });
 
@@ -146,8 +146,7 @@ router.put('/parts/:id/parameters', requireRole('admin', 'supervisor'), async (r
   } finally {
     client.release();
   }
-  const { rows } = await pool.query('SELECT * FROM part_process_parameters WHERE part_id = $1 ORDER BY sort_order, id', [id]);
-  res.json(rows);
+  const { rows } = await pool.query('SELECT * FROM part_process_parameters WHERE part_id = $1 ORDER BY sort_order, id'); res.json(rows);
 });
 
 // Replace all critical dimensions for a part

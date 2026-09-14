@@ -25,10 +25,35 @@ router.get('/active', async (req, res) => {
   if (!session) return res.json(null);
 
   const lastEntry = await pool.query(
-    `SELECT end_count FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [session.id]
   );
   session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
+  res.json(session);
+});
+
+// The requesting operator's own RUNNING session, if any, regardless of
+// which machine. Lets the client auto-reselect their machine on load
+// instead of making them pick it from the dropdown every time.
+router.get('/mine', async (req, res) => {
+  const { rows } = await pool.query(`
+    SELECT ms.*, m.machine_code, p.part_code, p.part_name, u.full_name AS operator_name
+    FROM machine_sessions ms
+    JOIN machines m ON m.id = ms.machine_id
+    JOIN parts p ON p.id = ms.part_id
+    JOIN users u ON u.id = ms.operator_user_id
+    WHERE ms.operator_user_id = $1 AND ms.status = 'RUNNING'
+    ORDER BY ms.start_time DESC LIMIT 1`, [req.user.id]);
+  const session = rows[0];
+  if (!session) return res.json(null);
+
+  const lastEntry = await pool.query(
+    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [session.id]
+  );
+  session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
   res.json(session);
 });
 
@@ -85,7 +110,9 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// Off Machine - closes the session. reason drives what happens next
+// Off Machine - closes the session. Only the operator who started it (or
+// a supervisor/admin) may close it - prevents one operator from
+// accidentally ending another's shift. reason drives what happens next
 // (the client navigates to Mould Setup itself when reason is mould_change).
 router.post('/:id/off', async (req, res) => {
   const { id } = req.params;
@@ -93,6 +120,14 @@ router.post('/:id/off', async (req, res) => {
   if (off_count == null || !OFF_REASONS.includes(off_reason)) {
     return res.status(400).json({ error: `off_count is required and off_reason must be one of: ${OFF_REASONS.join(', ')}` });
   }
+
+  const existing = await pool.query("SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'", [id]);
+  const current = existing.rows[0];
+  if (!current) return res.status(404).json({ error: 'Running session not found' });
+  if (current.operator_user_id !== req.user.id && req.user.role === 'operator') {
+    return res.status(403).json({ error: 'Only the operator who started this machine can switch it off. Ask a supervisor for help.' });
+  }
+
   const { rows } = await pool.query(
     `UPDATE machine_sessions
      SET status = 'OFF', off_time = now(), off_count = $1, off_reason = $2, off_remarks = $3

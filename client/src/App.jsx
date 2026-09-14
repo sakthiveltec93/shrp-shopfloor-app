@@ -19,6 +19,7 @@ import BagLabel from './pages/BagLabel'
 import UsersList from './pages/UsersList'
 import UserForm from './pages/UserForm'
 import PinChange from './pages/PinChange'
+import Attendance from './pages/Attendance'
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/inspection" element={<ProtectedRoute page="inspection"><Inspection /></ProtectedRoute>} />
         <Route path="/packing" element={<ProtectedRoute page="packing"><Packing /></ProtectedRoute>} />
         <Route path="/log" element={<ProtectedRoute page="log"><TodayLog /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute page="attendance"><Attendance /></ProtectedRoute>} />
         <Route
           path="/parts"
           element={<ProtectedRoute roles={['supervisor', 'admin']} page="parts"><PartsList /></ProtectedRoute>}

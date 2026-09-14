@@ -12,6 +12,8 @@ const sessionRoutes = require('./routes/sessions');
 const checksheetRoutes = require('./routes/checksheet');
 const userRoutes = require('./routes/users');
 const accountRoutes = require('./routes/account');
+const notificationRoutes = require('./routes/notifications');
+const attendanceRoutes = require('./routes/attendance');
 
 const app = express();
 app.use(cors());
@@ -29,6 +31,8 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/checksheet', checksheetRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/account', accountRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

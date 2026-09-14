@@ -9,7 +9,7 @@ router.use(requireRole('admin'));
 
 const VALID_PAGES = [
   'mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection',
-  'packing', 'log', 'approvals', 'parts', 'users',
+  'packing', 'log', 'approvals', 'parts', 'users', 'attendance',
 ];
 
 async function pagesForUser(userId) {

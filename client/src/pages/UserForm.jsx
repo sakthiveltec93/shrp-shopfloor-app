@@ -13,11 +13,12 @@ const PAGES = [
   { key: 'approvals', label: 'Approvals' },
   { key: 'parts', label: 'Parts' },
   { key: 'users', label: 'Users' },
+  { key: 'attendance', label: 'Attendance' },
 ];
 
 const DEFAULTS_BY_ROLE = {
-  operator: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log'],
-  supervisor: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log', 'approvals', 'parts'],
+  operator: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log', 'attendance'],
+  supervisor: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log', 'approvals', 'parts', 'attendance'],
   admin: PAGES.map((p) => p.key),
 };
 
