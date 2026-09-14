@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('./pool');
 const { syncParts } = require('./clean_parts');
+const { syncMoulds } = require('./sync_moulds');
 
 async function initDb() {
   try {
@@ -13,6 +14,10 @@ async function initDb() {
     console.log('[DB-INIT] Syncing clean 77 master parts...');
     await syncParts(false);
     console.log('[DB-INIT] Master parts synced.');
+
+    console.log('[DB-INIT] Syncing 73 tooling masters & part linkages...');
+    await syncMoulds(false);
+    console.log('[DB-INIT] Moulds and part linkages synced successfully.');
   } catch (err) {
     console.error('[DB-INIT] Warning during database init:', err.message || err);
   }

@@ -98,7 +98,19 @@ router.get('/:id', async (req, res) => {
 
   // Linked parts
   const { rows: parts } = await pool.query(`
-    SELECT p.*, mp.cavities_for_part
+    SELECT p.id AS part_id,
+           p.id,
+           p.part_code,
+           p.shrp_part_code,
+           p.customer_part_no,
+           p.part_name,
+           COALESCE(mp.cavities_for_part, p.cavity_count) AS cavity_count,
+           p.part_weight_g,
+           p.unit_weight_g,
+           p.standard_pack_qty,
+           p.trim_required,
+           p.inspection_required,
+           p.packing_required
     FROM mould_parts mp
     JOIN parts p ON p.id = mp.part_id
     WHERE mp.mould_id = $1
