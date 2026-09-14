@@ -23,13 +23,18 @@ export default function PartsList() {
       {error && <div className="error-banner">{error}</div>}
 
       {parts.map((p) => (
-        <Link key={p.id} to={`/parts/${p.id}/edit`} className="panel" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Link key={p.id} to={`/parts/${p.id}/edit`} className="panel" style={{ display: 'block', textDecoration: 'none', color: 'inherit', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <div style={{ fontWeight: 600 }}>{p.shrp_part_code ? `${p.shrp_part_code} (${p.part_code})` : p.part_code}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{p.part_name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span className="shrp-code-pill">{p.shrp_part_code || p.part_code}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{p.part_name}</span>
+              </div>
+              <div className="muted" style={{ fontSize: 12 }}>
+                Customer Part No: <strong>{p.customer_part_no || p.part_code}</strong>
+              </div>
             </div>
-            <div className="muted" style={{ fontSize: 12, textAlign: 'right' }}>
+            <div className="muted" style={{ fontSize: 12, textAlign: 'right', whiteSpace: 'nowrap', marginLeft: 8 }}>
               {p.cavity_count} cav · {p.standard_cycle_time_sec}s
             </div>
           </div>

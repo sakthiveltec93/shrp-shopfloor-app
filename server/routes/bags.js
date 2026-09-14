@@ -42,7 +42,7 @@ router.get('/production-visibility', async (req, res) => {
     return res.status(400).json({ error: 'machine_id, entry_date, and shift are required' });
   }
 
-  // Total production good quantity for machine + date + shift
+  // Total production good quantity for machine + date + shift (Shift Cumulative)
   const prodRes = await pool.query(
     `SELECT COALESCE(SUM(good_qty), 0)::integer AS total_prod_qty
      FROM production_entries
@@ -67,6 +67,26 @@ router.get('/production-visibility', async (req, res) => {
     part = assignRes.rows[0];
   }
 
+  // Current hour production
+  const { hourSlot } = require('../lib/shift');
+  const currentSlot = hourSlot(new Date());
+  const hourRes = await pool.query(
+    `SELECT COALESCE(SUM(good_qty), 0)::integer AS hour_qty
+     FROM production_entries
+     WHERE machine_id = $1 AND entry_date = $2 AND shift = $3 AND hour_slot = $4`,
+    [machine_id, entry_date, shift, currentSlot]
+  );
+  const current_hour_qty = hourRes.rows[0].hour_qty;
+
+  // Batch / Part cumulative production
+  const batchRes = await pool.query(
+    `SELECT COALESCE(SUM(good_qty), 0)::integer AS batch_qty
+     FROM production_entries
+     WHERE machine_id = $1 AND ($2::integer IS NULL OR part_id = $2)`,
+    [machine_id, part?.id || null]
+  );
+  const batch_cumulative_qty = batchRes.rows[0].batch_qty;
+
   // Already bagged for machine + date + shift
   const baggedRes = await pool.query(
     `SELECT COALESCE(SUM(qty), 0)::integer AS total_bagged_qty,
@@ -78,6 +98,13 @@ router.get('/production-visibility', async (req, res) => {
   const already_bagged_qty = baggedRes.rows[0].total_bagged_qty;
   const already_bagged_weight_kg = Number(baggedRes.rows[0].total_bagged_wt || 0);
 
+  // Available to Bag = Total Production Qty – Total Already Bagged Qty
+  const available_to_bag_qty = Math.max(0, production_qty - already_bagged_qty);
+
+  // Target Qty & Balance Qty = Target Qty – Total Already Bagged Qty
+  const target_qty = (part && part.standard_pack_qty) ? part.standard_pack_qty : Math.max(production_qty, 1000);
+  const balance_qty = Math.max(0, target_qty - already_bagged_qty);
+
   // Weight derivations
   const cavityCount = (part && part.cavity_count) || 1;
   const partWeightG = part && part.part_weight_g ? Number(part.part_weight_g) : (part && part.unit_weight_g ? Number(part.unit_weight_g) / cavityCount : 0);
@@ -87,8 +114,6 @@ router.get('/production-visibility', async (req, res) => {
 
   const production_weight_kg = Number(((production_qty * partWeightG) / 1000).toFixed(3));
   const runner_weight_kg = Number(((production_qty * runnerWeightPerPartG) / 1000).toFixed(3));
-
-  const remaining_qty = Math.max(0, production_qty - already_bagged_qty);
   const remaining_weight_kg = Number(Math.max(0, production_weight_kg - already_bagged_weight_kg).toFixed(3));
 
   // Tolerance Rule: Greater of 200 Nos OR 1% of Production Qty
@@ -99,17 +124,26 @@ router.get('/production-visibility', async (req, res) => {
   const is_completed = production_qty > 0 && already_bagged_qty >= Math.max(0, production_qty - tolerance_qty);
 
   res.json({
+    current_hour_qty,
+    shift_cumulative_qty: production_qty,
+    batch_cumulative_qty,
+    target_qty,
     production_qty,
+    already_bagged_qty,
+    available_to_bag_qty,
+    balance_qty,
     production_weight_kg,
     runner_weight_kg,
     part_weight_g: partWeightG,
-    already_bagged_qty,
     already_bagged_weight_kg: Number(already_bagged_weight_kg.toFixed(3)),
-    remaining_qty,
+    remaining_qty: available_to_bag_qty,
     remaining_weight_kg,
     tolerance_qty,
     max_allowed_qty,
     is_completed,
+    part_name: part?.part_name || '',
+    shrp_part_code: part?.shrp_part_code || part?.part_code || '',
+    customer_part_no: part?.customer_part_no || part?.part_code || '',
   });
 });
 

@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useFifoBag } from '../useFifoBag';
 import { useLanguage } from '../i18n/LanguageContext';
+import CameraScanner from '../components/CameraScanner';
 
 export default function Dispatch() {
   const { t } = useLanguage();
   const {
     parts, partId, bag, method, setMethod, scanInput, setScanInput, handleScanSubmit,
-    batchBags, selectPart, selectSpecificBag,
+    loadBagByCode, batchBags, selectPart, selectSpecificBag,
     fifoViolation, setFifoViolation, fifoOverrideReason, setFifoOverrideReason,
     isFifoOverridden, setIsFifoOverridden, error, setError, success, setSuccess,
     loading, refetch, clearBag,
@@ -22,6 +23,7 @@ export default function Dispatch() {
   const [remarks, setRemarks] = useState('');
   const [confirmMsg, setConfirmMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   useEffect(() => {
     api.customers().then(setCustomers).catch(() => {});
@@ -116,7 +118,16 @@ export default function Dispatch() {
       {method === 'scan' && (
         <form onSubmit={handleScanSubmit} className="panel">
           <div className="field">
-            <label htmlFor="scan_code">Scan Bag Barcode / QR Code</label>
+            <label htmlFor="scan_code" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Scan Bag Barcode / QR Code</span>
+              <button
+                type="button"
+                style={{ background: 'none', border: 'none', color: 'var(--amber)', cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
+                onClick={() => setShowCamera(true)}
+              >
+                📷 Open Camera
+              </button>
+            </label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 id="scan_code"
@@ -128,6 +139,14 @@ export default function Dispatch() {
               />
               <button className="btn btn-primary" style={{ width: 'auto' }} type="submit" disabled={loading || !scanInput.trim()}>
                 {loading ? 'Scanning…' : 'Load'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}
+                onClick={() => setShowCamera(true)}
+              >
+                📷 Scan
               </button>
             </div>
           </div>
@@ -372,6 +391,18 @@ export default function Dispatch() {
           )}
         </div>
       )}
+      {showCamera && (
+        <CameraScanner
+          title="Scan Bag QR / Barcode"
+          onScan={(code) => {
+            setShowCamera(false);
+            setScanInput(code);
+            loadBagByCode(code);
+          }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
+

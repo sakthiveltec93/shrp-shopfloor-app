@@ -233,10 +233,24 @@ export default function ProductionEntry() {
         </div>
 
         {machineId && (
-          <div className="readout" style={{ marginBottom: 14 }}>
-            <div className="readout-label">{t('entry.assignedPart')}</div>
-            {assigned ? `${assigned.shrp_part_code || assigned.part_code} — ${assigned.part_name}` : t('entry.noneAssigned')}
-          </div>
+          assigned ? (
+            <div className="shrp-part-badge-card" style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
+                <div>
+                  <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                    Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="readout" style={{ marginBottom: 14 }}>
+              <div className="readout-label">{t('entry.assignedPart')}</div>
+              {t('entry.noneAssigned')}
+            </div>
+          )
         )}
 
         {machineId && session === undefined && <p className="muted">{t('entry.checkingStatus')}</p>}

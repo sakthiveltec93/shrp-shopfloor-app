@@ -397,13 +397,44 @@ ALTER TABLE parts ADD COLUMN IF NOT EXISTS customer_part_no TEXT;
 
 -- Backfill customer_part_no with part_code if not set
 UPDATE parts SET customer_part_no = part_code WHERE customer_part_no IS NULL;
--- Backfill shrp_part_code from batch_part_code or clean prefix if not set
-UPDATE parts SET shrp_part_code = COALESCE(batch_part_code, split_part(part_code, '-', 1)) WHERE shrp_part_code IS NULL;
+
+-- Backfill shrp_part_code:
+-- Specific known SHRP abbreviations
 UPDATE parts SET shrp_part_code = 'LBB' WHERE part_code = 'HC442L3LBB01';
 UPDATE parts SET shrp_part_code = 'LAC' WHERE part_code = 'HC442L3LAC01';
 UPDATE parts SET shrp_part_code = 'LBC' WHERE part_code = 'HC442L3LBC02';
+UPDATE parts SET shrp_part_code = 'CXG' WHERE part_code = 'HC442CXGAA01';
+UPDATE parts SET shrp_part_code = 'SPH' WHERE part_code = 'HC442SPHAA03';
+UPDATE parts SET shrp_part_code = 'OER' WHERE part_code = 'HC442OERAA01';
+UPDATE parts SET shrp_part_code = 'QVE' WHERE part_code = 'HC442QVEAC01';
+UPDATE parts SET shrp_part_code = 'QVE-B' WHERE part_code = 'HC442QVEBC01';
+UPDATE parts SET shrp_part_code = 'SUL' WHERE part_code = 'HC442SULAC01';
+UPDATE parts SET shrp_part_code = 'UMN' WHERE part_code = 'HC442UMNAA02';
+UPDATE parts SET shrp_part_code = 'G6C1A' WHERE part_code = 'HC442G6C1A';
+UPDATE parts SET shrp_part_code = 'G6C1B' WHERE part_code = 'HC442G6C1B';
 UPDATE parts SET shrp_part_code = 'FC1' WHERE part_code = 'FC1F2AN6BA01';
 UPDATE parts SET shrp_part_code = 'A710' WHERE part_code = 'A710-BBWBA-01';
+UPDATE parts SET shrp_part_code = 'CB5' WHERE part_code = 'F364-CB5AA-01';
+UPDATE parts SET shrp_part_code = 'KQ' WHERE part_code = 'F442-KQAAA-01';
+UPDATE parts SET shrp_part_code = 'QQ7' WHERE part_code = 'F442-QQ7AA-01';
+UPDATE parts SET shrp_part_code = 'WBA' WHERE part_code = 'F442-WBAAA-01';
+UPDATE parts SET shrp_part_code = 'AKY' WHERE part_code = 'F710-AKYAA-01';
+UPDATE parts SET shrp_part_code = 'BB1' WHERE part_code = 'F885-BB1AA-01';
+UPDATE parts SET shrp_part_code = 'UBH' WHERE part_code = 'DM1C4UBH1B01';
+UPDATE parts SET shrp_part_code = 'CAW' WHERE part_code = 'CA581CAWXX01';
+UPDATE parts SET shrp_part_code = 'DDR' WHERE part_code = 'CA582DDRXX01';
+
+-- For parts starting with HC442 followed by letters, extract the 3-letter code
+UPDATE parts SET shrp_part_code = substring(part_code from 6 for 3)
+WHERE (shrp_part_code IS NULL OR shrp_part_code = part_code OR shrp_part_code ~ '^[0-9]+$') AND part_code LIKE 'HC442%' AND length(part_code) >= 8;
+
+-- For parts with hyphen, use prefix
+UPDATE parts SET shrp_part_code = split_part(part_code, '-', 1) 
+WHERE (shrp_part_code IS NULL OR shrp_part_code = part_code OR shrp_part_code ~ '^[0-9]+$') AND part_code LIKE '%-%';
+
+-- Fallback to first 4-6 chars of part_code if still null or too long
+UPDATE parts SET shrp_part_code = substring(part_code from 1 for 6)
+WHERE shrp_part_code IS NULL OR length(shrp_part_code) > 8;
 
 -- ============================================================
 -- Bag status: include DISPATCHED, tolerance approval & FIFO override

@@ -142,6 +142,7 @@ export function useFifoBag(stage) {
     scanInput,
     setScanInput,
     handleScanSubmit,
+    loadBagByCode,
     batches,
     selectedBatch,
     batchBags,

@@ -106,9 +106,13 @@ export default function MouldSetup() {
         {machineId && (
           <div className="readout" style={{ marginBottom: 14 }}>
             <div className="readout-label">{t('mouldSetup.currentlyRunning')}</div>
-            {currentFor(machineId)
-              ? `${currentFor(machineId).part_code} — ${currentFor(machineId).part_name}`
-              : t('mouldSetup.noApprovedPart')}
+            {currentFor(machineId) ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                <span className="shrp-code-pill">{currentFor(machineId).shrp_part_code || currentFor(machineId).part_code}</span>
+                <span style={{ fontWeight: 600 }}>{currentFor(machineId).part_name}</span>
+                <span className="muted" style={{ fontSize: 11 }}>({currentFor(machineId).customer_part_no || currentFor(machineId).part_code})</span>
+              </div>
+            ) : t('mouldSetup.noApprovedPart')}
           </div>
         )}
 
@@ -117,7 +121,9 @@ export default function MouldSetup() {
           <select id="part" value={partId} onChange={(e) => setPartId(e.target.value)} required>
             <option value="" disabled>{t('common.selectPart')}</option>
             {parts.map((p) => (
-              <option key={p.id} value={p.id}>{p.part_code} — {p.part_name}</option>
+              <option key={p.id} value={p.id}>
+                [{p.shrp_part_code || p.part_code}] {p.part_name} — {p.customer_part_no || p.part_code}
+              </option>
             ))}
           </select>
         </div>
@@ -141,10 +147,14 @@ export default function MouldSetup() {
       <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '20px 0 10px' }}>{t('mouldSetup.runningNow')}</h2>
       {current.map((c) => (
         <div key={c.machine_id} className="panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontWeight: 600 }}>{c.machine_code}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{c.part_code} — {c.part_name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                <span className="shrp-code-pill" style={{ fontSize: 12, padding: '2px 8px' }}>{c.shrp_part_code || c.part_code}</span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{c.part_name}</span>
+                <span className="muted" style={{ fontSize: 11 }}>({c.customer_part_no || c.part_code})</span>
+              </div>
             </div>
             <span className="status-pill status-approved">{t('mouldSetup.approved')}</span>
           </div>

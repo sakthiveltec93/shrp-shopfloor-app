@@ -11,9 +11,10 @@ router.use(requireAuth);
 router.get('/current', async (req, res) => {
   const { rows } = await pool.query(`
     SELECT DISTINCT ON (ma.machine_id)
-      ma.id AS assignment_id, ma.machine_id, m.machine_code, ma.part_id, p.part_code, p.part_name,
-      p.cavity_count, p.standard_cycle_time_sec, p.unit_weight_g, ma.status, ma.approved_at,
-      ma.mould_load_started_at, ma.first_ok_part_at
+      ma.id AS assignment_id, ma.machine_id, m.machine_code, ma.part_id,
+      p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+      p.cavity_count, p.standard_cycle_time_sec, p.unit_weight_g, p.part_weight_g,
+      ma.status, ma.approved_at, ma.mould_load_started_at, ma.first_ok_part_at
     FROM machine_assignments ma
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id
@@ -26,7 +27,7 @@ router.get('/current', async (req, res) => {
 // Pending assignments awaiting supervisor/admin approval
 router.get('/pending', requireRole('supervisor', 'admin'), async (req, res) => {
   const { rows } = await pool.query(`
-    SELECT ma.*, m.machine_code, p.part_code, p.part_name, u.full_name AS set_by_name
+    SELECT ma.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS set_by_name
     FROM machine_assignments ma
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id

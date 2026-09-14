@@ -36,11 +36,17 @@ export default function Approvals() {
 
       {pending.map((p) => (
         <div key={p.id} className="panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <strong>{p.machine_code}</strong>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
+            <strong style={{ fontSize: 16 }}>{p.machine_code}</strong>
             <span className="status-pill status-pending">Pending</span>
           </div>
-          <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>{p.part_code} — {p.part_name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <span className="shrp-code-pill">{p.shrp_part_code || p.part_code}</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{p.part_name}</span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+            Customer Part No: <strong>{p.customer_part_no || p.part_code}</strong>
+          </div>
           <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
             Requested by {p.set_by_name} · {new Date(p.set_at).toLocaleString()}
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useLanguage } from '../i18n/LanguageContext';
+import CameraScanner from '../components/CameraScanner';
 
 export default function BagEntry() {
   const { t } = useLanguage();
@@ -27,6 +28,7 @@ export default function BagEntry() {
   const [success, setSuccess] = useState('');
   const [lastCreatedBag, setLastCreatedBag] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   // Over-tolerance approval modal
   const [tolerancePrompt, setTolerancePrompt] = useState(null);
@@ -39,7 +41,12 @@ export default function BagEntry() {
   useEffect(() => {
     (async () => {
       try {
-        const [m, a, ctx] = await Promise.all([api.machines(), api.currentAssignments(), api.entryContext()]);
+        const [m, a, ctx, mySess] = await Promise.all([
+          api.machines(),
+          api.currentAssignments(),
+          api.entryContext(),
+          api.mySession().catch(() => null),
+        ]);
         if (m) setMachines(m);
         if (a) setAssignments(a);
         if (ctx) {
@@ -47,11 +54,39 @@ export default function BagEntry() {
           setEntryDate(ctx.entry_date);
           setShift(ctx.shift);
         }
+        if (mySess?.session?.machine_id) {
+          setMachineId(String(mySess.session.machine_id));
+        } else if (a && a.length > 0) {
+          const running = a.find((asgn) => asgn.active_stage || asgn.approved);
+          if (running) setMachineId(String(running.machine_id));
+        }
       } catch (err) {
         console.warn('Initial load using cached state or offline:', err);
       }
     })();
   }, []);
+
+  function handleCameraScan(scannedCode) {
+    if (!scannedCode) return;
+    const clean = scannedCode.trim().toUpperCase();
+    const mach = machines.find((m) => m.machine_code.toUpperCase() === clean);
+    if (mach) {
+      setMachineId(String(mach.id));
+      setSuccess(`Selected machine ${mach.machine_code} from QR scan`);
+      return;
+    }
+    const asgn = assignments.find(
+      (a) => (a.shrp_part_code && a.shrp_part_code.toUpperCase() === clean) ||
+             (a.part_code && a.part_code.toUpperCase() === clean) ||
+             (a.customer_part_no && a.customer_part_no.toUpperCase() === clean)
+    );
+    if (asgn) {
+      setMachineId(String(asgn.machine_id));
+      setSuccess(`Found machine ${asgn.machine_code} running part ${clean}`);
+      return;
+    }
+    setError(`Scanned code "${scannedCode}" not recognized as a machine or active part.`);
+  }
 
   const assigned = assignments.find((a) => String(a.machine_id) === String(machineId));
 
@@ -178,6 +213,163 @@ export default function BagEntry() {
       <h1 className="screen-title">{t('bagEntry.title')}</h1>
       <p className="screen-sub">{t('bagEntry.subtitle')}</p>
 
+      {/* 1. Live Production & Bagging Visibility Card - ALWAYS VISIBLE AT TOP */}
+      <div className="visibility-kpi-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: prodVisibility ? '#22c55e' : 'var(--amber)', display: 'inline-block', boxShadow: '0 0 8px currentColor' }}></span>
+            <span style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--amber)' }}>
+              LIVE PRODUCTION & BAGGING VISIBILITY
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {machineId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '4px 10px', fontSize: 11 }}
+                onClick={() => loadVisibility()}
+                title="Refresh live metrics"
+              >
+                ↻ Refresh
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '4px 10px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              onClick={() => setShowCamera(true)}
+            >
+              📷 Scan QR
+            </button>
+          </div>
+        </div>
+
+        {prodVisibility ? (
+          <>
+            {/* Prominent SHRP Part Code Badge */}
+            <div className="shrp-part-badge-card" style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span className="shrp-code-pill" style={{ fontSize: 16, padding: '5px 14px' }}>
+                  {prodVisibility.shrp_part_code || assigned?.shrp_part_code || assigned?.part_code || 'PART'}
+                </span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
+                    {prodVisibility.part_name || assigned?.part_name || 'Assigned Part'}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                    Customer Part No: <strong style={{ color: 'var(--text)' }}>{prodVisibility.customer_part_no || assigned?.customer_part_no || assigned?.part_code || '—'}</strong>
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 6 }}>
+                Unit Weight: {prodVisibility.part_weight_g || batchInfo?.part_weight_g || '—'}g · Cavities: {batchInfo?.cavity_count || 1}
+              </div>
+            </div>
+
+            {/* 8 KPI Metrics Grid */}
+            <div className="visibility-kpi-grid">
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Current Hr</span>
+                <span className="kpi-val" style={{ color: 'var(--blue)' }}>
+                  {(prodVisibility.current_hour_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Shift Cumul.</span>
+                <span className="kpi-val">
+                  {(prodVisibility.shift_cumulative_qty ?? prodVisibility.production_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Batch Cumul.</span>
+                <span className="kpi-val">
+                  {(prodVisibility.batch_cumulative_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Target Qty</span>
+                <span className="kpi-val">
+                  {(prodVisibility.target_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Produced Qty</span>
+                <span className="kpi-val" style={{ color: 'var(--amber)' }}>
+                  {(prodVisibility.production_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Already Bagged</span>
+                <span className="kpi-val" style={{ color: 'var(--purple, #a78bfa)' }}>
+                  {(prodVisibility.already_bagged_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box highlight">
+                <span className="kpi-label">Available to Bag</span>
+                <span className="kpi-val">
+                  {(prodVisibility.available_to_bag_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="kpi-stat-box">
+                <span className="kpi-label">Balance Qty</span>
+                <span className="kpi-val" style={{ color: prodVisibility.balance_qty < 0 ? 'var(--red)' : 'var(--text)' }}>
+                  {(prodVisibility.balance_qty ?? 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Bagging Progress Bar */}
+            {prodVisibility.production_qty > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                  <span className="muted">Bagged vs Produced</span>
+                  <strong style={{ color: 'var(--green)' }}>
+                    {Math.min(100, Math.round((prodVisibility.already_bagged_qty / Math.max(1, prodVisibility.production_qty)) * 100))}%
+                  </strong>
+                </div>
+                <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      background: 'var(--green)',
+                      width: `${Math.min(100, Math.round((prodVisibility.already_bagged_qty / Math.max(1, prodVisibility.production_qty)) * 100))}%`,
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Weight Breakdown */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
+              <span>Prod Wt: <strong style={{ color: 'var(--text)' }}>{prodVisibility.production_weight_kg.toFixed(3)} Kg</strong></span>
+              <span>Bagged Wt: <strong style={{ color: 'var(--amber)' }}>{prodVisibility.already_bagged_weight_kg.toFixed(3)} Kg</strong></span>
+              <span>Remaining Wt: <strong style={{ color: 'var(--green)' }}>{prodVisibility.remaining_weight_kg.toFixed(3)} Kg</strong></span>
+              <span>Max Allowed: <strong style={{ color: 'var(--text)' }}>{prodVisibility.max_allowed_qty.toLocaleString()}</strong></span>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: '20px 10px', textAlign: 'center' }}>
+            <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+              {machineId
+                ? 'Loading live production data for this machine...'
+                : 'Select a Machine below or tap Scan QR to view live production flow, bagging status, and real-time inventory metrics.'}
+            </p>
+            {!machineId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}
+                onClick={() => setShowCamera(true)}
+              >
+                📷 Scan Machine / Part QR
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {error && <div className="error-banner">{error}</div>}
       {success && (
         <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>
@@ -277,64 +469,35 @@ export default function BagEntry() {
         </div>
       )}
 
-      {/* Live Production Visibility Panel per Section 5 */}
-      {prodVisibility && (
-        <div className="panel" style={{ borderLeft: '3px solid var(--amber)' }}>
-          <div className="readout-label" style={{ marginBottom: 8, fontWeight: 700, color: 'var(--text)' }}>
-            PRODUCTION & BAGGING VISIBILITY
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div className="readout">
-              <div className="readout-label">Production Qty</div>
-              <strong style={{ fontSize: 15 }}>{prodVisibility.production_qty.toLocaleString()}</strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Already Bagged Qty</div>
-              <strong style={{ fontSize: 15, color: 'var(--amber)' }}>{prodVisibility.already_bagged_qty.toLocaleString()}</strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Remaining Qty</div>
-              <strong style={{ fontSize: 15, color: prodVisibility.remaining_qty > 0 ? 'var(--green)' : 'var(--text-muted)' }}>
-                {prodVisibility.remaining_qty.toLocaleString()}
-              </strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Allowed Max Qty</div>
-              <span className="muted" style={{ fontSize: 13 }}>{prodVisibility.max_allowed_qty.toLocaleString()}</span>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Production Weight</div>
-              <strong>{prodVisibility.production_weight_kg.toFixed(3)} Kg</strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Already Bagged Wt</div>
-              <strong>{prodVisibility.already_bagged_weight_kg.toFixed(3)} Kg</strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Remaining Weight</div>
-              <strong style={{ color: 'var(--green)' }}>{prodVisibility.remaining_weight_kg.toFixed(3)} Kg</strong>
-            </div>
-            <div className="readout">
-              <div className="readout-label">Part Wt / Runner Wt</div>
-              <span style={{ fontSize: 12 }}>{prodVisibility.part_weight_g}g / {prodVisibility.runner_weight_kg}Kg</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="panel">
         <div className="field">
-          <label htmlFor="machine">{t('common.machine')}</label>
+          <label htmlFor="machine" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{t('common.machine')}</span>
+            <button
+              type="button"
+              style={{ background: 'none', border: 'none', color: 'var(--amber)', cursor: 'pointer', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0 }}
+              onClick={() => setShowCamera(true)}
+            >
+              📷 Scan QR
+            </button>
+          </label>
           <select id="machine" value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
             <option value="" disabled>{t('common.selectMachine')}</option>
             {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
           </select>
         </div>
 
-        {machineId && (
-          <div className="readout" style={{ marginBottom: 14 }}>
-            <div className="readout-label">{t('bagEntry.assignedPart')}</div>
-            {assigned ? `${assigned.shrp_part_code || assigned.part_code} — ${assigned.part_name}` : t('bagEntry.noneAssigned')}
+        {machineId && assigned && (
+          <div className="shrp-part-badge-card" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
+              <div>
+                <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
+                <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                  Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -442,6 +605,15 @@ export default function BagEntry() {
           </div>
         </>
       )}
+
+      {showCamera && (
+        <CameraScanner
+          title="Scan Machine or Part QR"
+          onScan={handleCameraScan}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
+

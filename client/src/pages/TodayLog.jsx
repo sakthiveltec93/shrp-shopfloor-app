@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
+import CameraScanner from '../components/CameraScanner';
 
 function todayLocal() {
   const d = new Date();
@@ -26,11 +27,29 @@ export default function TodayLog() {
   const [traceLogs, setTraceLogs] = useState(null);
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState('');
+  const [showCamera, setShowCamera] = useState(false);
   const isOperator = user.role === 'operator';
 
   useEffect(() => {
     api.entriesForDate(date).then(setEntries);
   }, [date]);
+
+  async function handleScanTrace(code) {
+    if (!code) return;
+    setTraceCode(code);
+    setTraceLoading(true);
+    setTraceError('');
+    setTraceLogs(null);
+    try {
+      const logs = await api.traceability(code.trim());
+      setTraceLogs(logs);
+      if (logs.length === 0) setTraceError('No audit records found for this code.');
+    } catch (err) {
+      setTraceError(err.message);
+    } finally {
+      setTraceLoading(false);
+    }
+  }
 
   async function lookupTrace(e) {
     if (e) e.preventDefault();
@@ -157,7 +176,16 @@ export default function TodayLog() {
       <h2 style={{ fontSize: 14, color: 'var(--text-muted)', margin: '24px 0 10px' }}>🔍 End-to-End Traceability Lookup</h2>
       <form onSubmit={lookupTrace} className="panel">
         <div className="field">
-          <label htmlFor="trace_code">Bag Code or Batch No.</label>
+          <label htmlFor="trace_code" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Bag Code or Batch No.</span>
+            <button
+              type="button"
+              style={{ background: 'none', border: 'none', color: 'var(--amber)', cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
+              onClick={() => setShowCamera(true)}
+            >
+              📷 Scan Label
+            </button>
+          </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               id="trace_code"
@@ -168,6 +196,14 @@ export default function TodayLog() {
             />
             <button className="btn btn-primary" style={{ width: 'auto' }} type="submit" disabled={traceLoading || !traceCode.trim()}>
               {traceLoading ? 'Searching…' : 'Trace'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}
+              onClick={() => setShowCamera(true)}
+            >
+              📷 Scan
             </button>
           </div>
         </div>
@@ -211,6 +247,17 @@ export default function TodayLog() {
           </div>
         )}
       </form>
+
+      {showCamera && (
+        <CameraScanner
+          title="Scan Bag or Part QR / Barcode"
+          onScan={(code) => {
+            setShowCamera(false);
+            handleScanTrace(code);
+          }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
