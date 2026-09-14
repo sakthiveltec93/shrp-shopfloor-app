@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function PartRecipes() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [recipes, setRecipes] = useState([]);
   const [parts, setParts] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -39,7 +41,6 @@ export default function PartRecipes() {
   const [error, setError] = useState(null);
 
   // Helper for Clean, Short Material Display Name
-  // E.g. LDPE 16MA400, LLDPE M26500, PP Repol H030SG instead of repeating long names
   const getShortMaterialName = (m) => {
     if (!m) return '';
     if (m.grade && m.polymer_type) {
@@ -47,7 +48,6 @@ export default function PartRecipes() {
     }
     if (m.grade) return m.grade;
     if (m.material_name) {
-      // Remove repetitive tags like (Injection Grade), (Blow Grade), (RM-...)
       return m.material_name
         .replace(/\s*\([^)]*Grade[^)]*\)/gi, '')
         .replace(/\s*\(RM-[^)]*\)/gi, '')
@@ -97,7 +97,7 @@ export default function PartRecipes() {
         mixing_instructions: existingRecipe.mixing_instructions || '',
       });
     } else {
-      const defaultPrimary = materials.find((m) => m.material_code && m.material_code.includes('LDPE')) || materials[0];
+      const defaultPrimary = (materials || []).find((m) => m.material_code && m.material_code.includes('LDPE')) || materials[0];
       setForm({
         part_id: part.id,
         primary_material_id: defaultPrimary?.id || '',
@@ -133,12 +133,13 @@ export default function PartRecipes() {
   };
 
   // -------------------------------------------------------------
-  // Bulk Upload CSV Handlers
+  // Bulk Upload CSV Handlers (Clean column format)
   // -------------------------------------------------------------
   const handleDownloadSampleCsv = () => {
     const headers = [
-      'part_code',
+      'shrp_part_code',
       'part_name',
+      'customer_part_no',
       'primary_material_code',
       'primary_ratio_pct',
       'secondary_material_code',
@@ -151,16 +152,21 @@ export default function PartRecipes() {
       'mixing_instructions',
     ];
 
-    const rows = parts.map((p) => {
-      const r = recipes.find((rec) => rec.part_id === p.id);
-      const priMat = materials.find((m) => m.id === r?.primary_material_id);
-      const secMat = materials.find((m) => m.id === r?.secondary_material_id);
-      const regMat = materials.find((m) => m.id === r?.regrind_material_id);
-      const mbMat = materials.find((m) => m.id === r?.masterbatch_material_id);
+    const rows = (parts || []).map((p) => {
+      const r = (recipes || []).find((rec) => rec.part_id === p.id);
+      const priMat = (materials || []).find((m) => m.id === r?.primary_material_id);
+      const secMat = (materials || []).find((m) => m.id === r?.secondary_material_id);
+      const regMat = (materials || []).find((m) => m.id === r?.regrind_material_id);
+      const mbMat = (materials || []).find((m) => m.id === r?.masterbatch_material_id);
+
+      const shrpCode = p.shrp_part_code || p.part_code || '';
+      const partName = p.part_name || p.part_code || '';
+      const custNo = p.customer_part_no || '';
 
       return [
-        p.part_code || '',
-        `"${(p.part_name || '').replace(/"/g, '""')}"`,
+        `"${shrpCode.replace(/"/g, '""')}"`,
+        `"${partName.replace(/"/g, '""')}"`,
+        `"${custNo.replace(/"/g, '""')}"`,
         priMat?.material_code || (materials[0]?.material_code || 'RM-LDPE-16MA400'),
         r?.primary_ratio_pct !== undefined ? r.primary_ratio_pct : 100,
         secMat?.material_code || '',
@@ -216,70 +222,83 @@ export default function PartRecipes() {
         throw new Error('CSV file contains no data rows.');
       }
 
-      const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, ''));
-      const partCodeIdx = headers.indexOf('part_code');
-      const priMatIdx = headers.indexOf('primary_material_code');
-      const priPctIdx = headers.indexOf('primary_ratio_pct');
-      const secMatIdx = headers.indexOf('secondary_material_code');
-      const secPctIdx = headers.indexOf('secondary_ratio_pct');
-      const regMatIdx = headers.indexOf('regrind_material_code');
-      const regPctIdx = headers.indexOf('regrind_ratio_pct');
-      const mbMatIdx = headers.indexOf('masterbatch_material_code');
-      const mbPctIdx = headers.indexOf('masterbatch_ratio_pct');
-      const maxRegIdx = headers.indexOf('max_allowed_regrind_pct');
-      const instIdx = headers.indexOf('mixing_instructions');
+      const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+      
+      let partCodeIdx = headers.indexOf('shrp_part_code');
+      if (partCodeIdx === -1) partCodeIdx = headers.indexOf('part_code');
+      const partNameIdx = headers.indexOf('part_name');
+      const custNoIdx = headers.indexOf('customer_part_no');
 
-      if (partCodeIdx === -1 || priMatIdx === -1) {
-        throw new Error('CSV must contain "part_code" and "primary_material_code" columns.');
+      const priMatIdx = headers.findIndex((h) => h.includes('primary_material'));
+      const priPctIdx = headers.findIndex((h) => h.includes('primary_ratio'));
+      const secMatIdx = headers.findIndex((h) => h.includes('secondary_material'));
+      const secPctIdx = headers.findIndex((h) => h.includes('secondary_ratio'));
+      const regMatIdx = headers.findIndex((h) => h.includes('regrind_material'));
+      const regPctIdx = headers.findIndex((h) => h.includes('regrind_ratio'));
+      const mbMatIdx = headers.findIndex((h) => h.includes('masterbatch_material'));
+      const mbPctIdx = headers.findIndex((h) => h.includes('masterbatch_ratio'));
+      const maxRegIdx = headers.findIndex((h) => h.includes('max_allowed_regrind'));
+      const instIdx = headers.findIndex((h) => h.includes('mixing_instructions'));
+
+      if (priMatIdx === -1) {
+        throw new Error('CSV must contain a primary material column (primary_material_code).');
       }
 
       const parsedPayload = [];
       const rowErrors = [];
 
       for (let i = 1; i < lines.length; i++) {
-        // Simple regex CSV line split handling quotes
         const rawRow = lines[i].match(/(".*?"|[^",s]+)(?=s*,|s*$)/g) || lines[i].split(',');
         const row = rawRow.map((c) => c.trim().replace(/^"|"$/g, ''));
 
-        const partCode = row[partCodeIdx]?.trim();
-        if (!partCode) continue;
+        const partCodeVal = partCodeIdx !== -1 ? row[partCodeIdx]?.trim() : '';
+        const partNameVal = partNameIdx !== -1 ? row[partNameIdx]?.trim() : '';
+        const custNoVal = custNoIdx !== -1 ? row[custNoIdx]?.trim() : '';
 
-        const partObj = parts.find((p) => p.part_code?.toLowerCase() === partCode.toLowerCase());
+        // Match part flexibly by shrp_part_code, part_code, part_name, or customer_part_no
+        const partObj = (parts || []).find((p) => {
+          if (partCodeVal && (p.part_code?.toLowerCase() === partCodeVal.toLowerCase() || p.shrp_part_code?.toLowerCase() === partCodeVal.toLowerCase())) return true;
+          if (custNoVal && p.customer_part_no?.toLowerCase() === custNoVal.toLowerCase()) return true;
+          if (partNameVal && p.part_name?.toLowerCase() === partNameVal.toLowerCase()) return true;
+          return false;
+        });
+
         if (!partObj) {
-          rowErrors.push(`Row ${i + 1}: Part code "${partCode}" not found.`);
+          rowErrors.push(`Row ${i + 1}: Part "${partCodeVal || partNameVal || custNoVal}" not found.`);
           continue;
         }
 
         const priMatCode = row[priMatIdx]?.trim();
-        const priMatObj = materials.find(
+        const priMatObj = (materials || []).find(
           (m) => m.material_code?.toLowerCase() === priMatCode?.toLowerCase() ||
-                 m.material_name?.toLowerCase() === priMatCode?.toLowerCase()
+                 m.material_name?.toLowerCase() === priMatCode?.toLowerCase() ||
+                 m.grade?.toLowerCase() === priMatCode?.toLowerCase()
         );
 
         if (!priMatObj) {
-          rowErrors.push(`Row ${i + 1}: Primary material "${priMatCode}" not found for ${partCode}.`);
+          rowErrors.push(`Row ${i + 1}: Primary material "${priMatCode}" not found for ${partObj.part_name}.`);
           continue;
         }
 
         const secMatCode = secMatIdx !== -1 ? row[secMatIdx]?.trim() : '';
         const secMatObj = secMatCode
-          ? materials.find((m) => m.material_code?.toLowerCase() === secMatCode?.toLowerCase())
+          ? (materials || []).find((m) => m.material_code?.toLowerCase() === secMatCode?.toLowerCase() || m.grade?.toLowerCase() === secMatCode?.toLowerCase())
           : null;
 
         const regMatCode = regMatIdx !== -1 ? row[regMatIdx]?.trim() : '';
         const regMatObj = regMatCode
-          ? materials.find((m) => m.material_code?.toLowerCase() === regMatCode?.toLowerCase())
+          ? (materials || []).find((m) => m.material_code?.toLowerCase() === regMatCode?.toLowerCase() || m.grade?.toLowerCase() === regMatCode?.toLowerCase())
           : null;
 
         const mbMatCode = mbMatIdx !== -1 ? row[mbMatIdx]?.trim() : '';
         const mbMatObj = mbMatCode
-          ? materials.find((m) => m.material_code?.toLowerCase() === mbMatCode?.toLowerCase())
+          ? (materials || []).find((m) => m.material_code?.toLowerCase() === mbMatCode?.toLowerCase() || m.grade?.toLowerCase() === mbMatCode?.toLowerCase())
           : null;
 
         const priPct = Number(row[priPctIdx] ?? 100);
-        const secPct = Number(row[secPctIdx] ?? 0);
-        const regPct = Number(row[regPctIdx] ?? 0);
-        const mbPct = Number(row[mbPctIdx] ?? 0);
+        const secPct = secPctIdx !== -1 ? Number(row[secPctIdx] ?? 0) : 0;
+        const regPct = regPctIdx !== -1 ? Number(row[regPctIdx] ?? 0) : 0;
+        const mbPct = mbPctIdx !== -1 ? Number(row[mbPctIdx] ?? 0) : 0;
 
         parsedPayload.push({
           part_id: partObj.id,
@@ -314,7 +333,7 @@ export default function PartRecipes() {
     }
   };
 
-  const filteredParts = parts.filter((p) => {
+  const filteredParts = (parts || []).filter((p) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const matchName = p.part_name && p.part_name.toLowerCase().includes(q);
@@ -417,12 +436,12 @@ export default function PartRecipes() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredParts.map((part) => {
-            const recipe = recipes.find((r) => r.part_id === part.id);
+            const recipe = (recipes || []).find((r) => r.part_id === part.id);
             const hasRecipe = Boolean(recipe);
-            const priMat = materials.find((m) => m.id === recipe?.primary_material_id);
-            const secMat = materials.find((m) => m.id === recipe?.secondary_material_id);
-            const regMat = materials.find((m) => m.id === recipe?.regrind_material_id);
-            const mbMat = materials.find((m) => m.id === recipe?.masterbatch_material_id);
+            const priMat = (materials || []).find((m) => m.id === recipe?.primary_material_id);
+            const secMat = (materials || []).find((m) => m.id === recipe?.secondary_material_id);
+            const regMat = (materials || []).find((m) => m.id === recipe?.regrind_material_id);
+            const mbMat = (materials || []).find((m) => m.id === recipe?.masterbatch_material_id);
 
             return (
               <div
@@ -443,7 +462,7 @@ export default function PartRecipes() {
                       {part.part_name}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      <span style={{ fontFamily: 'monospace', color: 'var(--amber)', fontWeight: 600 }}>{part.part_code}</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--amber)', fontWeight: 600 }}>{part.shrp_part_code || part.part_code}</span>
                       {part.customer_part_no && ' · Cust: ' + part.customer_part_no}
                       {part.customer_name && ' · ' + part.customer_name}
                     </div>
@@ -471,21 +490,20 @@ export default function PartRecipes() {
                 {hasRecipe ? (
                   <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '8px 10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>
-                      <span><strong>COA Grade:</strong> <span style={{ color: 'var(--text)', fontWeight: 600 }}>{getShortMaterialName(priMat) || recipe.primary_material_name || 'Standard Virgin'}</span></span>
-                      <span><strong>Max Regrind:</strong> {recipe.max_allowed_regrind_pct || 15}%</span>
+                      <span><strong>COA Grade:</strong> <span style={{ color: 'var(--text)', fontWeight: 600 }}>{getShortMaterialName(priMat) || recipe?.primary_material_name || 'Standard Virgin'}</span></span>
+                      <span><strong>Max Regrind:</strong> {recipe?.max_allowed_regrind_pct || 15}%</span>
                     </div>
 
-                    {/* Multi-segment Progress Bar */}
                     <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: '#222' }}>
                       <div
                         style={{
-                          width: (recipe.primary_ratio_pct || 0) + '%',
+                          width: (recipe?.primary_ratio_pct || 0) + '%',
                           background: '#3b82f6',
                           height: '100%',
                         }}
-                        title={'Primary: ' + recipe.primary_ratio_pct + '%'}
+                        title={'Primary: ' + recipe?.primary_ratio_pct + '%'}
                       />
-                      {Number(recipe.secondary_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.secondary_ratio_pct || 0) > 0 && (
                         <div
                           style={{
                             width: recipe.secondary_ratio_pct + '%',
@@ -495,7 +513,7 @@ export default function PartRecipes() {
                           title={'Secondary: ' + recipe.secondary_ratio_pct + '%'}
                         />
                       )}
-                      {Number(recipe.regrind_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.regrind_ratio_pct || 0) > 0 && (
                         <div
                           style={{
                             width: recipe.regrind_ratio_pct + '%',
@@ -505,7 +523,7 @@ export default function PartRecipes() {
                           title={'Regrind: ' + recipe.regrind_ratio_pct + '%'}
                         />
                       )}
-                      {Number(recipe.masterbatch_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.masterbatch_ratio_pct || 0) > 0 && (
                         <div
                           style={{
                             width: recipe.masterbatch_ratio_pct + '%',
@@ -517,22 +535,21 @@ export default function PartRecipes() {
                       )}
                     </div>
 
-                    {/* Short Clean Labels */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6, fontSize: 11 }}>
                       <span style={{ color: '#60a5fa' }}>
-                        🛢️ {getShortMaterialName(priMat) || 'Primary'} {recipe.primary_ratio_pct}%
+                        🛢️ {getShortMaterialName(priMat) || 'Primary'} {recipe?.primary_ratio_pct}%
                       </span>
-                      {Number(recipe.secondary_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.secondary_ratio_pct || 0) > 0 && (
                         <span style={{ color: '#67e8f9' }}>
                           🛢️ {getShortMaterialName(secMat) || 'Sec'} {recipe.secondary_ratio_pct}%
                         </span>
                       )}
-                      {Number(recipe.regrind_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.regrind_ratio_pct || 0) > 0 && (
                         <span style={{ color: 'var(--green)' }}>
                           ♻️ {getShortMaterialName(regMat) || 'Regrind'} {recipe.regrind_ratio_pct}%
                         </span>
                       )}
-                      {Number(recipe.masterbatch_ratio_pct || 0) > 0 && (
+                      {Number(recipe?.masterbatch_ratio_pct || 0) > 0 && (
                         <span style={{ color: '#d8b4fe' }}>
                           🎨 {getShortMaterialName(mbMat) || 'MB'} {recipe.masterbatch_ratio_pct}%
                         </span>
@@ -551,7 +568,7 @@ export default function PartRecipes() {
       )}
 
       {/* ============================================================ */}
-      {/* Recipe Modal (Clean Mobile-Friendly, No Horizontal Overflow) */}
+      {/* Recipe Modal (Clean Mobile-Friendly) */}
       {/* ============================================================ */}
       {showModal && selectedPart && (
         <div style={{
@@ -569,7 +586,7 @@ export default function PartRecipes() {
                 <strong style={{ fontSize: 15, color: 'var(--text)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   🧪 Recipe: {selectedPart.part_name}
                 </strong>
-                <div style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'monospace' }}>{selectedPart.part_code}</div>
+                <div style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'monospace' }}>{selectedPart.shrp_part_code || selectedPart.part_code}</div>
               </div>
               <button
                 type="button"
@@ -594,7 +611,7 @@ export default function PartRecipes() {
                     style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
                   >
                     <option value="">-- Select Primary Virgin --</option>
-                    {materials.map((m) => (
+                    {(materials || []).map((m) => (
                       <option key={m.id} value={m.id}>
                         {getShortMaterialName(m)} ({m.material_code})
                       </option>
@@ -651,7 +668,7 @@ export default function PartRecipes() {
                     style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
                   >
                     <option value="">-- None (0%) --</option>
-                    {materials.map((m) => (
+                    {(materials || []).map((m) => (
                       <option key={m.id} value={m.id}>
                         {getShortMaterialName(m)} ({m.material_code})
                       </option>
@@ -701,7 +718,7 @@ export default function PartRecipes() {
                     style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
                   >
                     <option value="">-- No Regrind (0%) --</option>
-                    {materials.map((m) => (
+                    {(materials || []).map((m) => (
                       <option key={m.id} value={m.id}>
                         {getShortMaterialName(m)} ({m.material_code})
                       </option>
@@ -739,7 +756,7 @@ export default function PartRecipes() {
                 </div>
               </div>
 
-              {/* Masterbatch / Colorant */}
+              {/* Masterbatch */}
               <div style={{ background: 'rgba(192,132,252,0.04)', border: '1px solid rgba(192,132,252,0.2)', borderRadius: 8, padding: 10 }}>
                 <label style={{ display: 'block', fontSize: 11, color: '#c084fc', marginBottom: 4, fontWeight: 600 }}>
                   Masterbatch / Color Additive (Optional)
@@ -751,7 +768,7 @@ export default function PartRecipes() {
                     style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
                   >
                     <option value="">-- No Masterbatch (0%) --</option>
-                    {materials.map((m) => (
+                    {(materials || []).map((m) => (
                       <option key={m.id} value={m.id}>
                         {getShortMaterialName(m)} ({m.material_code})
                       </option>
@@ -907,7 +924,7 @@ export default function PartRecipes() {
               </label>
               <textarea
                 rows={7}
-                placeholder="part_code,part_name,primary_material_code,primary_ratio_pct,secondary_material_code,..."
+                placeholder="shrp_part_code,part_name,customer_part_no,primary_material_code,primary_ratio_pct..."
                 value={bulkCsvText}
                 onChange={(e) => setBulkCsvText(e.target.value)}
                 style={{

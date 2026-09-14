@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -133,7 +133,6 @@ router.get('/activity-report', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.warn('Fallback activity report:', err.message);
-    // Fallback: return basic user rows without erroring
     try {
       const { rows: fallbackUsers } = await pool.query(
         `SELECT id AS user_id, username, full_name, role, active AS user_active,
@@ -151,7 +150,7 @@ router.get('/activity-report', async (req, res) => {
 // 4. Create New User
 // ============================================================
 router.post('/', async (req, res) => {
-  const { username, pin, full_name, role, pages, can_override_fifo, can_approve_tolerance } = req.body;
+  const { username, pin, full_name, role, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
   if (!username || !pin || !full_name || !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'username, pin, full_name and a valid role are required' });
   }
@@ -166,10 +165,10 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance, active)
-       VALUES ($1,$2,$3,$4,$5,$6, TRUE)
-       RETURNING id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at`,
-      [username.trim().toLowerCase(), pinHash, full_name.trim(), role, !!can_override_fifo, !!can_approve_tolerance]
+      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance, active, default_language)
+       VALUES ($1,$2,$3,$4,$5,$6, TRUE, $7)
+       RETURNING id, username, full_name, role, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
+      [username.trim().toLowerCase(), pinHash, full_name.trim(), role, !!can_override_fifo, !!can_approve_tolerance, default_language || 'ta']
     );
     const user = rows[0];
     for (const page of pages || []) {
@@ -191,7 +190,7 @@ router.post('/', async (req, res) => {
 // ============================================================
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { full_name, role, active, pin, pages, can_override_fifo, can_approve_tolerance } = req.body;
+  const { full_name, role, active, pin, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
   if (role && !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -214,9 +213,10 @@ router.put('/:id', async (req, res) => {
          active = COALESCE($3, active),
          pin_hash = COALESCE($4, pin_hash),
          can_override_fifo = COALESCE($5, can_override_fifo),
-         can_approve_tolerance = COALESCE($6, can_approve_tolerance)
-       WHERE id = $7 RETURNING id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at`,
-      [full_name || null, role || null, active, pinHash, can_override_fifo != null ? !!can_override_fifo : null, can_approve_tolerance != null ? !!can_approve_tolerance : null, id]
+         can_approve_tolerance = COALESCE($6, can_approve_tolerance),
+         default_language = COALESCE($7, default_language)
+       WHERE id = $8 RETURNING id, username, full_name, role, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
+      [full_name || null, role || null, active, pinHash, can_override_fifo != null ? !!can_override_fifo : null, can_approve_tolerance != null ? !!can_approve_tolerance : null, default_language || null, id]
     );
     if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'User not found' }); }
 
@@ -237,57 +237,64 @@ router.put('/:id', async (req, res) => {
 });
 
 // ============================================================
-// ============================================================
 // 6. Toggle Active Status
 // ============================================================
 router.post('/:id/toggle-active', async (req, res) => {
-  const userId = Number(req.params.id);
-  if (userId === req.user.id) {
-    return res.status(400).json({ error: 'You cannot deactivate your own logged-in admin account' });
-  }
+  const targetParam = req.params.id;
+  const numId = Number(targetParam);
+
   try {
     const { rows } = await pool.query(
       `UPDATE users
        SET active = NOT active,
            updated_at = now()
-       WHERE id = $1 AND deleted_at IS NULL
+       WHERE (id = $1 OR username = $2)
        RETURNING id, username, full_name, active`,
-      [userId]
+      [isNaN(numId) ? -1 : numId, targetParam]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json({ ok: true, user: rows[0], message: `User "${rows[0].full_name}" is now ${rows[0].active ? 'Active' : 'Inactive'}.` });
+    res.json({ ok: true, user: rows[0], active: rows[0].active, message: `User "${rows[0].full_name}" is now ${rows[0].active ? 'Active' : 'Inactive'}.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // ============================================================
-// 7. Delete Inactive User (Guaranteed Safe Delete / Purge)
+// 7. Delete User (Guaranteed Safe Delete / Purge for any account)
 // ============================================================
 router.delete('/:id', async (req, res) => {
-  const userId = Number(req.params.id);
-
-  if (userId === req.user.id) {
-    return res.status(400).json({ error: 'You cannot delete your own logged-in admin account' });
-  }
+  const targetParam = req.params.id;
+  const numId = Number(targetParam);
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // 1. Fetch user info
-    const { rows: userRows } = await client.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+    // 1. Fetch user info by id OR username
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1 OR username = $2`,
+      [isNaN(numId) ? -1 : numId, targetParam]
+    );
     if (userRows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
     const targetUser = userRows[0];
 
+    // Prevent deleting your own logged-in admin account
+    if (targetUser.id === req.user.id || targetUser.username === req.user.username) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You cannot delete your own logged-in admin account. Please log in with a different admin account to delete this user.' });
+    }
+
+    const userId = targetUser.id;
+
     // Ensure foreign key columns allow nulls for safe purging
     try {
       await client.query(`
         ALTER TABLE production_entries ALTER COLUMN operator_user_id DROP NOT NULL;
         ALTER TABLE machine_assignments ALTER COLUMN set_by_user_id DROP NOT NULL;
+        ALTER TABLE machine_assignments ALTER COLUMN approved_by_user_id DROP NOT NULL;
         ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
         ALTER TABLE trim_entries ALTER COLUMN operator_user_id DROP NOT NULL;
         ALTER TABLE inspection_entries ALTER COLUMN inspector_user_id DROP NOT NULL;
@@ -297,7 +304,7 @@ router.delete('/:id', async (req, res) => {
       // Ignore if columns already nullable
     }
 
-    // Safely unlink transaction logs so IATF audit trail is preserved without blocking deletion
+    // Safely unlink transaction logs so IATF audit trail is preserved
     await client.query(`UPDATE production_entries SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
     await client.query(`UPDATE machine_assignments SET set_by_user_id = NULL WHERE set_by_user_id = $1`, [userId]);
     await client.query(`UPDATE machine_assignments SET approved_by_user_id = NULL WHERE approved_by_user_id = $1`, [userId]);
@@ -306,8 +313,6 @@ router.delete('/:id', async (req, res) => {
     await client.query(`UPDATE inspection_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1`, [userId]);
     await client.query(`UPDATE packing_entries SET packer_user_id = NULL WHERE packer_user_id = $1`, [userId]);
     await client.query(`UPDATE machine_sessions SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
-    await client.query(`UPDATE rm_inward_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1`, [userId]);
-    await client.query(`UPDATE rm_inward_entries SET approved_by_user_id = NULL WHERE approved_by_user_id = $1`, [userId]);
 
     // Delete user-specific configurations and records
     await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);

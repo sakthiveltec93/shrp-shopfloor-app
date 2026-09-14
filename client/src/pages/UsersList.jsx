@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../AuthContext';
 
 export default function UsersList() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [activityReport, setActivityReport] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,8 +72,7 @@ export default function UsersList() {
     setError('');
     try {
       const res = await api.deleteUser(userToDelete.id);
-      // Immediately remove from local list for instant feedback
-      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id && u.username !== userToDelete.username));
       setUserToDelete(null);
       setSuccessMsg(res.message || `User "${userToDelete.full_name}" deleted.`);
       setTimeout(() => setSuccessMsg(''), 5000);
@@ -102,7 +103,6 @@ export default function UsersList() {
     return new Date(isoString).toLocaleDateString();
   };
 
-  // Status counts: Green (Online Active), Yellow (Online Idle), Red (Offline)
   const onlineActiveCount = users.filter((u) => u.live_status === 'ONLINE_ACTIVE').length;
   const onlineIdleCount = users.filter((u) => u.live_status === 'ONLINE_IDLE').length;
   const offlineCount = users.filter((u) => u.live_status === 'OFFLINE' || !u.live_status).length;
@@ -149,9 +149,8 @@ export default function UsersList() {
         </div>
       )}
 
-      {/* 3 Color KPI Counters (Green: Online, Yellow: Idle, Red: Offline) */}
+      {/* 3 Color KPI Counters */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-        {/* Green: Online Active */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'ONLINE_ACTIVE' ? 'ALL' : 'ONLINE_ACTIVE')}
           style={{
@@ -167,12 +166,9 @@ export default function UsersList() {
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
             Online
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981', marginTop: 2 }}>
-            {onlineActiveCount}
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981', marginTop: 2 }}>{onlineActiveCount}</div>
         </div>
 
-        {/* Yellow: Online Idle */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'ONLINE_IDLE' ? 'ALL' : 'ONLINE_IDLE')}
           style={{
@@ -188,12 +184,9 @@ export default function UsersList() {
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
             Idle
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b', marginTop: 2 }}>
-            {onlineIdleCount}
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b', marginTop: 2 }}>{onlineIdleCount}</div>
         </div>
 
-        {/* Red: Offline */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'OFFLINE' ? 'ALL' : 'OFFLINE')}
           style={{
@@ -209,13 +202,11 @@ export default function UsersList() {
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
             Offline
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f43f5e', marginTop: 2 }}>
-            {offlineCount}
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#f43f5e', marginTop: 2 }}>{offlineCount}</div>
         </div>
       </div>
 
-      {/* Clean Dropdowns Filter Bar */}
+      {/* Filter Bar */}
       <div
         style={{
           background: 'var(--panel)',
@@ -229,7 +220,6 @@ export default function UsersList() {
           alignItems: 'center',
         }}
       >
-        {/* Status Dropdown */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -252,7 +242,6 @@ export default function UsersList() {
           <option value="INACTIVE">⚪ Deactivated Accounts</option>
         </select>
 
-        {/* Role Dropdown */}
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
@@ -273,7 +262,6 @@ export default function UsersList() {
           <option value="admin">Admins</option>
         </select>
 
-        {/* Search */}
         <div style={{ width: '100%', position: 'relative' }}>
           <input
             type="text"
@@ -289,6 +277,7 @@ export default function UsersList() {
               color: 'var(--text)',
               borderRadius: 6,
               outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
           {search && (
@@ -312,7 +301,7 @@ export default function UsersList() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
         <button
           onClick={() => setActiveTab('accounts')}
@@ -349,7 +338,6 @@ export default function UsersList() {
       </div>
 
       {activeTab === 'accounts' ? (
-        /* Staff Cards List */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>Loading staff...</div>
@@ -359,21 +347,22 @@ export default function UsersList() {
             </div>
           ) : (
             filteredUsers.map((u) => {
-              let statusDot = '#f43f5e'; // red
+              let statusDot = '#f43f5e';
               let statusLabel = 'Offline';
               if (u.live_status === 'ONLINE_ACTIVE') {
-                statusDot = '#10b981'; // green
+                statusDot = '#10b981';
                 statusLabel = 'Online';
               } else if (u.live_status === 'ONLINE_IDLE') {
-                statusDot = '#f59e0b'; // yellow
+                statusDot = '#f59e0b';
                 statusLabel = 'Idle';
               }
 
               const isUserActive = u.active === 1 || u.active === true || u.active === undefined;
+              const isCurrentUser = currentUser && (u.id === currentUser.id || u.username === currentUser.username);
 
               return (
                 <div
-                  key={u.id}
+                  key={u.id || u.username}
                   style={{
                     background: 'var(--panel)',
                     border: `1px solid ${isUserActive ? 'var(--line)' : 'rgba(244,63,94,0.3)'}`,
@@ -386,7 +375,6 @@ export default function UsersList() {
                     opacity: isUserActive ? 1 : 0.75,
                   }}
                 >
-                  {/* Left: Avatar / Status dot & Name */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                     <div style={{ position: 'relative', flexShrink: 0 }}>
                       <div
@@ -411,7 +399,6 @@ export default function UsersList() {
                           u.full_name?.charAt(0).toUpperCase() || 'U'
                         )}
                       </div>
-                      {/* Status indicator dot */}
                       <span
                         style={{
                           position: 'absolute',
@@ -424,7 +411,7 @@ export default function UsersList() {
                           border: '2px solid var(--panel)',
                         }}
                         title={statusLabel}
-                      ></span>
+                      />
                     </div>
 
                     <div style={{ minWidth: 0, flex: 1 }}>
@@ -432,6 +419,11 @@ export default function UsersList() {
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {u.full_name}
                         </span>
+                        {isCurrentUser && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: 'var(--amber)' }}>
+                            YOU
+                          </span>
+                        )}
                         <span
                           style={{
                             fontSize: 10,
@@ -467,7 +459,6 @@ export default function UsersList() {
                     </div>
                   </div>
 
-                  {/* Middle: Today App Time */}
                   <div style={{ textAlign: 'right', flexShrink: 0, padding: '0 4px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                       {formatMinutes(u.today_active_minutes)}
@@ -477,12 +468,12 @@ export default function UsersList() {
                     </div>
                   </div>
 
-                  {/* Right (Same Line): Active Toggle, Edit ✏️ & Delete 🗑️ Icons */}
+                  {/* Actions */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                    {/* Active/Inactive Toggle Pill Button */}
+                    {/* Active/Inactive Toggle */}
                     <button
                       type="button"
-                      disabled={togglingId === u.id}
+                      disabled={togglingId === u.id || isCurrentUser}
                       onClick={() => handleToggleActive(u)}
                       style={{
                         padding: '4px 7px',
@@ -492,18 +483,19 @@ export default function UsersList() {
                         border: isUserActive ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(156,163,175,0.4)',
                         background: isUserActive ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)',
                         color: isUserActive ? '#10b981' : 'var(--text-muted)',
-                        cursor: 'pointer',
+                        cursor: isCurrentUser ? 'not-allowed' : 'pointer',
+                        opacity: isCurrentUser ? 0.6 : 1,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 3,
                       }}
-                      title={isUserActive ? 'Click to Deactivate account' : 'Click to Activate account'}
+                      title={isCurrentUser ? 'Your logged-in session' : isUserActive ? 'Click to Deactivate account' : 'Click to Activate account'}
                     >
                       <span>{isUserActive ? '🟢' : '⚪'}</span>
                       <span className="hide-mobile-micro">{isUserActive ? 'Active' : 'Inactive'}</span>
                     </button>
 
-                    {/* Edit Icon Button */}
+                    {/* Edit */}
                     <Link
                       to={`/users/${u.id}/edit`}
                       style={{
@@ -524,27 +516,45 @@ export default function UsersList() {
                       ✏️
                     </Link>
 
-                    {/* Delete Icon Button */}
-                    <button
-                      type="button"
-                      onClick={() => setUserToDelete(u)}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        background: isUserActive ? 'rgba(255,255,255,0.04)' : 'rgba(244, 63, 94, 0.15)',
-                        border: isUserActive ? '1px solid var(--line)' : '1px solid rgba(244, 63, 94, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        color: '#f43f5e',
-                      }}
-                      title={isUserActive ? 'Deactivate or Delete' : 'Permanently Delete User'}
-                    >
-                      🗑️
-                    </button>
+                    {/* Delete */}
+                    {!isCurrentUser ? (
+                      <button
+                        type="button"
+                        onClick={() => setUserToDelete(u)}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          background: isUserActive ? 'rgba(255,255,255,0.04)' : 'rgba(244, 63, 94, 0.15)',
+                          border: isUserActive ? '1px solid var(--line)' : '1px solid rgba(244, 63, 94, 0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          color: '#f43f5e',
+                        }}
+                        title={isUserActive ? 'Deactivate or Delete' : 'Permanently Delete User'}
+                      >
+                        🗑️
+                      </button>
+                    ) : (
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 11,
+                          color: 'var(--text-muted)',
+                        }}
+                        title="Cannot delete your current logged-in session"
+                      >
+                        🔒
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -552,7 +562,6 @@ export default function UsersList() {
           )}
         </div>
       ) : (
-        /* Daily Activity Report */
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <input
@@ -614,7 +623,7 @@ export default function UsersList() {
         </div>
       )}
 
-      {/* Delete User Modal (Handles both Active & Inactive) */}
+      {/* Delete User Modal */}
       {userToDelete && (
         <div
           style={{
@@ -641,7 +650,7 @@ export default function UsersList() {
             }}
           >
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>🗑️</span> {userToDelete.active ? 'User Account Action' : 'Delete Inactive Account'}
+              <span>🗑️</span> {userToDelete.active ? 'User Account Action' : 'Delete Account'}
             </div>
 
             {userToDelete.active ? (
@@ -650,7 +659,7 @@ export default function UsersList() {
                   <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>) is currently <span style={{ color: '#10b981', fontWeight: 700 }}>🟢 ACTIVE</span>.
                 </div>
                 <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: 'var(--text)', marginBottom: 14 }}>
-                  ⚠️ <strong>Recommendation:</strong> Change active user to <strong>Inactive</strong> first before permanent deletion to safeguard live sessions.
+                  ⚠️ <strong>Recommendation:</strong> Change active user to <strong>Inactive</strong> first, or purge directly below.
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button
@@ -686,7 +695,7 @@ export default function UsersList() {
                       cursor: 'pointer',
                     }}
                   >
-                    Change to Inactive ⚪
+                    Set Inactive ⚪
                   </button>
                   <button
                     type="button"
@@ -710,10 +719,10 @@ export default function UsersList() {
             ) : (
               <div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
-                  Are you sure you want to permanently delete inactive user <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>)?
+                  Are you sure you want to permanently delete user <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>)?
                   <div style={{ marginTop: 8, fontSize: 11, color: '#10b981' }}>
-                    • Inactive account records unlinked cleanly.<br/>
-                    • Username <code>@{userToDelete.username}</code> immediately freed up for new registration.
+                    • Historical production records preserved with unlinked audit.<br/>
+                    • Username <code>@{userToDelete.username}</code> immediately freed for reuse.
                   </div>
                 </div>
 

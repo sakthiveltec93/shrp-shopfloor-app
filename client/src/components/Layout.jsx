@@ -25,11 +25,22 @@ export default function Layout({ children }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(api.offlineQueue ? api.offlineQueue.getPendingCount() : 0);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Sync language with user's saved default language if present
+  useEffect(() => {
+    if (user?.default_language && LANGUAGES.some((l) => l.code === user.default_language)) {
+      const saved = localStorage.getItem('shrp_lang');
+      if (!saved) {
+        setLang(user.default_language);
+      }
+    }
+  }, [user]);
+
   const visibleNavItems = user
     ? NAV_ITEMS.filter((item) => !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key)))
     : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
   const hasReportsAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('reports')));
+  const isAdmin = user && user.role === 'admin';
 
   useEffect(() => {
     function handleOnline() {
@@ -65,8 +76,8 @@ export default function Layout({ children }) {
     };
   }, []);
 
-  async function handleManualSync() {
-    if (!api.syncOffline) return;
+  const handleManualSync = async () => {
+    if (!api.syncOffline || isSyncing) return;
     setIsSyncing(true);
     try {
       await api.syncOffline();
@@ -74,91 +85,97 @@ export default function Layout({ children }) {
       setIsSyncing(false);
       setPendingSyncCount(api.offlineQueue ? api.offlineQueue.getPendingCount() : 0);
     }
-  }
+  };
 
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    function load() {
-      api.notifications.list().then((data) => {
-        if (cancelled) return;
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
-      }).catch(() => {});
-    }
-    load();
-    const interval = setInterval(load, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
+    const fetchNotifs = () => {
+      api.notifications?.unread?.()
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setNotifications(data);
+            setUnreadCount(data.length);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    function fetchAttendance() {
-      api.attendance.today().then((rec) => {
-        if (!cancelled) setTodayAttendance(rec);
-      }).catch(() => {});
-    }
-    fetchAttendance();
-    const interval = setInterval(fetchAttendance, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
+    const fetchTodayStatus = () => {
+      api.todayAttendanceStatus?.()
+        .then((data) => setTodayAttendance(data))
+        .catch(() => {});
+    };
+    fetchTodayStatus();
+    const interval = setInterval(fetchTodayStatus, 60000);
+    return () => clearInterval(interval);
   }, [user]);
-
-  async function openNotification(n) {
-    if (!n.read_at) {
-      await api.notifications.markRead(n.id).catch(() => {});
-      setUnreadCount((c) => Math.max(0, c - 1));
-      setNotifications((list) => list.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-    }
-    setShowNotifications(false);
-    if (n.link) navigate(n.link);
-  }
-
-  async function markAllRead() {
-    await api.notifications.markAllRead().catch(() => {});
-    setUnreadCount(0);
-    setNotifications((list) => list.map((x) => ({ ...x, read_at: x.read_at || new Date().toISOString() })));
-  }
 
   return (
-    <div className="app-shell">
+    <div className="app-layout">
       <header className="app-header">
-        <div className="app-header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img
-            src="/logo.png"
-            alt="SHRP"
-            style={{ height: 32, width: 'auto', objectFit: 'contain', background: '#ffffff', padding: '2px 4px', borderRadius: 4 }}
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-          <div>
-            <div className="app-header-title">SHRP MES</div>
-            <div className="app-header-sub">{user ? `${user.full_name} · ${user.role}` : ''}</div>
+        <NavLink to="/" className="app-brand">
+          <div className="brand-logo-wrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 20 }}>🏭</span>
+            <span className="brand-badge">SHRP MES</span>
           </div>
-        </div>
+          {user && (
+            <div className="brand-user-meta" style={{ minWidth: 0 }}>
+              <span className="brand-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.full_name || user.username}
+              </span>
+              <span className="brand-role" style={{ fontSize: 10, textTransform: 'uppercase' }}>
+                {user.role}
+              </span>
+            </div>
+          )}
+        </NavLink>
+
         {user && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
-            {/* 1. Interactive Check-In / In-Time Status Button */}
+          <div className="app-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* 1. Quick Language Switcher Bar in Header */}
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '2px', border: '1px solid var(--line)' }}>
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setLang(l.code)}
+                  style={{
+                    padding: '3px 6px',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: 4,
+                    border: 'none',
+                    background: lang === l.code ? 'var(--amber)' : 'transparent',
+                    color: lang === l.code ? '#1c1500' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                  title={l.name}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 2. Attendance Status Pill */}
             {hasAttendanceAccess && (
               <button
                 type="button"
-                className={`attendance-badge-btn ${!todayAttendance?.check_in_at ? 'not-checked-in pulse-red' : todayAttendance?.check_out_at ? 'checked-out' : 'checked-in'}`}
+                className="attendance-quick-pill"
                 onClick={() => navigate('/attendance')}
-                title={
-                  !todayAttendance?.check_in_at
-                    ? 'You have not checked in today. Tap to Check In!'
-                    : todayAttendance?.check_out_at
-                    ? `Shift completed (Checked Out: ${new Date(todayAttendance.check_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
-                    : `Checked in at ${new Date(todayAttendance.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Tap to view or Check Out.`
-                }
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
-                  padding: '5px 10px',
+                  gap: 4,
+                  padding: '4px 8px',
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 700,
-                  letterSpacing: '0.02em',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   background: !todayAttendance?.check_in_at
@@ -178,301 +195,162 @@ export default function Layout({ children }) {
                     : '#34d399',
                 }}
               >
-                <span>
-                  {!todayAttendance?.check_in_at ? '🔴' : todayAttendance?.check_out_at ? '⚪' : '🟢'}
-                </span>
-                <span>
-                  {!todayAttendance?.check_in_at
-                    ? 'CHECK IN'
-                    : todayAttendance?.check_out_at
-                    ? 'OUT'
-                    : `IN: ${new Date(todayAttendance.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                <span>{!todayAttendance?.check_in_at ? '🔴' : todayAttendance?.check_out_at ? '⚪' : '🟢'}</span>
+                <span className="hide-mobile-micro">
+                  {!todayAttendance?.check_in_at ? 'IN' : todayAttendance?.check_out_at ? 'OUT' : 'ACTIVE'}
                 </span>
               </button>
             )}
 
-            {/* 2. Notification Bell Button */}
-            <button
-              className="logout-btn"
-              style={{
-                position: 'relative',
-                padding: '6px 9px',
-                fontSize: 14,
-                borderRadius: 6,
-                background: showNotifications ? 'var(--line)' : 'transparent',
-              }}
-              onClick={() => {
-                setShowNotifications((v) => !v);
-                setShowSettings(false);
-              }}
-              aria-label={t('layout.notifications')}
-              title="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: -4, right: -4, background: 'var(--amber, #d97706)',
-                  color: '#000', borderRadius: 999, fontSize: 10, fontWeight: 700,
-                  minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 3px',
-                }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-
             {/* 3. Dedicated User Profile & HR Button */}
-            <button
-              className="logout-btn"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 6px',
-                borderRadius: 8,
-                background: showSettings ? 'var(--line)' : 'rgba(255,255,255,0.06)',
-                border: '1px solid var(--line)',
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                setShowSettings((v) => !v);
-                setShowNotifications(false);
-              }}
-              aria-label="Profile, Staff and Settings"
-              title="Profile, Staff & Settings"
-            >
-              <div style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--amber), #b45309)',
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: 12,
-                overflow: 'hidden',
-              }}>
-                {user.avatar_data ? (
-                  <img src={user.avatar_data} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  user.full_name ? user.full_name[0].toUpperCase() : 'U'
-                )}
-              </div>
-              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
-            </button>
-
-            {/* Click-outside Backdrop */}
-            {(showNotifications || showSettings) && (
-              <div
-                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 45 }}
-                onClick={() => { setShowNotifications(false); setShowSettings(false); }}
-              />
-            )}
-
-            {/* Notifications Popover Dropdown */}
-            {showNotifications && (
-              <div style={{
-                position: 'absolute', top: '120%', right: 0, width: 300, maxHeight: 360, overflowY: 'auto',
-                background: 'var(--bg-panel, #111)', border: '1px solid var(--border, #333)', borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 55,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--border, #333)' }}>
-                  <strong style={{ fontSize: 13 }}>{t('layout.notifications')}</strong>
-                  {unreadCount > 0 && (
-                    <button type="button" onClick={markAllRead} style={{ background: 'none', border: 'none', color: 'var(--text-secondary, #999)', fontSize: 11, cursor: 'pointer' }}>
-                      {t('layout.markAllRead')}
-                    </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="logout-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 6px',
+                  borderRadius: 8,
+                  background: showSettings ? 'var(--line)' : 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--line)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowSettings((v) => !v)}
+                title="Profile, Staff & Settings"
+              >
+                <div style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--amber), #b45309)',
+                  color: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  overflow: 'hidden',
+                }}>
+                  {user.avatar_data ? (
+                    <img src={user.avatar_data} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    user.full_name?.charAt(0).toUpperCase() || 'U'
                   )}
                 </div>
-                {notifications.length === 0 && (
-                  <div style={{ padding: 16, fontSize: 12, color: 'var(--text-secondary, #999)' }}>{t('layout.noNotifications')}</div>
-                )}
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => openNotification(n)}
-                    style={{
-                      padding: '10px 12px', borderBottom: '1px solid var(--border, #222)', cursor: 'pointer',
-                      background: n.read_at ? 'transparent' : 'rgba(217,119,6,0.08)',
-                    }}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: n.read_at ? 400 : 600 }}>{n.title}</div>
-                    {n.body && <div style={{ fontSize: 12, color: 'var(--text-secondary, #999)', marginTop: 2 }}>{n.body}</div>}
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary, #777)', marginTop: 4 }}>
-                      {new Date(n.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>▼</span>
+              </button>
 
-            {/* Settings & Profile Popover Dropdown */}
-            {showSettings && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '120%',
-                  right: 0,
-                  width: 270,
-                  background: 'var(--panel)',
-                  border: '1px solid var(--line)',
-                  borderRadius: 10,
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
-                  zIndex: 55,
-                  padding: 14,
-                }}
-              >
-                {/* User Info Header */}
+              {/* Profile & HR Dropdown Menu (Fully Translated) */}
+              {showSettings && (
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid var(--line)', marginBottom: 12, cursor: 'pointer' }}
-                  onClick={() => { setShowSettings(false); navigate('/profile'); }}
-                  title="View My Profile"
-                >
-                  <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--amber), #b45309)',
-                    color: '#000',
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    width: 240,
+                    background: 'var(--panel)',
+                    border: '1px solid var(--line)',
+                    borderRadius: 10,
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7)',
+                    padding: 10,
+                    zIndex: 100,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                    overflow: 'hidden',
-                  }}>
-                    {user.avatar_data ? (
-                      <img src={user.avatar_data} alt={user.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      user.full_name ? user.full_name[0].toUpperCase() : 'U'
-                    )}
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{user.full_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{user.username} · {user.role}</div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span>{user.full_name}</span>
-                      <span style={{ fontSize: 11, color: 'var(--amber)' }}>✏️</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {user.role} • Profile
-                    </div>
-                  </div>
-                </div>
 
-                {/* Language Switcher */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Language / மொழி / ଭାଷା
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {LANGUAGES.map((l) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                      onClick={() => { setShowSettings(false); navigate('/profile'); }}
+                    >
+                      <span>👤</span>
+                      <span style={{ fontWeight: 600, color: 'var(--amber)' }}>{t('layout.menu.profile')}</span>
+                    </button>
+                    {isAdmin && (
                       <button
-                        key={l.code}
                         type="button"
                         className="btn btn-secondary"
-                        style={{
-                          flex: 1,
-                          padding: '5px 0',
-                          fontSize: 11,
-                          fontWeight: lang === l.code ? 700 : 400,
-                          borderColor: lang === l.code ? 'var(--amber)' : 'var(--line)',
-                          background: lang === l.code ? 'rgba(217,119,6,0.18)' : 'rgba(255,255,255,0.03)',
-                          color: lang === l.code ? 'var(--amber)' : 'var(--text)',
-                        }}
-                        onClick={() => setLang(l.code)}
+                        style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                        onClick={() => { setShowSettings(false); navigate('/users'); }}
                       >
-                        {l.label}
+                        <span>👥</span>
+                        <span>{t('layout.menu.staff')}</span>
                       </button>
-                    ))}
+                    )}
+                    {hasReportsAccess && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                        onClick={() => { setShowSettings(false); navigate('/reports'); }}
+                      >
+                        <span>📊</span>
+                        <span>{t('layout.menu.reports')}</span>
+                      </button>
+                    )}
+                    {hasAttendanceAccess && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                        onClick={() => { setShowSettings(false); navigate('/attendance'); }}
+                      >
+                        <span>🕒</span>
+                        <span>{t('layout.menu.attendance')}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                      onClick={() => { setShowSettings(false); navigate('/change-pin'); }}
+                    >
+                      <span>🔑</span>
+                      <span>{t('layout.changePin')}</span>
+                    </button>
+                  </div>
+
+                  {/* Sign Out Button */}
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        padding: '7px 10px',
+                        fontSize: 12,
+                        color: 'var(--red)',
+                        borderColor: 'rgba(239,68,68,0.3)',
+                        background: 'rgba(239,68,68,0.06)',
+                      }}
+                      onClick={() => {
+                        setShowSettings(false);
+                        logout();
+                        navigate('/login');
+                      }}
+                    >
+                      <span>🚪</span>
+                      <span>{t('layout.signOut')}</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Navigation Shortcuts */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12, borderColor: 'rgba(217,119,6,0.4)', background: 'rgba(217,119,6,0.08)' }}
-                    onClick={() => { setShowSettings(false); navigate('/profile'); }}
-                  >
-                    <span>👤</span>
-                    <span style={{ fontWeight: 600, color: 'var(--amber)' }}>My Profile & HR Portal</span>
-                  </button>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
-                      onClick={() => { setShowSettings(false); navigate('/users'); }}
-                    >
-                      <span>👥</span>
-                      <span>Staff & Logins Management</span>
-                    </button>
-                  )}
-                  {hasReportsAccess && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
-                      onClick={() => { setShowSettings(false); navigate('/reports'); }}
-                    >
-                      <span>📊</span>
-                      <span>Daily Reports</span>
-                    </button>
-                  )}
-                  {hasAttendanceAccess && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
-                      onClick={() => { setShowSettings(false); navigate('/attendance'); }}
-                    >
-                      <span>🕒</span>
-                      <span>Attendance & Geofence</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
-                    onClick={() => { setShowSettings(false); navigate('/change-pin'); }}
-                  >
-                    <span>🔑</span>
-                    <span>{t('layout.changePin')}</span>
-                  </button>
-                </div>
-
-                {/* Sign Out Button */}
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{
-                      width: '100%',
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      padding: '7px 10px',
-                      fontSize: 12,
-                      color: 'var(--red)',
-                      borderColor: 'rgba(239,68,68,0.3)',
-                      background: 'rgba(239,68,68,0.06)',
-                    }}
-                    onClick={() => {
-                      setShowSettings(false);
-                      logout();
-                      navigate('/login');
-                    }}
-                  >
-                    <span>🚪</span>
-                    <span>{t('layout.signOut')}</span>
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </header>
