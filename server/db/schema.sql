@@ -543,6 +543,18 @@ ALTER TABLE machines ADD COLUMN IF NOT EXISTS year_of_commission INTEGER DEFAULT
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS screw_diameter_mm NUMERIC DEFAULT 35;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS clamping_force_kn NUMERIC DEFAULT 1000;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS pm_due_date DATE DEFAULT (CURRENT_DATE + INTERVAL '30 days');
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS tie_bar_distance_mm TEXT DEFAULT '410 x 410';
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS platen_size_mm TEXT DEFAULT '600 x 600';
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS min_mould_height_mm NUMERIC DEFAULT 150;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS max_mould_height_mm NUMERIC DEFAULT 450;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS clamping_stroke_mm NUMERIC DEFAULT 350;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS max_daylight_mm NUMERIC DEFAULT 800;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS ejector_stroke_mm NUMERIC DEFAULT 100;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS ejector_force_kn NUMERIC DEFAULT 35;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS max_shot_weight_g NUMERIC DEFAULT 180;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS motor_type TEXT DEFAULT 'Servo Hydraulic';
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS connected_load_kw NUMERIC DEFAULT 22;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS hourly_rate_inr NUMERIC DEFAULT 450;
 
 CREATE TABLE IF NOT EXISTS moulds (
   id SERIAL PRIMARY KEY,
@@ -600,5 +612,25 @@ CREATE TABLE IF NOT EXISTS machine_breakdown_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_machine_bd_machine ON machine_breakdown_logs(machine_id, incident_date DESC);
+
+-- Tooling Extensions (IATF 16949 Tool Management)
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS tool_maker TEXT;
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS funded_by TEXT;
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS tool_type TEXT DEFAULT 'Cold Runner';
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS suitable_machines TEXT;
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS total_rated_life_shots INTEGER DEFAULT 500000;
+
+CREATE TABLE IF NOT EXISTS mould_files (
+  id SERIAL PRIMARY KEY,
+  mould_id INTEGER NOT NULL REFERENCES moulds(id) ON DELETE CASCADE,
+  file_type TEXT NOT NULL CHECK (file_type IN ('drawing_3d', 'drawing_2d', 'photo_top', 'photo_op_side', 'photo_non_op_side', 'photo_parting_line', 'photo_shot', 'photo_general')),
+  filename TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  uploaded_by_user_id INTEGER REFERENCES users(id),
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mould_files_mould ON mould_files(mould_id, file_type);
 
 

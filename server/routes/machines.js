@@ -293,4 +293,53 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   res.json(rows[0]);
 });
 
+// 5. Create New Machine
+router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
+  const {
+    machine_code,
+    description,
+    tonnage = 100,
+    make_model = 'Injection Moulding Machine',
+    year_of_commission = 2020,
+    screw_diameter_mm = 35,
+    clamping_force_kn = 1000,
+    pm_due_date,
+  } = req.body;
+
+  if (!machine_code) {
+    return res.status(400).json({ error: 'Machine code is required' });
+  }
+
+  try {
+    const { rows } = await pool.query(`
+      INSERT INTO machines
+        (machine_code, description, tonnage, make_model, year_of_commission, screw_diameter_mm, clamping_force_kn, pm_due_date, active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE + INTERVAL '30 days'), TRUE)
+      RETURNING *
+    `, [
+      machine_code.trim().toUpperCase(),
+      description || '',
+      Number(tonnage) || 100,
+      make_model || '',
+      Number(year_of_commission) || 2020,
+      Number(screw_diameter_mm) || 35,
+      Number(clamping_force_kn) || 1000,
+      pm_due_date || null,
+    ]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: `Machine code '${machine_code}' already exists` });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. Deactivate Machine
+router.delete('/:id', requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  await pool.query('UPDATE machines SET active = FALSE WHERE id = $1', [id]);
+  res.status(204).send();
+});
+
 module.exports = router;

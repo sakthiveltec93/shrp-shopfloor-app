@@ -56,11 +56,18 @@ router.get('/parts/:id/detail', async (req, res) => {
   );
   if (!partRes.rows[0]) return res.status(404).json({ error: 'Part not found' });
 
-  const [params, dims, machines, files] = await Promise.all([
+  const [params, dims, machines, files, moulds] = await Promise.all([
     pool.query('SELECT * FROM part_process_parameters WHERE part_id = $1 ORDER BY sort_order, id', [id]),
     pool.query('SELECT * FROM part_critical_dimensions WHERE part_id = $1 ORDER BY sort_order, id', [id]),
     pool.query('SELECT machine_id FROM part_machines WHERE part_id = $1', [id]),
     pool.query('SELECT id, file_type, filename, mime_type, uploaded_at FROM part_files WHERE part_id = $1 ORDER BY uploaded_at DESC', [id]),
+    pool.query(`
+      SELECT m.id AS mould_id, m.mould_code, m.mould_name, m.total_cavities, mp.cavities_for_part,
+             m.storage_location, m.tool_type, m.tool_maker, m.suitable_machines, m.funded_by
+      FROM mould_parts mp
+      JOIN moulds m ON m.id = mp.mould_id
+      WHERE mp.part_id = $1
+    `, [id]),
   ]);
 
   res.json({
@@ -69,6 +76,7 @@ router.get('/parts/:id/detail', async (req, res) => {
     critical_dimensions: dims.rows,
     suitable_machine_ids: machines.rows.map((r) => r.machine_id),
     files: files.rows,
+    linked_moulds: moulds.rows,
   });
 });
 
@@ -93,6 +101,12 @@ router.post('/parts', requireRole('admin', 'supervisor'), async (req, res) => {
       customer_id || null, notes || null, batch_part_code || null, part_weight_g || null,
       shrp_part_code || null, customer_part_no || part_code, tolerance_pct != null ? Number(tolerance_pct) : 2]
   );
+  if (req.body.mould_id) {
+    await pool.query(
+      `INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) VALUES ($1, $2, $3) ON CONFLICT (mould_id, part_id) DO UPDATE SET cavities_for_part = EXCLUDED.cavities_for_part`,
+      [req.body.mould_id, rows[0].id, Number(cavity_count) || 1]
+    );
+  }
   res.status(201).json(rows[0]);
 });
 
@@ -242,6 +256,27 @@ router.delete('/parts/:partId/files/:fileId', requireRole('admin', 'supervisor')
   const { fileId } = req.params;
   await pool.query('DELETE FROM part_files WHERE id = $1', [fileId]);
   res.status(204).send();
+});
+
+// Link or unlink mould for a part
+router.put('/parts/:id/mould', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const { mould_id, cavities_for_part } = req.body;
+
+  if (!mould_id) {
+    await pool.query('DELETE FROM mould_parts WHERE part_id = $1', [id]);
+    return res.json({ ok: true, linked_mould: null });
+  }
+
+  // Remove existing links if only 1 primary mould, or update
+  await pool.query('DELETE FROM mould_parts WHERE part_id = $1', [id]);
+  const { rows } = await pool.query(`
+    INSERT INTO mould_parts (mould_id, part_id, cavities_for_part)
+    VALUES ($1, $2, $3)
+    RETURNING *
+  `, [mould_id, id, Number(cavities_for_part) || 1]);
+
+  res.json({ ok: true, link: rows[0] });
 });
 
 module.exports = router;
