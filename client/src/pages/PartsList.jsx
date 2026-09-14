@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
 import DeletionModal from '../components/DeletionModal';
 
@@ -53,8 +53,19 @@ export default function PartsList() {
 
       {filtered.map((p) => (
         <div key={p.id} className="panel" style={{ marginBottom: 10, position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-            <Link to={`/parts/${p.id}/edit`} style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 240 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <Link to={`/parts/${p.id}/edit`} style={{ textDecoration: 'none', color: 'inherit', flex: 1, minWidth: 240, display: 'flex', alignItems: 'center', gap: 12 }}>
+              {p.photo_file_id ? (
+                <img
+                  src={`/api/masters/parts/${p.id}/files/${p.photo_file_id}?token=${getToken()}`}
+                  alt={p.part_name}
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', background: '#111', flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px dashed var(--line)', background: 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Click to edit and attach photo">
+                  <span style={{ fontSize: 16 }}>📷</span>
+                </div>
+              )}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                   <span className="shrp-code-pill">{p.shrp_part_code || p.part_code}</span>

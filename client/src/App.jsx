@@ -22,6 +22,8 @@ import UserForm from './pages/UserForm'
 import PinChange from './pages/PinChange'
 import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
+import MachinesDashboard from './pages/MachinesDashboard'
+import MouldsDashboard from './pages/MouldsDashboard'
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute page="reports"><Reports /></ProtectedRoute>} />
+        <Route path="/machines" element={<ProtectedRoute><MachinesDashboard /></ProtectedRoute>} />
+        <Route path="/moulds" element={<ProtectedRoute><MouldsDashboard /></ProtectedRoute>} />
         <Route path="/mould-setup" element={<ProtectedRoute page="mould_setup"><MouldSetup /></ProtectedRoute>} />
         <Route
           path="/approvals"

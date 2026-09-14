@@ -123,8 +123,13 @@ export default function Layout({ children }) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="app-header-brand">
-          <span className="app-header-mark" />
+        <div className="app-header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img
+            src="/logo.png"
+            alt="SHRP"
+            style={{ height: 32, width: 'auto', objectFit: 'contain', background: '#ffffff', padding: '2px 4px', borderRadius: 4 }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
           <div>
             <div className="app-header-title">SHRP SHOP FLOOR</div>
             <div className="app-header-sub">{user ? `${user.full_name} · ${user.role}` : ''}</div>

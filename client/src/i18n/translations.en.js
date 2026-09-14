@@ -97,6 +97,14 @@ export const en = {
         "label": "Daily Reports",
         "hint": "KPIs, charts & exports"
       },
+      "machines": {
+        "label": "Machines & TPM",
+        "hint": "Fleet status, MTBF & repairs"
+      },
+      "moulds": {
+        "label": "Moulds & Tool Life",
+        "hint": "Shot tracking, PM & history"
+      },
       "log": {
         "label": "Today's Log",
         "hint": "All entries today"

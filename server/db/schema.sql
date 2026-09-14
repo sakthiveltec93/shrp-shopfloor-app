@@ -533,4 +533,72 @@ CREATE TABLE IF NOT EXISTS deletion_requests (
 
 CREATE INDEX IF NOT EXISTS idx_deletion_requests_status ON deletion_requests(status, created_at DESC);
 
+-- ============================================================
+-- Phase 1: Machine & Mould History, Tool Life Tracking & TPM
+-- IATF 16949 Clause 8.5.1.5 (Total Productive Maintenance)
+-- ============================================================
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS tonnage INTEGER DEFAULT 100;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS make_model TEXT DEFAULT 'Injection Moulding Machine';
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS year_of_commission INTEGER DEFAULT 2020;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS screw_diameter_mm NUMERIC DEFAULT 35;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS clamping_force_kn NUMERIC DEFAULT 1000;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS pm_due_date DATE DEFAULT (CURRENT_DATE + INTERVAL '30 days');
+
+CREATE TABLE IF NOT EXISTS moulds (
+  id SERIAL PRIMARY KEY,
+  mould_code TEXT UNIQUE NOT NULL,
+  mould_name TEXT NOT NULL,
+  ownership TEXT DEFAULT 'SHRP' CHECK (ownership IN ('SHRP', 'Customer')),
+  customer_name TEXT,
+  total_cavities INTEGER DEFAULT 1,
+  active_cavities INTEGER DEFAULT 1,
+  cumulative_shots INTEGER DEFAULT 0,
+  shots_since_pm INTEGER DEFAULT 0,
+  pm_interval_shots INTEGER DEFAULT 20000,
+  storage_location TEXT DEFAULT 'Tool Crib Rack A-01',
+  status TEXT DEFAULT 'ready' CHECK (status IN ('ready', 'running', 'under_maintenance', 'damaged')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS mould_parts (
+  id SERIAL PRIMARY KEY,
+  mould_id INTEGER NOT NULL REFERENCES moulds(id) ON DELETE CASCADE,
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  cavities_for_part INTEGER DEFAULT 1,
+  UNIQUE (mould_id, part_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mould_parts_part ON mould_parts(part_id);
+CREATE INDEX IF NOT EXISTS idx_mould_parts_mould ON mould_parts(mould_id);
+
+CREATE TABLE IF NOT EXISTS mould_maintenance_logs (
+  id SERIAL PRIMARY KEY,
+  mould_id INTEGER NOT NULL REFERENCES moulds(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL CHECK (action_type IN ('pm_service', 'repair', 'inspection', 'polishing', 'overhaul')),
+  shots_at_service INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  technician_name TEXT NOT NULL,
+  logged_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mould_maint_mould ON mould_maintenance_logs(mould_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS machine_breakdown_logs (
+  id SERIAL PRIMARY KEY,
+  machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  incident_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  breakdown_type TEXT NOT NULL CHECK (breakdown_type IN ('hydraulic', 'electrical', 'mechanical', 'heater', 'pneumatic', 'other')),
+  downtime_minutes INTEGER NOT NULL DEFAULT 0,
+  root_cause TEXT,
+  corrective_action TEXT,
+  parts_replaced TEXT,
+  technician_name TEXT,
+  logged_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_machine_bd_machine ON machine_breakdown_logs(machine_id, incident_date DESC);
+
 

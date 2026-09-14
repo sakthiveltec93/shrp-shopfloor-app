@@ -130,6 +130,19 @@ router.post('/', async (req, res) => {
       );
     }
 
+    // Automatically accumulate shots on the mould(s) linked to this part
+    const grossQty = Math.max(0, Number(end_count) - Number(startCount));
+    const cav = Math.max(1, Number(session.cavity_count) || 1);
+    const shotsRun = Math.round(grossQty / cav);
+    if (shotsRun > 0) {
+      await client.query(`
+        UPDATE moulds
+        SET cumulative_shots = cumulative_shots + $1,
+            shots_since_pm = shots_since_pm + $1
+        WHERE id IN (SELECT mould_id FROM mould_parts WHERE part_id = $2)
+      `, [shotsRun, session.part_id]);
+    }
+
     await client.query('COMMIT');
     entry.rejects = rejectRows;
     entry.downtimes = downtimeRows;

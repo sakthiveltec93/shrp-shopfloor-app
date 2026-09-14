@@ -168,6 +168,21 @@ export const api = {
     stageRaw: (stage, date) => request(`/reports/stage-raw?stage=${stage}&date=${date || ''}`),
   },
 
+  machines_mgmt: {
+    overview: (date) => request(`/machines/overview${date ? `?date=${date}` : ''}`),
+    history: (id) => request(`/machines/${id}/history`),
+    logBreakdown: (id, payload) => request(`/machines/${id}/breakdown`, { method: 'POST', body: payload }),
+    update: (id, payload) => request(`/machines/${id}`, { method: 'PUT', body: payload }),
+  },
+
+  moulds: {
+    list: () => request('/moulds'),
+    detail: (id) => request(`/moulds/${id}`),
+    create: (payload) => request('/moulds', { method: 'POST', body: payload }),
+    update: (id, payload) => request(`/moulds/${id}`, { method: 'PUT', body: payload }),
+    logMaintenance: (id, payload) => request(`/moulds/${id}/maintenance`, { method: 'POST', body: payload }),
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

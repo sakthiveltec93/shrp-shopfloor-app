@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -235,12 +235,25 @@ export default function ProductionEntry() {
         {machineId && (
           assigned ? (
             <div className="shrp-part-badge-card" style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {assigned.photo_file_id ? (
+                  <img
+                    src={`/api/masters/parts/${assigned.part_id}/files/${assigned.photo_file_id}?token=${getToken()}`}
+                    alt={assigned.part_name}
+                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', background: '#111', flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px dashed var(--line)', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                    📷
+                  </div>
+                )}
                 <div>
-                  <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
+                    <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
+                  </div>
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                    Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong>
+                    Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong> · {assigned.cavity_count} Cavities
                   </div>
                 </div>
               </div>

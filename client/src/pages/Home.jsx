@@ -10,6 +10,8 @@ const TILES = [
   { key: 'inspection', to: '/inspection', icon: '◎' },
   { key: 'packing', to: '/packing', icon: '▧' },
   { key: 'dispatch', to: '/dispatch', icon: '🚚' },
+  { key: 'machines', to: '/machines', icon: '🖥️' },
+  { key: 'moulds', to: '/moulds', icon: '⚙️' },
   { key: 'approvals', to: '/approvals', icon: '✓' },
   { key: 'parts', to: '/parts', icon: '📋' },
   { key: 'users', to: '/users', icon: '👤' },
@@ -20,10 +22,10 @@ const TILES = [
 export default function Home() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  // Admins always see every tile; everyone else sees only what's been granted.
-  const visibleTiles = user.role === 'admin'
+  // Admins & supervisors see every tile; operators see granted pages plus live machine/mould visibility.
+  const visibleTiles = (user.role === 'admin' || user.role === 'supervisor')
     ? TILES
-    : TILES.filter((tile) => Array.isArray(user.pages) && user.pages.includes(tile.key));
+    : TILES.filter((tile) => ['machines', 'moulds'].includes(tile.key) || (Array.isArray(user.pages) && user.pages.includes(tile.key)));
 
   return (
     <div className="screen">

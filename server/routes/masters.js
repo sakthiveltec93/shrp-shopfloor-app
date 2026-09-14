@@ -25,9 +25,15 @@ router.post('/customers', requireRole('admin', 'supervisor'), async (req, res) =
   res.status(201).json(rows[0]);
 });
 
-// Lightweight list for dropdowns elsewhere in the app
+// Lightweight list for dropdowns and masters list, with photo_file_id for visual Poka-Yoke
 router.get('/parts', async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM parts WHERE active = TRUE ORDER BY part_code');
+  const { rows } = await pool.query(`
+    SELECT p.*,
+           (SELECT pf.id FROM part_files pf WHERE pf.part_id = p.id AND pf.file_type = 'photo' ORDER BY pf.uploaded_at DESC LIMIT 1) AS photo_file_id
+    FROM parts p
+    WHERE p.active = TRUE
+    ORDER BY p.part_code
+  `);
   res.json(rows);
 });
 

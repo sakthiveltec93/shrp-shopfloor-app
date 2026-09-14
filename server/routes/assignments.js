@@ -14,7 +14,8 @@ router.get('/current', async (req, res) => {
       ma.id AS assignment_id, ma.machine_id, m.machine_code, ma.part_id,
       p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
       p.cavity_count, p.standard_cycle_time_sec, p.unit_weight_g, p.part_weight_g,
-      ma.status, ma.approved_at, ma.mould_load_started_at, ma.first_ok_part_at
+      ma.status, ma.approved_at, ma.mould_load_started_at, ma.first_ok_part_at,
+      (SELECT pf.id FROM part_files pf WHERE pf.part_id = p.id AND pf.file_type = 'photo' ORDER BY pf.uploaded_at DESC LIMIT 1) AS photo_file_id
     FROM machine_assignments ma
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id

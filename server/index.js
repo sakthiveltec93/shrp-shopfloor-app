@@ -16,6 +16,8 @@ const notificationRoutes = require('./routes/notifications');
 const attendanceRoutes = require('./routes/attendance');
 const deletionRoutes = require('./routes/deletions');
 const reportRoutes = require('./routes/reports');
+const machineRoutes = require('./routes/machines');
+const mouldRoutes = require('./routes/moulds');
 
 const app = express();
 app.use(cors());
@@ -37,6 +39,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/deletions', deletionRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/machines', machineRoutes);
+app.use('/api/moulds', mouldRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -127,6 +127,31 @@ export default function MouldSetup() {
             ))}
           </select>
         </div>
+
+        {partId && (() => {
+          const sel = parts.find((p) => String(p.id) === String(partId));
+          if (!sel) return null;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+              {sel.photo_file_id ? (
+                <img
+                  src={`/api/masters/parts/${sel.id}/files/${sel.photo_file_id}?token=${getToken()}`}
+                  alt={sel.part_name}
+                  style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }}
+                />
+              ) : (
+                <div style={{ width: 60, height: 60, borderRadius: 8, border: '1px dashed var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                  📷
+                </div>
+              )}
+              <div style={{ fontSize: 13 }}>
+                <div style={{ fontWeight: 700, color: '#fbbf24' }}>[{sel.shrp_part_code || sel.part_code}] {sel.part_name}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Customer No: {sel.customer_part_no || sel.part_code}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>Cavities: {sel.cavity_count} · Shot Wt: {sel.unit_weight_g || '-'}g</div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="field">
           <label htmlFor="load_started">{t('mouldSetup.loadStarted')}</label>
