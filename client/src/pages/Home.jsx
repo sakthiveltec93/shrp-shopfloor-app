@@ -6,8 +6,11 @@ import { useLanguage } from '../i18n/LanguageContext';
 const ERP_SECTIONS = [
   {
     id: 'production',
-    title: '🏭 Shopfloor Production',
-    subtitle: 'Mould setup, hourly entries, batch bagging & shift logs',
+    title: 'Shopfloor Production',
+    tagline: 'Mould Setup · Hourly Entries · Bagging · Log',
+    icon: '🏭',
+    accentColor: '#f59e0b', // amber
+    badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
       { key: 'mould_setup', to: '/mould-setup', icon: '⚙' },
       { key: 'entry', to: '/entry', icon: '▤' },
@@ -18,8 +21,11 @@ const ERP_SECTIONS = [
   },
   {
     id: 'quality',
-    title: '⚡ Quality & Finishing Stages',
-    subtitle: 'Trimming, final inspection, packing, dispatch & rework pool',
+    title: 'Quality & Finishing Stages',
+    tagline: 'Trimming · Inspection · Packing · Dispatch · Rework',
+    icon: '⚡',
+    accentColor: '#10b981', // emerald
+    badgeBg: 'rgba(16, 185, 129, 0.15)',
     tiles: [
       { key: 'trimming', to: '/trimming', icon: '✂' },
       { key: 'inspection', to: '/inspection', icon: '◎' },
@@ -30,8 +36,11 @@ const ERP_SECTIONS = [
   },
   {
     id: 'materials',
-    title: '📦 Materials & Inventory',
-    subtitle: 'Raw material inward QA, stock registers, dual-layer recipes & WIP pool',
+    title: 'Materials & Compounding',
+    tagline: 'RM Inward QA · Stock Register · Blend Recipes',
+    icon: '📦',
+    accentColor: '#3b82f6', // blue
+    badgeBg: 'rgba(59, 130, 246, 0.15)',
     tiles: [
       { key: 'rm_inward', to: '/rm-inward', icon: '📥' },
       { key: 'rm_stock', to: '/rm-stock', icon: '📦' },
@@ -40,8 +49,11 @@ const ERP_SECTIONS = [
   },
   {
     id: 'tooling_mgmt',
-    title: '⚙️ Tooling, TPM & Management',
-    subtitle: 'Fleet status, tool life tracking, masters, users & analytics',
+    title: 'Tooling, TPM & Management',
+    tagline: 'Fleet Status · Tool Life · Reports · Users',
+    icon: '⚙️',
+    accentColor: '#a855f7', // purple
+    badgeBg: 'rgba(168, 85, 247, 0.15)',
     tiles: [
       { key: 'machines', to: '/machines', icon: '🖥️' },
       { key: 'moulds', to: '/moulds', icon: '⚙️' },
@@ -59,18 +71,18 @@ export default function Home() {
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
 
-  // Persist expanded/collapsed state in localStorage
+  // Persist expanded state
   const [expanded, setExpanded] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    // Default: all sections expanded initially
+    // Default: first two sections open for quick one-tap access
     return {
       production: true,
       quality: true,
-      materials: true,
-      tooling_mgmt: true,
+      materials: false,
+      tooling_mgmt: false,
     };
   });
 
@@ -108,140 +120,266 @@ export default function Home() {
   const matchesSearch = (tile) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    const label = t(`home.tiles.${tile.key}.label`).toLowerCase();
-    const hint = t(`home.tiles.${tile.key}.hint`).toLowerCase();
+    const label = (t(`home.tiles.${tile.key}.label`) || '').toLowerCase();
+    const hint = (t(`home.tiles.${tile.key}.hint`) || '').toLowerCase();
     return label.includes(q) || hint.includes(q) || tile.key.includes(q);
   };
 
   return (
-    <div className="screen max-w-7xl mx-auto px-2 py-4">
-      {/* Welcome & ERP Header */}
-      <div className="mb-4 flex flex-wrap justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-md">
+    <div className="screen" style={{ paddingBottom: 24 }}>
+      {/* Sleek Dark Welcome Header */}
+      <div
+        style={{
+          background: 'var(--panel)',
+          border: '1px solid var(--line)',
+          borderLeft: '4px solid var(--amber)',
+          borderRadius: 8,
+          padding: '14px 16px',
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
-            SHRP Manufacturing Execution System · ERP
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            SHRP MES · Injection Moulding
           </div>
-          <h1 className="text-2xl font-black">{t('home.welcome', { name: user.full_name.split(' ')[0] })}</h1>
-          <p className="text-xs text-slate-300 mt-0.5">{t('home.subtitle')} · Plant & Operations Control</p>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>
+            {t('home.welcome', { name: user.full_name.split(' ')[0] })}
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-3 sm:mt-0">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-white/10 backdrop-blur-sm border border-white/20 text-white uppercase">
-            Role: {user.role}
-          </span>
-        </div>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            padding: '4px 8px',
+            background: 'rgba(245, 158, 11, 0.12)',
+            color: 'var(--amber)',
+            borderRadius: 4,
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+          }}
+        >
+          {user.role}
+        </span>
       </div>
 
-      {/* Action / Search Bar */}
-      <div className="flex flex-wrap gap-2 justify-between items-center mb-4 bg-white/80 p-2.5 rounded-xl border border-slate-200/80 shadow-xs">
-        <div className="relative flex-1 min-w-[220px]">
+      {/* Compact Search & One-Touch Expand/Collapse Bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ position: 'relative', flex: 1 }}>
           <input
             type="text"
-            placeholder="🔍 Search modules, operations, stages..."
+            placeholder="🔍 Search modules..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-3 pr-8 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-600 transition-colors"
+            style={{
+              width: '100%',
+              padding: '8px 28px 8px 12px',
+              fontSize: 13,
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 6,
+              color: 'var(--text)',
+              outline: 'none',
+            }}
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontSize: 14,
+                padding: 0,
+              }}
             >
               ×
             </button>
           )}
         </div>
-        <div className="flex gap-1.5">
-          <button
-            onClick={expandAll}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-            title="Expand all tree sections"
-          >
-            ▼ Expand All
-          </button>
-          <button
-            onClick={collapseAll}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-            title="Collapse all tree sections"
-          >
-            ▶ Collapse All
-          </button>
-        </div>
+        <button
+          onClick={expandAll}
+          style={{
+            padding: '8px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            borderRadius: 6,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+          title="Expand All"
+        >
+          ▼ Expand
+        </button>
+        <button
+          onClick={collapseAll}
+          style={{
+            padding: '8px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            borderRadius: 6,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+          title="Collapse All"
+        >
+          ▶ Collapse
+        </button>
       </div>
 
-      {/* Drop Tree Expandable Sections */}
-      <div className="space-y-3">
+      {/* One-Liner Drop-Tree Expandable Sections */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {ERP_SECTIONS.map((section) => {
           const visibleTiles = section.tiles.filter((t) => isTileVisible(t) && matchesSearch(t));
           if (visibleTiles.length === 0 && search.trim()) return null;
           if (section.tiles.filter(isTileVisible).length === 0) return null;
 
-          // If searching, auto-expand
           const isOpen = search.trim() ? true : !!expanded[section.id];
 
           return (
             <div
               key={section.id}
-              className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden transition-all"
+              style={{
+                background: 'var(--panel)',
+                border: `1px solid ${isOpen ? section.accentColor : 'var(--line)'}`,
+                borderRadius: 8,
+                overflow: 'hidden',
+                transition: 'border-color 0.2s ease',
+              }}
             >
-              {/* Collapsible Drop-Tree Header Bar */}
+              {/* One-Liner Row (Header) */}
               <button
                 type="button"
                 onClick={() => toggleSection(section.id)}
-                className="w-full text-left p-3.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors select-none focus:outline-none"
+                style={{
+                  width: '100%',
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'inherit',
+                  outline: 'none',
+                }}
               >
-                <div className="flex items-center gap-2.5">
-                  {/* Expand/Collapse Line / 3-Dots indicator */}
+                {/* Left: Process Icon & One-Liner Titles */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-transform duration-200 ${
-                      isOpen
-                        ? 'bg-slate-800 text-white shadow-xs rotate-90'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                    title={isOpen ? 'Click to collapse' : 'Click to expand'}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 6,
+                      background: section.badgeBg,
+                      border: `1px solid ${section.accentColor}44`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 18,
+                      flexShrink: 0,
+                    }}
                   >
-                    ⋮
+                    {section.icon}
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', lineHeight: 1.2 }}>
                       {section.title}
-                    </h2>
-                    <p className="text-[11px] text-slate-500 line-clamp-1">{section.subtitle}</p>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        marginTop: 2,
+                      }}
+                    >
+                      {section.tagline}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                    {visibleTiles.length} {visibleTiles.length === 1 ? 'module' : 'modules'}
+                {/* Right: Module Count & Chevron */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: isOpen ? section.accentColor : 'var(--text-muted)',
+                      background: isOpen ? section.badgeBg : 'rgba(255, 255, 255, 0.05)',
+                      padding: '3px 7px',
+                      borderRadius: 12,
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                  >
+                    {visibleTiles.length}
                   </span>
-                  <span className={`text-slate-400 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: isOpen ? section.accentColor : 'var(--text-muted)',
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                      display: 'inline-block',
+                    }}
+                  >
                     ▼
                   </span>
                 </div>
               </button>
 
-              {/* Expandable Tile Grid (Drop Tree Body) */}
+              {/* Expanded Drop-Tree Keypad Grid */}
               {isOpen && (
-                <div className="p-3.5 pt-0 border-t border-slate-100">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 mt-3">
+                <div
+                  style={{
+                    padding: '8px 12px 14px',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    background: 'rgba(0, 0, 0, 0.15)',
+                  }}
+                >
+                  <div className="tile-grid" style={{ marginTop: 4 }}>
                     {visibleTiles.map((tile) => (
                       <Link
                         key={tile.key}
                         to={tile.to}
-                        className="tile transition-all hover:scale-[1.02] hover:shadow-md active:scale-98 p-3 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 flex flex-col justify-between"
-                        style={{ minHeight: '90px' }}
+                        className="tile"
+                        style={{
+                          borderLeftColor: section.accentColor,
+                          padding: '12px 10px',
+                        }}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xl">{tile.icon}</span>
-                          <span className="text-slate-300 text-xs">→</span>
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-800 leading-tight mb-0.5">
-                            {t(`home.tiles.${tile.key}.label`)}
-                          </div>
-                          <div className="text-[10px] text-slate-400 line-clamp-1 leading-snug">
-                            {t(`home.tiles.${tile.key}.hint`)}
-                          </div>
-                        </div>
+                        <span className="tile-icon" style={{ fontSize: 20, marginBottom: 4 }}>
+                          {tile.icon}
+                        </span>
+                        <span className="tile-label" style={{ fontSize: 13, marginBottom: 2 }}>
+                          {t(`home.tiles.${tile.key}.label`)}
+                        </span>
+                        <span className="tile-hint" style={{ fontSize: 11 }}>
+                          {t(`home.tiles.${tile.key}.hint`)}
+                        </span>
                       </Link>
                     ))}
                   </div>
