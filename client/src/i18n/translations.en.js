@@ -52,7 +52,41 @@ export const en = {
   "home": {
     "welcome": "Welcome, {{name}}",
     "subtitle": "Shift dashboard",
+        "sections": {
+      "production": {
+        "title": "Shopfloor Production",
+        "tagline": "Mould Setup · Hourly Entries · Bagging · Log"
+      },
+      "quality": {
+        "title": "Quality & Finishing Stages",
+        "tagline": "Trimming · Inspection · Packing · Dispatch · Rework"
+      },
+      "materials": {
+        "title": "Materials & Compounding",
+        "tagline": "RM Inward QA · Stock Register · Blend Recipes"
+      },
+      "tooling": {
+        "title": "Tooling, TPM & Management",
+        "tagline": "Fleet Status · Tool Life · Reports · Part Master"
+      },
+      "staff_hr": {
+        "title": "Staff, HR & Organization",
+        "tagline": "Staff Accounts · My Profile · Leave Requests · PIN"
+      }
+    },
     "tiles": {
+      "profile": {
+        "label": "My Profile & HR Portal",
+        "hint": "Bank details, leave requests & app time"
+      },
+      "attendance_menu": {
+        "label": "Attendance & Geofence",
+        "hint": "Shift check-in / check-out"
+      },
+      "change_pin_menu": {
+        "label": "Change PIN",
+        "hint": "Update secret 4-digit PIN"
+      },
       "mould_setup": {
         "label": "Mould Setup",
         "hint": "Assign part to machine"

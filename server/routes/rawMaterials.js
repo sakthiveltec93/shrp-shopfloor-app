@@ -464,6 +464,70 @@ router.get('/recipes', async (req, res) => {
   }
 });
 
+// POST /api/raw-materials/recipes/bulk - Bulk Upload Compounding Recipes
+router.post('/recipes/bulk', async (req, res) => {
+  const { recipes } = req.body;
+  if (!Array.isArray(recipes) || recipes.length === 0) {
+    return res.status(400).json({ error: 'No recipes provided for bulk upload' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    let updatedCount = 0;
+
+    for (const r of recipes) {
+      if (!r.part_id) continue;
+      await client.query(
+        `INSERT INTO part_compounding_recipes (
+           part_id, primary_material_id, primary_ratio_pct,
+           secondary_material_id, secondary_ratio_pct,
+           regrind_material_id, regrind_ratio_pct,
+           masterbatch_material_id, masterbatch_ratio_pct,
+           max_allowed_regrind_pct, mixing_instructions, updated_by
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (part_id) DO UPDATE SET
+           primary_material_id = EXCLUDED.primary_material_id,
+           primary_ratio_pct = EXCLUDED.primary_ratio_pct,
+           secondary_material_id = EXCLUDED.secondary_material_id,
+           secondary_ratio_pct = EXCLUDED.secondary_ratio_pct,
+           regrind_material_id = EXCLUDED.regrind_material_id,
+           regrind_ratio_pct = EXCLUDED.regrind_ratio_pct,
+           masterbatch_material_id = EXCLUDED.masterbatch_material_id,
+           masterbatch_ratio_pct = EXCLUDED.masterbatch_ratio_pct,
+           max_allowed_regrind_pct = EXCLUDED.max_allowed_regrind_pct,
+           mixing_instructions = EXCLUDED.mixing_instructions,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()`,
+        [
+          r.part_id,
+          r.primary_material_id || null,
+          Number(r.primary_ratio_pct || 100),
+          r.secondary_material_id || null,
+          Number(r.secondary_ratio_pct || 0),
+          r.regrind_material_id || null,
+          Number(r.regrind_ratio_pct || 0),
+          r.masterbatch_material_id || null,
+          Number(r.masterbatch_ratio_pct || 0),
+          Number(r.max_allowed_regrind_pct || 15),
+          r.mixing_instructions || '',
+          req.user.id,
+        ]
+      );
+      updatedCount++;
+    }
+
+    await client.query('COMMIT');
+    res.json({ ok: true, count: updatedCount, message: `Successfully bulk uploaded ${updatedCount} compounding recipes!` });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error bulk uploading recipes:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/raw-materials/recipes/:part_id
 router.post('/recipes/:part_id', requireRole('admin', 'supervisor'), async (req, res) => {
   const partId = Number(req.params.part_id);

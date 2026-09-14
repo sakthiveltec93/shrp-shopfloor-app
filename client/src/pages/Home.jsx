@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 const ERP_SECTIONS = [
   {
     id: 'production',
+    sectionKey: 'production',
     title: 'Shopfloor Production',
     tagline: 'Mould Setup · Hourly Entries · Bagging · Log',
     icon: '🏭',
@@ -13,19 +14,20 @@ const ERP_SECTIONS = [
     badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
       { key: 'mould_setup', to: '/mould-setup', icon: '⚙' },
-      { key: 'entry', to: '/entry', icon: '▤' },
+      { key: 'entry', to: '/entry', icon: '📝' },
       { key: 'bag_entry', to: '/bag-entry', icon: '◧' },
-      { key: 'log', to: '/log', icon: '≣' },
+      { key: 'log', to: '/log', icon: '📋' },
       { key: 'approvals', to: '/approvals', icon: '✓', supervisorOnly: true },
     ],
   },
   {
     id: 'quality',
+    sectionKey: 'quality',
     title: 'Quality & Finishing Stages',
     tagline: 'Trimming · Inspection · Packing · Dispatch · Rework',
     icon: '⚡',
     accentColor: '#10b981', // emerald
-    badgeBg: 'rgba(16, 185, 129, 0.15)',
+    badgeBg: 'rgba(168, 85, 247, 0.15)',
     tiles: [
       { key: 'trimming', to: '/trimming', icon: '✂' },
       { key: 'inspection', to: '/inspection', icon: '◎' },
@@ -36,6 +38,7 @@ const ERP_SECTIONS = [
   },
   {
     id: 'materials',
+    sectionKey: 'materials',
     title: 'Materials & Compounding',
     tagline: 'RM Inward QA · Stock Register · Blend Recipes',
     icon: '📦',
@@ -49,8 +52,9 @@ const ERP_SECTIONS = [
   },
   {
     id: 'tooling_mgmt',
+    sectionKey: 'tooling',
     title: 'Tooling, TPM & Management',
-    tagline: 'Fleet Status · Tool Life · Reports · Users',
+    tagline: 'Fleet Status · Tool Life · Reports · Part Master',
     icon: '⚙️',
     accentColor: '#a855f7', // purple
     badgeBg: 'rgba(168, 85, 247, 0.15)',
@@ -59,7 +63,21 @@ const ERP_SECTIONS = [
       { key: 'moulds', to: '/moulds', icon: '⚙️' },
       { key: 'parts', to: '/parts', icon: '📋', supervisorOnly: true },
       { key: 'reports', to: '/reports', icon: '📊', supervisorOnly: true },
-      { key: 'users', to: '/users', icon: '👤', adminOnly: true },
+    ],
+  },
+  {
+    id: 'staff_hr',
+    sectionKey: 'staff_hr',
+    title: 'Staff, HR & Organization',
+    tagline: 'Staff Accounts · My Profile · Leave Requests · PIN',
+    icon: '👥',
+    accentColor: '#ec4899', // pink
+    badgeBg: 'rgba(236, 72, 153, 0.15)',
+    tiles: [
+      { key: 'users', to: '/users', icon: '👥', adminOnly: true },
+      { key: 'profile', to: '/profile', icon: '👤' },
+      { key: 'attendance_menu', to: '/attendance', icon: '🕒' },
+      { key: 'change_pin_menu', to: '/change-pin', icon: '🔑' },
     ],
   },
 ];
@@ -305,7 +323,7 @@ export default function Home() {
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', lineHeight: 1.2 }}>
-                      {section.title}
+                      {t(`home.sections.${section.sectionKey}.title`) || section.title}
                     </div>
                     <div
                       style={{
@@ -317,7 +335,7 @@ export default function Home() {
                         marginTop: 2,
                       }}
                     >
-                      {section.tagline}
+                      {t(`home.sections.${section.sectionKey}.tagline`) || section.tagline}
                     </div>
                   </div>
                 </div>

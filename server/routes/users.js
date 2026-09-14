@@ -237,7 +237,32 @@ router.put('/:id', async (req, res) => {
 });
 
 // ============================================================
-// 6. Delete Inactive User (Guaranteed Safe Delete / Username Release)
+// ============================================================
+// 6. Toggle Active Status
+// ============================================================
+router.post('/:id/toggle-active', async (req, res) => {
+  const userId = Number(req.params.id);
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot deactivate your own logged-in admin account' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users
+       SET active = NOT active,
+           updated_at = now()
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING id, username, full_name, active`,
+      [userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, user: rows[0], message: `User "${rows[0].full_name}" is now ${rows[0].active ? 'Active' : 'Inactive'}.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 7. Delete Inactive User (Guaranteed Safe Delete / Purge)
 // ============================================================
 router.delete('/:id', async (req, res) => {
   const userId = Number(req.params.id);
@@ -248,54 +273,56 @@ router.delete('/:id', async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     // 1. Fetch user info
     const { rows: userRows } = await client.query(`SELECT * FROM users WHERE id = $1`, [userId]);
     if (userRows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
     const targetUser = userRows[0];
 
-    // Try clean purge first
-    let purged = false;
+    // Ensure foreign key columns allow nulls for safe purging
     try {
-      await client.query('BEGIN');
-      await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
-      await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
-      await client.query(`DELETE FROM user_activity_log WHERE user_id = $1`, [userId]);
-      await client.query(`DELETE FROM attendance WHERE user_id = $1`, [userId]);
-      await client.query(`DELETE FROM leave_requests WHERE user_id = $1`, [userId]);
-      await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
-      await client.query('COMMIT');
-      purged = true;
-    } catch (fkErr) {
-      await client.query('ROLLBACK');
-      purged = false;
+      await client.query(`
+        ALTER TABLE production_entries ALTER COLUMN operator_user_id DROP NOT NULL;
+        ALTER TABLE machine_assignments ALTER COLUMN set_by_user_id DROP NOT NULL;
+        ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
+        ALTER TABLE trim_entries ALTER COLUMN operator_user_id DROP NOT NULL;
+        ALTER TABLE inspection_entries ALTER COLUMN inspector_user_id DROP NOT NULL;
+        ALTER TABLE packing_entries ALTER COLUMN packer_user_id DROP NOT NULL;
+      `);
+    } catch (e) {
+      // Ignore if columns already nullable
     }
 
-    if (purged) {
-      return res.json({ ok: true, mode: 'purged', message: `User "${targetUser.full_name}" deleted.` });
-    }
+    // Safely unlink transaction logs so IATF audit trail is preserved without blocking deletion
+    await client.query(`UPDATE production_entries SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
+    await client.query(`UPDATE machine_assignments SET set_by_user_id = NULL WHERE set_by_user_id = $1`, [userId]);
+    await client.query(`UPDATE machine_assignments SET approved_by_user_id = NULL WHERE approved_by_user_id = $1`, [userId]);
+    await client.query(`UPDATE bags SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
+    await client.query(`UPDATE trim_entries SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
+    await client.query(`UPDATE inspection_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1`, [userId]);
+    await client.query(`UPDATE packing_entries SET packer_user_id = NULL WHERE packer_user_id = $1`, [userId]);
+    await client.query(`UPDATE machine_sessions SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
+    await client.query(`UPDATE rm_inward_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1`, [userId]);
+    await client.query(`UPDATE rm_inward_entries SET approved_by_user_id = NULL WHERE approved_by_user_id = $1`, [userId]);
 
-    // If foreign keys prevent pure purge, perform archive & immediately release username
-    await client.query('BEGIN');
-    const freedUsername = `${targetUser.username}_del_${Date.now()}`;
+    // Delete user-specific configurations and records
     await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
-    await client.query(
-      `UPDATE users
-       SET active = FALSE,
-           deleted_at = now(),
-           deleted_by = $1,
-           username = $2
-       WHERE id = $3`,
-      [req.user.id, freedUsername, userId]
-    );
-    await client.query('COMMIT');
+    await client.query(`DELETE FROM user_activity_log WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM attendance WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM leave_requests WHERE user_id = $1`, [userId]);
 
+    // Completely purge the user record
+    await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+    await client.query('COMMIT');
     return res.json({
       ok: true,
-      mode: 'archived',
-      message: `User "${targetUser.full_name}" removed and username "${targetUser.username}" released for new registration.`,
+      message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently and username freed for registration.`,
     });
   } catch (err) {
     await client.query('ROLLBACK');

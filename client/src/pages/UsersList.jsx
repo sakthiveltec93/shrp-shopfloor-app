@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 
@@ -19,6 +19,7 @@ export default function UsersList() {
   // Delete modal state
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -45,6 +46,23 @@ export default function UsersList() {
     }, 30000);
     return () => clearInterval(timer);
   }, [reportDate]);
+
+  const handleToggleActive = async (targetUser) => {
+    setTogglingId(targetUser.id);
+    setError('');
+    try {
+      const res = await api.toggleActiveUser(targetUser.id);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, active: res.active ? 1 : 0 } : u))
+      );
+      setSuccessMsg(res.message || 'User status updated.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Failed to change user active status');
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const handleDelete = async () => {
     if (!userToDelete) return;
@@ -94,8 +112,8 @@ export default function UsersList() {
     if (statusFilter === 'ONLINE_ACTIVE' && u.live_status !== 'ONLINE_ACTIVE') return false;
     if (statusFilter === 'ONLINE_IDLE' && u.live_status !== 'ONLINE_IDLE') return false;
     if (statusFilter === 'OFFLINE' && u.live_status !== 'OFFLINE') return false;
-    if (statusFilter === 'ACTIVE' && !u.active) return false;
-    if (statusFilter === 'INACTIVE' && u.active) return false;
+    if (statusFilter === 'ACTIVE' && (!u.active || u.active === 0)) return false;
+    if (statusFilter === 'INACTIVE' && u.active && u.active !== 0) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return (
@@ -108,12 +126,12 @@ export default function UsersList() {
   });
 
   return (
-    <div className="screen" style={{ paddingBottom: 24 }}>
+    <div className="screen" style={{ paddingBottom: 24, maxWidth: 900, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <h1 className="screen-title" style={{ margin: 0 }}>Staff & Logins</h1>
-          <div className="muted" style={{ fontSize: 12 }}>Manage staff access & live attendance</div>
+          <h1 className="screen-title" style={{ margin: 0 }}>👥 Staff & Logins</h1>
+          <div className="muted" style={{ fontSize: 12 }}>Manage staff accounts, access status & live attendance</div>
         </div>
         <Link to="/users/new" className="btn btn-primary" style={{ width: 'auto', padding: '8px 14px', fontSize: 13 }}>
           + Add Staff
@@ -217,7 +235,7 @@ export default function UsersList() {
           onChange={(e) => setStatusFilter(e.target.value)}
           style={{
             flex: 1,
-            minWidth: 120,
+            minWidth: 130,
             padding: '6px 8px',
             fontSize: 12,
             background: 'var(--bg)',
@@ -226,12 +244,12 @@ export default function UsersList() {
             borderRadius: 6,
           }}
         >
-          <option value="ALL">All Status</option>
+          <option value="ALL">All Status ({users.length})</option>
           <option value="ONLINE_ACTIVE">🟢 Online Active ({onlineActiveCount})</option>
           <option value="ONLINE_IDLE">🟡 Idle in Tab ({onlineIdleCount})</option>
           <option value="OFFLINE">🔴 Offline ({offlineCount})</option>
-          <option value="ACTIVE">Active Accounts</option>
-          <option value="INACTIVE">Deactivated Accounts</option>
+          <option value="ACTIVE">🟢 Active Accounts</option>
+          <option value="INACTIVE">⚪ Deactivated Accounts</option>
         </select>
 
         {/* Role Dropdown */}
@@ -351,18 +369,21 @@ export default function UsersList() {
                 statusLabel = 'Idle';
               }
 
+              const isUserActive = u.active === 1 || u.active === true || u.active === undefined;
+
               return (
                 <div
                   key={u.id}
                   style={{
                     background: 'var(--panel)',
-                    border: '1px solid var(--line)',
+                    border: `1px solid ${isUserActive ? 'var(--line)' : 'rgba(244,63,94,0.3)'}`,
                     borderRadius: 8,
                     padding: '10px 12px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 10,
+                    gap: 8,
+                    opacity: isUserActive ? 1 : 0.75,
                   }}
                 >
                   {/* Left: Avatar / Status dot & Name */}
@@ -407,7 +428,7 @@ export default function UsersList() {
                     </div>
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {u.full_name}
                         </span>
@@ -422,8 +443,23 @@ export default function UsersList() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          {u.role.slice(0, 4)}
+                          {u.role ? u.role.slice(0, 4) : 'USER'}
                         </span>
+                        {!isUserActive && (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              fontWeight: 700,
+                              padding: '1px 4px',
+                              borderRadius: 3,
+                              background: 'rgba(244,63,94,0.2)',
+                              color: '#f43f5e',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Inactive
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                         @{u.username} · <span style={{ color: statusDot, fontWeight: 600 }}>{statusLabel}</span> ({formatRelativeTime(u.last_active_at)})
@@ -432,7 +468,7 @@ export default function UsersList() {
                   </div>
 
                   {/* Middle: Today App Time */}
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0, padding: '0 4px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                       {formatMinutes(u.today_active_minutes)}
                     </div>
@@ -441,20 +477,45 @@ export default function UsersList() {
                     </div>
                   </div>
 
-                  {/* Right (Same Line): Pure Icon Buttons for Edit & Delete */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  {/* Right (Same Line): Active Toggle, Edit ✏️ & Delete 🗑️ Icons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                    {/* Active/Inactive Toggle Pill Button */}
+                    <button
+                      type="button"
+                      disabled={togglingId === u.id}
+                      onClick={() => handleToggleActive(u)}
+                      style={{
+                        padding: '4px 7px',
+                        borderRadius: 5,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        border: isUserActive ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(156,163,175,0.4)',
+                        background: isUserActive ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)',
+                        color: isUserActive ? '#10b981' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                      title={isUserActive ? 'Click to Deactivate account' : 'Click to Activate account'}
+                    >
+                      <span>{isUserActive ? '🟢' : '⚪'}</span>
+                      <span className="hide-mobile-micro">{isUserActive ? 'Active' : 'Inactive'}</span>
+                    </button>
+
+                    {/* Edit Icon Button */}
                     <Link
                       to={`/users/${u.id}/edit`}
                       style={{
-                        width: 32,
-                        height: 32,
+                        width: 30,
+                        height: 30,
                         borderRadius: 6,
                         background: 'rgba(255, 255, 255, 0.06)',
                         border: '1px solid var(--line)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 14,
+                        fontSize: 13,
                         textDecoration: 'none',
                         color: 'var(--text)',
                       }}
@@ -462,22 +523,25 @@ export default function UsersList() {
                     >
                       ✏️
                     </Link>
+
+                    {/* Delete Icon Button */}
                     <button
+                      type="button"
                       onClick={() => setUserToDelete(u)}
                       style={{
-                        width: 32,
-                        height: 32,
+                        width: 30,
+                        height: 30,
                         borderRadius: 6,
-                        background: 'rgba(244, 63, 94, 0.12)',
-                        border: '1px solid rgba(244, 63, 94, 0.3)',
+                        background: isUserActive ? 'rgba(255,255,255,0.04)' : 'rgba(244, 63, 94, 0.15)',
+                        border: isUserActive ? '1px solid var(--line)' : '1px solid rgba(244, 63, 94, 0.4)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 14,
+                        fontSize: 13,
                         cursor: 'pointer',
                         color: '#f43f5e',
                       }}
-                      title="Delete User"
+                      title={isUserActive ? 'Deactivate or Delete' : 'Permanently Delete User'}
                     >
                       🗑️
                     </button>
@@ -550,13 +614,14 @@ export default function UsersList() {
         </div>
       )}
 
-      {/* Delete User Confirmation Modal */}
+      {/* Delete User Modal (Handles both Active & Inactive) */}
       {userToDelete && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -570,56 +635,125 @@ export default function UsersList() {
               border: '1px solid var(--line)',
               borderRadius: 10,
               padding: 18,
-              maxWidth: 380,
+              maxWidth: 400,
               width: '100%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
             }}
           >
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>🗑️</span> Delete User Account
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
-              Are you sure you want to delete <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>)?
-              <div style={{ marginTop: 8, fontSize: 11, color: '#f59e0b' }}>
-                • Access will be revoked immediately.<br/>
-                • Username will be freed up for new registration.
-              </div>
+              <span>🗑️</span> {userToDelete.active ? 'User Account Action' : 'Delete Inactive Account'}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setUserToDelete(null)}
-                style={{
-                  padding: '8px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: 'none',
-                  border: '1px solid var(--line)',
-                  color: 'var(--text)',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={deleting}
-                onClick={handleDelete}
-                style={{
-                  padding: '8px 14px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: '#f43f5e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                {deleting ? 'Deleting…' : 'Yes, Delete'}
-              </button>
-            </div>
+            {userToDelete.active ? (
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 10 }}>
+                  <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>) is currently <span style={{ color: '#10b981', fontWeight: 700 }}>🟢 ACTIVE</span>.
+                </div>
+                <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: 'var(--text)', marginBottom: 14 }}>
+                  ⚠️ <strong>Recommendation:</strong> Change active user to <strong>Inactive</strong> first before permanent deletion to safeguard live sessions.
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setUserToDelete(null)}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: 'none',
+                      border: '1px solid var(--line)',
+                      color: 'var(--text)',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleToggleActive(userToDelete);
+                      setUserToDelete(null);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      background: 'var(--amber)',
+                      color: '#1c1500',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Change to Inactive ⚪
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={handleDelete}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      background: '#f43f5e',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {deleting ? 'Deleting…' : 'Purge Anyway'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+                  Are you sure you want to permanently delete inactive user <strong style={{ color: 'var(--text)' }}>{userToDelete.full_name}</strong> (<code>@{userToDelete.username}</code>)?
+                  <div style={{ marginTop: 8, fontSize: 11, color: '#10b981' }}>
+                    • Inactive account records unlinked cleanly.<br/>
+                    • Username <code>@{userToDelete.username}</code> immediately freed up for new registration.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setUserToDelete(null)}
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: 'none',
+                      border: '1px solid var(--line)',
+                      color: 'var(--text)',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={handleDelete}
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      background: '#f43f5e',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, Delete Permanently'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

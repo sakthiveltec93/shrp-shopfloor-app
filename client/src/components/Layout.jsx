@@ -7,8 +7,8 @@ import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
 const NAV_ITEMS = [
   { to: '/', labelKey: 'layout.nav.home', icon: '⌂', key: null },
   { to: '/mould-setup', labelKey: 'layout.nav.mouldSetup', icon: '⚙', key: 'mould_setup' },
-  { to: '/entry', labelKey: 'layout.nav.entry', icon: '▤', key: 'entry' },
-  { to: '/log', labelKey: 'layout.nav.log', icon: '≣', key: 'log' },
+  { to: '/entry', labelKey: 'layout.nav.entry', icon: '📝', key: 'entry' },
+  { to: '/log', labelKey: 'layout.nav.log', icon: '📋', key: 'log' },
 ];
 
 export default function Layout({ children }) {
@@ -221,26 +221,45 @@ export default function Layout({ children }) {
               )}
             </button>
 
-            {/* 3. Settings & Profile Menu Button */}
+            {/* 3. Dedicated User Profile & HR Button */}
             <button
               className="logout-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
-                padding: '6px 9px',
-                fontSize: 13,
-                borderRadius: 6,
-                background: showSettings ? 'var(--line)' : 'transparent',
+                gap: 5,
+                padding: '3px 6px',
+                borderRadius: 8,
+                background: showSettings ? 'var(--line)' : 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--line)',
+                cursor: 'pointer',
               }}
               onClick={() => {
                 setShowSettings((v) => !v);
                 setShowNotifications(false);
               }}
-              aria-label="Settings and Profile"
-              title="Settings & Profile"
+              aria-label="Profile, Staff and Settings"
+              title="Profile, Staff & Settings"
             >
-              <span>⚙️</span>
+              <div style={{
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--amber), #b45309)',
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: 12,
+                overflow: 'hidden',
+              }}>
+                {user.avatar_data ? (
+                  <img src={user.avatar_data} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  user.full_name ? user.full_name[0].toUpperCase() : 'U'
+                )}
+              </div>
               <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
             </button>
 
@@ -380,6 +399,17 @@ export default function Layout({ children }) {
                     <span>👤</span>
                     <span style={{ fontWeight: 600, color: 'var(--amber)' }}>My Profile & HR Portal</span>
                   </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                      onClick={() => { setShowSettings(false); navigate('/users'); }}
+                    >
+                      <span>👥</span>
+                      <span>Staff & Logins Management</span>
+                    </button>
+                  )}
                   {hasReportsAccess && (
                     <button
                       type="button"
