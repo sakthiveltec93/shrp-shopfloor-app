@@ -9,6 +9,7 @@ const TILES = [
   { key: 'trimming', to: '/trimming', icon: '✂' },
   { key: 'inspection', to: '/inspection', icon: '◎' },
   { key: 'packing', to: '/packing', icon: '▧' },
+  { key: 'rework', to: '/rework', icon: '🛠️' },
   { key: 'dispatch', to: '/dispatch', icon: '🚚' },
   { key: 'machines', to: '/machines', icon: '🖥️' },
   { key: 'moulds', to: '/moulds', icon: '⚙️' },
@@ -22,10 +23,10 @@ const TILES = [
 export default function Home() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  // Admins & supervisors see every tile; operators see granted pages plus live machine/mould visibility.
+  // Admins & supervisors see every tile; operators see granted pages plus live machine/mould visibility & rework pool.
   const visibleTiles = (user.role === 'admin' || user.role === 'supervisor')
     ? TILES
-    : TILES.filter((tile) => ['machines', 'moulds'].includes(tile.key) || (Array.isArray(user.pages) && user.pages.includes(tile.key)));
+    : TILES.filter((tile) => ['machines', 'moulds', 'rework'].includes(tile.key) || (Array.isArray(user.pages) && user.pages.includes(tile.key)));
 
   return (
     <div className="screen">

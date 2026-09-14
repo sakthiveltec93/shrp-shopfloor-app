@@ -24,6 +24,7 @@ import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
 import MachinesDashboard from './pages/MachinesDashboard'
 import MouldsDashboard from './pages/MouldsDashboard'
+import Rework from './pages/Rework'
 import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/bag-entry" element={<ProtectedRoute page="bag_entry"><BagEntry /></ProtectedRoute>} />
         <Route path="/trimming" element={<ProtectedRoute page="trimming"><Trimming /></ProtectedRoute>} />
         <Route path="/inspection" element={<ProtectedRoute page="inspection"><Inspection /></ProtectedRoute>} />
+        <Route path="/rework" element={<ProtectedRoute><Rework /></ProtectedRoute>} />
         <Route path="/packing" element={<ProtectedRoute page="packing"><Packing /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute page="dispatch"><Dispatch /></ProtectedRoute>} />
         <Route path="/log" element={<ProtectedRoute page="log"><TodayLog /></ProtectedRoute>} />

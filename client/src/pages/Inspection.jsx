@@ -14,11 +14,21 @@ export default function Inspection() {
     loading, refetch, clearBag,
   } = useFifoBag('inspect');
 
-  const [remaining, setRemaining] = useState('');
+  const [inspectedWt, setInspectedWt] = useState('');
   const [rejectWt, setRejectWt] = useState('0');
   const [rejectReasonId, setRejectReasonId] = useState('');
+  const [sentToReworkQty, setSentToReworkQty] = useState('0');
   const [reasons, setReasons] = useState([]);
-  const [confirmMsg, setConfirmMsg] = useState('');
+
+  // Tiered tolerance confirmation & remarks
+  const [confirmModal, setConfirmModal] = useState(null); // { tier, message, diffKg, diffPct }
+  const [remarksModal, setRemarksModal] = useState(null); // { tier, message, diffKg, diffPct }
+  const [mandatoryRemarks, setMandatoryRemarks] = useState('');
+
+  // Hold quarantine state
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [holdReason, setHoldReason] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
 
@@ -26,35 +36,53 @@ export default function Inspection() {
     api.checkItems('reject_reason').then(setReasons).catch(() => {});
   }, []);
 
-  async function submit(confirm = false) {
+  useEffect(() => {
+    if (bag?.id) {
+      setInspectedWt(String(bag.base_weight_kg || ''));
+    } else {
+      setInspectedWt('');
+      setRejectWt('0');
+      setRejectReasonId('');
+      setSentToReworkQty('0');
+      setConfirmModal(null);
+      setRemarksModal(null);
+      setMandatoryRemarks('');
+    }
+  }, [bag?.id]);
+
+  async function submit(confirm = false, overrideRemarks = '') {
     setError('');
     setSuccess('');
     setSaving(true);
     try {
       const res = await api.inspectBag(bag.id, {
-        remaining_wt_kg: Number(remaining),
+        inspected_wt_kg: Number(inspectedWt),
         reject_wt_kg: Number(rejectWt || 0),
         reject_reason_id: rejectReasonId ? Number(rejectReasonId) : null,
+        sent_to_rework_qty: Number(sentToReworkQty || 0),
+        remarks: overrideRemarks || mandatoryRemarks,
         confirm,
         fifo_override: isFifoOverridden,
         fifo_override_reason: fifoOverrideReason,
       });
 
       if (res.queuedOffline) {
-        setConfirmMsg('');
+        setConfirmModal(null);
+        setRemarksModal(null);
         setSuccess('💾 ' + (res.message || 'Saved offline! Will sync automatically when connected.'));
-        setRemaining('');
-        setRejectWt('0');
         clearBag();
-      } else if (res.needsConfirmation) {
-        setConfirmMsg(res.message);
+      } else if (res.needsConfirmation && res.tier === 'CONFIRM') {
+        setConfirmModal(res);
       } else {
-        setConfirmMsg('');
+        setConfirmModal(null);
+        setRemarksModal(null);
         setSuccess(res.closed
           ? t('inspection.bagMarkedInspected', { code: bag.bag_code })
           : t('common.readingSaved'));
-        setRemaining('');
+        setInspectedWt('');
         setRejectWt('0');
+        setSentToReworkQty('0');
+        setMandatoryRemarks('');
         if (res.closed) {
           clearBag();
         } else {
@@ -67,9 +95,30 @@ export default function Inspection() {
           oldestBag: err.data.oldest_bag,
           canOverride: true,
         });
+      } else if (err.data?.tier === 'REMARKS_REQUIRED') {
+        setRemarksModal(err.data);
       } else {
         setError(err.message);
       }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleHoldSubmit() {
+    if (!holdReason.trim()) {
+      setError('Please provide a reason to quarantine this bag on HOLD.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.holdBag(bag.id, { stage: 'INSPECTION', reason: holdReason });
+      setSuccess(`⚠️ Bag ${bag.bag_code} has been quarantined and placed on HOLD.`);
+      setShowHoldModal(false);
+      setHoldReason('');
+      clearBag();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSaving(false);
     }
@@ -230,16 +279,26 @@ export default function Inspection() {
         </div>
       )}
 
-      {/* Scanned / Loaded Bag Details per Section 3 */}
+      {/* Scanned / Loaded Bag Details */}
       {bag && !fifoViolation && (
         <div className="panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--amber)' }}>
               {bag.shrp_part_code || bag.part_code}
             </span>
-            <span className={`status-pill status-${bag.status.toLowerCase()}`}>
-              {bag.status}
-            </span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span className={`status-pill status-${bag.status.toLowerCase()}`}>
+                {bag.status}
+              </span>
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ padding: '4px 10px', fontSize: 12, width: 'auto' }}
+                onClick={() => setShowHoldModal(true)}
+              >
+                🛑 Put on HOLD
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, marginBottom: 14 }}>
@@ -249,89 +308,200 @@ export default function Inspection() {
             <div>Bag Code:</div><strong>{bag.bag_code}</strong>
             <div>Prod Date:</div><strong>{new Date(bag.entry_date).toLocaleDateString('en-GB')} (Shift {bag.shift})</strong>
             <div>Base Weight:</div><strong>{Number(bag.base_weight_kg).toFixed(3)} Kg</strong>
-            <div>Quantity:</div><strong>{bag.qty} Nos</strong>
+            <div>Expected Qty:</div><strong>{bag.qty} Nos</strong>
           </div>
 
-          {/* Stage Completion Confirmation per Section 9 */}
-          {confirmMsg ? (
-            <div className="panel" style={{ borderColor: 'var(--green)', background: 'rgba(76,175,125,0.08)' }}>
-              <p style={{ marginTop: 0, fontWeight: 600 }}>
-                {confirmMsg}
-              </p>
-              <div className="btn-row">
-                <button className="btn btn-primary" disabled={saving} onClick={() => submit(true)}>
-                  {t('common.yes')}
-                </button>
-                <button className="btn btn-secondary" disabled={saving} onClick={() => setConfirmMsg('')}>
-                  {t('common.no')}
-                </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label htmlFor="inspected_wt">Inspected Good Weight (kg) *</label>
+              <input
+                id="inspected_wt"
+                type="number"
+                step="0.001"
+                inputMode="decimal"
+                placeholder="Inspected kg"
+                value={inspectedWt}
+                onChange={(e) => setInspectedWt(e.target.value)}
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label htmlFor="reject_wt">{t('inspection.rejectWt')}</label>
+              <input
+                id="reject_wt"
+                type="number"
+                step="0.001"
+                inputMode="decimal"
+                placeholder="Reject kg"
+                value={rejectWt}
+                onChange={(e) => setRejectWt(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {Number(rejectWt || 0) > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="reason">{t('inspection.rejectReason')}</label>
+                <select
+                  id="reason"
+                  value={rejectReasonId}
+                  onChange={(e) => setRejectReasonId(e.target.value)}
+                >
+                  <option value="">{t('common.selectReason')}</option>
+                  {reasons.map((r) => (
+                    <option key={r.id} value={r.id}>{r.item_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="rework_qty">Send to Rework (Nos)</label>
+                <input
+                  id="rework_qty"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={sentToReworkQty}
+                  onChange={(e) => setSentToReworkQty(e.target.value)}
+                />
               </div>
             </div>
-          ) : (
-            <>
-              <div className="btn-row" style={{ marginBottom: 14 }}>
-                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
-                  <label htmlFor="remaining">{t('inspection.remainingWt')}</label>
-                  <input
-                    id="remaining"
-                    type="number"
-                    step="0.001"
-                    inputMode="decimal"
-                    placeholder="Remaining kg"
-                    value={remaining}
-                    onChange={(e) => setRemaining(e.target.value)}
-                  />
-                </div>
-                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
-                  <label htmlFor="reject">{t('inspection.rejectWt')}</label>
-                  <input
-                    id="reject"
-                    type="number"
-                    step="0.001"
-                    inputMode="decimal"
-                    placeholder="Reject kg"
-                    value={rejectWt}
-                    onChange={(e) => setRejectWt(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {Number(rejectWt) > 0 && (
-                <div className="field">
-                  <label htmlFor="reason">{t('inspection.rejectReason')}</label>
-                  <select
-                    id="reason"
-                    value={rejectReasonId}
-                    onChange={(e) => setRejectReasonId(e.target.value)}
-                  >
-                    <option value="">{t('common.selectReason')}</option>
-                    {reasons.map((r) => (
-                      <option key={r.id} value={r.id}>{r.item_name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="btn-row">
-                <button
-                  className="btn btn-primary"
-                  disabled={saving || remaining === ''}
-                  onClick={() => submit(false)}
-                >
-                  {saving ? t('inspection.saving') : t('common.saveReading')}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={clearBag}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
           )}
+
+          <div className="btn-row" style={{ marginTop: 14 }}>
+            <button
+              className="btn btn-primary"
+              disabled={saving || inspectedWt === ''}
+              onClick={() => submit(false)}
+            >
+              {saving ? t('inspection.saving') : 'Complete Inspection'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={clearBag}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Tier 2 Confirmation Modal (1% to 2% or <= 200g) */}
+      {confirmModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="panel" style={{ width: '90%', maxWidth: 440, background: '#1c222d', borderColor: 'var(--amber)' }}>
+            <h3 style={{ margin: '0 0 10px', color: 'var(--amber)', fontSize: 17 }}>
+              ⚠️ Confirm Weight Variance
+            </h3>
+            <p style={{ fontSize: 13, margin: '0 0 14px' }}>
+              {confirmModal.message}
+            </p>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={saving}
+                onClick={() => submit(true)}
+              >
+                {t('common.yes')} (Confirm)
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={saving}
+                onClick={() => setConfirmModal(null)}
+              >
+                {t('common.no')} (Cancel)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tier 3 Remarks Required Modal (> 2% or > 200g) */}
+      {remarksModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="panel" style={{ width: '90%', maxWidth: 440, background: '#1c222d', borderColor: 'var(--red)' }}>
+            <h3 style={{ margin: '0 0 10px', color: 'var(--red)', fontSize: 17 }}>
+              🛑 Excess Tolerance Variance
+            </h3>
+            <p style={{ fontSize: 13, margin: '0 0 10px' }}>
+              {remarksModal.message}
+            </p>
+            <div className="field">
+              <label htmlFor="insp_remarks">Supervisor / Operator Remarks *</label>
+              <textarea
+                id="insp_remarks"
+                rows={3}
+                placeholder="Explain the reason for excess weight variance..."
+                value={mandatoryRemarks}
+                onChange={(e) => setMandatoryRemarks(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={saving || !mandatoryRemarks.trim()}
+                onClick={() => submit(true, mandatoryRemarks)}
+              >
+                Save with Remarks
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setRemarksModal(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Put on HOLD Modal */}
+      {showHoldModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="panel" style={{ width: '90%', maxWidth: 440, background: '#1c222d', borderColor: 'var(--red)' }}>
+            <h3 style={{ margin: '0 0 10px', color: 'var(--red)', fontSize: 17 }}>
+              🛑 Put Bag on HOLD / Quarantine
+            </h3>
+            <p style={{ fontSize: 13, margin: '0 0 12px' }}>
+              Quarantining Bag <strong>{bag.bag_code}</strong> will remove it from active processing until reviewed and released by a Supervisor.
+            </p>
+            <div className="field">
+              <label htmlFor="hold_reason">Hold / Quarantine Reason *</label>
+              <textarea
+                id="hold_reason"
+                rows={3}
+                placeholder="e.g. Reject rate exceeded, visual blemish, dimensional check needed..."
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={saving || !holdReason.trim()}
+                onClick={handleHoldSubmit}
+              >
+                {saving ? 'Holding…' : 'Confirm HOLD'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowHoldModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCamera && (
         <CameraScanner
           title="Scan Bag QR / Barcode"

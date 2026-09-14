@@ -439,31 +439,36 @@ export default function BagEntry() {
         </div>
       )}
 
-      {/* Production Batch Completion Confirmation per Section 9 */}
+      {/* Production Batch Completion Intimation */}
       {completionPrompt && (
         <div className="panel" style={{ borderColor: 'var(--green)', background: 'rgba(76,175,125,0.08)' }}>
           <h3 style={{ margin: '0 0 6px', color: 'var(--green)', fontSize: 15 }}>
-            Production batch fully bagged within tolerance.
+            ✅ Batch Bag Entry Completed
           </h3>
-          <div style={{ fontSize: 13, marginBottom: 12 }}>
-            <div>Production Qty : <strong>{completionPrompt.prodQty?.toLocaleString()}</strong></div>
-            <div>Bagged Qty : <strong>{completionPrompt.baggedQty?.toLocaleString()}</strong></div>
+          <p style={{ fontSize: 13, margin: '0 0 10px' }}>
+            All bags for this batch ({batchInfo?.batch_no}) and production date ({entryDate}) have been completed within tolerance.
+          </p>
+          <div style={{ fontSize: 13, marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div>Production Qty: <strong>{completionPrompt.prodQty?.toLocaleString()} Nos</strong></div>
+            <div>Bagged Qty: <strong>{completionPrompt.baggedQty?.toLocaleString()} Nos</strong></div>
           </div>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600 }}>Mark production as COMPLETED?</p>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600 }}>
+            Do you want to enter additional bags (overage)?
+          </p>
           <div className="btn-row">
             <button
               className="btn btn-primary"
               type="button"
               onClick={() => setCompletionPrompt(null)}
             >
-              Yes
+              Yes, Enter More Bags
             </button>
             <button
               className="btn btn-secondary"
               type="button"
               onClick={() => setCompletionPrompt(null)}
             >
-              No
+              Done / Finished
             </button>
           </div>
         </div>

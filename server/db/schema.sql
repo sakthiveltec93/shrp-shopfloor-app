@@ -123,10 +123,14 @@ CREATE TABLE IF NOT EXISTS bags (
   base_weight_kg NUMERIC NOT NULL,
   qty INTEGER NOT NULL,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
-  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'TRIMMED', 'INSPECTED', 'PACKED')),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'HOLD', 'SCRAPPED')),
   remarks TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- In case bags table was already created with older check constraint
+ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
+ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'HOLD', 'SCRAPPED'));
 
 CREATE INDEX IF NOT EXISTS idx_bags_batch ON bags(batch_no);
 CREATE INDEX IF NOT EXISTS idx_bags_part_status ON bags(part_id, status, bag_type);
@@ -140,31 +144,107 @@ CREATE TABLE IF NOT EXISTS bag_status_history (
   changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS bag_hold_log (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  stage TEXT NOT NULL CHECK (stage IN ('PRODUCTION', 'TRIMMING', 'INSPECTION', 'PACKING')),
+  reason TEXT NOT NULL,
+  hold_by_user_id INTEGER NOT NULL REFERENCES users(id),
+  hold_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  released_by_user_id INTEGER REFERENCES users(id),
+  released_at TIMESTAMPTZ,
+  release_remarks TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
 CREATE TABLE IF NOT EXISTS trim_entries (
   id SERIAL PRIMARY KEY,
   bag_id INTEGER NOT NULL REFERENCES bags(id),
+  trimmed_wt_kg NUMERIC NOT NULL DEFAULT 0,
+  runner_wt_kg NUMERIC NOT NULL DEFAULT 0,
+  reject_wt_kg NUMERIC NOT NULL DEFAULT 0,
+  reject_reason_id INTEGER REFERENCES check_items(id),
   remaining_wt_kg NUMERIC NOT NULL,
+  is_partial BOOLEAN NOT NULL DEFAULT FALSE,
+  pass_number INTEGER NOT NULL DEFAULT 1,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS trimmed_wt_kg NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS runner_wt_kg NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS reject_wt_kg NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS reject_reason_id INTEGER REFERENCES check_items(id);
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS is_partial BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE trim_entries ADD COLUMN IF NOT EXISTS pass_number INTEGER NOT NULL DEFAULT 1;
+
 CREATE TABLE IF NOT EXISTS inspection_entries (
   id SERIAL PRIMARY KEY,
   bag_id INTEGER NOT NULL REFERENCES bags(id),
+  inspected_wt_kg NUMERIC NOT NULL DEFAULT 0,
   remaining_wt_kg NUMERIC NOT NULL,
   reject_wt_kg NUMERIC NOT NULL DEFAULT 0,
   reject_reason_id INTEGER REFERENCES check_items(id),
+  sent_to_rework_qty INTEGER NOT NULL DEFAULT 0,
+  variance_tier TEXT,
+  is_partial BOOLEAN NOT NULL DEFAULT FALSE,
+  remarks TEXT,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE inspection_entries ADD COLUMN IF NOT EXISTS inspected_wt_kg NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE inspection_entries ADD COLUMN IF NOT EXISTS sent_to_rework_qty INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE inspection_entries ADD COLUMN IF NOT EXISTS variance_tier TEXT;
+ALTER TABLE inspection_entries ADD COLUMN IF NOT EXISTS is_partial BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE inspection_entries ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 CREATE TABLE IF NOT EXISTS packing_entries (
   id SERIAL PRIMARY KEY,
   bag_id INTEGER NOT NULL REFERENCES bags(id),
   packed_qty INTEGER NOT NULL,
   packed_wt_kg NUMERIC NOT NULL,
+  sample_packet_wt_g NUMERIC,
+  calculated_part_wt_g NUMERIC,
+  packets_count INTEGER NOT NULL DEFAULT 1,
+  balance_qty INTEGER NOT NULL DEFAULT 0,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE packing_entries ADD COLUMN IF NOT EXISTS sample_packet_wt_g NUMERIC;
+ALTER TABLE packing_entries ADD COLUMN IF NOT EXISTS calculated_part_wt_g NUMERIC;
+ALTER TABLE packing_entries ADD COLUMN IF NOT EXISTS packets_count INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE packing_entries ADD COLUMN IF NOT EXISTS balance_qty INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS packing_balance_pool (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  bag_id INTEGER REFERENCES bags(id),
+  quantity INTEGER NOT NULL,
+  sample_packet_wt_g NUMERIC,
+  calculated_part_wt_g NUMERIC,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  is_consumed BOOLEAN NOT NULL DEFAULT FALSE,
+  consumed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS rework_log (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER REFERENCES bags(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  stage TEXT NOT NULL CHECK (stage IN ('TRIMMING', 'INSPECTION')),
+  source_reject_reason_id INTEGER REFERENCES check_items(id),
+  rework_qty INTEGER NOT NULL,
+  reworked_good_qty INTEGER NOT NULL DEFAULT 0,
+  scrap_qty INTEGER NOT NULL DEFAULT 0,
+  remarks TEXT,
+  created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+  worked_by_user_id INTEGER REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ
 );
 
 -- ================================================================

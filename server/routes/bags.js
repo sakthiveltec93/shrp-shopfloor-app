@@ -437,13 +437,128 @@ router.get('/:id', async (req, res) => {
 });
 
 // --- Trimming entry ---
-router.post('/:id/trim', async (req, res) => {
+// --- Bag HOLD / Quarantine ---
+router.post('/:id/hold', async (req, res) => {
   const { id } = req.params;
-  const { remaining_wt_kg, confirm, fifo_override, fifo_override_reason } = req.body;
-  if (remaining_wt_kg == null) return res.status(400).json({ error: 'remaining_wt_kg is required' });
+  const { stage, reason } = req.body;
+  if (!reason || !reason.trim()) {
+    return res.status(400).json({ error: 'Reason for hold is required' });
+  }
+  const validStages = ['PRODUCTION', 'TRIMMING', 'INSPECTION', 'PACKING'];
+  const holdStage = validStages.includes(stage) ? stage : 'PRODUCTION';
 
   const bag = await getBag(id);
   if (!bag) return res.status(404).json({ error: 'Bag not found' });
+  if (bag.status === 'HOLD') {
+    return res.status(400).json({ error: 'Bag is already on HOLD' });
+  }
+
+  const prevStatus = bag.status;
+  await pool.query(
+    `INSERT INTO bag_hold_log (bag_id, stage, reason, hold_by_user_id) VALUES ($1, $2, $3, $4)`,
+    [id, holdStage, reason.trim(), req.user.id]
+  );
+  await pool.query(`UPDATE bags SET status = 'HOLD', remarks = COALESCE(remarks || ' | ', '') || 'HOLD: ' || $2 WHERE id = $1`, [id, reason.trim()]);
+  await logHistory(pool, id, prevStatus, 'HOLD', `${holdStage} Hold: ${reason.trim()}`);
+
+  res.json({ message: 'Bag placed on HOLD', status: 'HOLD' });
+});
+
+// --- Release from HOLD (Supervisor / Admin) ---
+router.post('/:id/release-hold', async (req, res) => {
+  const { id } = req.params;
+  const { release_remarks } = req.body;
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Only supervisor or admin can release a bag from HOLD' });
+  }
+
+  const bag = await getBag(id);
+  if (!bag) return res.status(404).json({ error: 'Bag not found' });
+  if (bag.status !== 'HOLD') {
+    return res.status(400).json({ error: 'Bag is not on HOLD' });
+  }
+
+  // Get active hold log entry
+  const holdRes = await pool.query(
+    `SELECT * FROM bag_hold_log WHERE bag_id = $1 AND is_active = TRUE ORDER BY id DESC LIMIT 1`,
+    [id]
+  );
+  const hold = holdRes.rows[0];
+
+  // Determine stage to restore to
+  let restoreStatus = 'OPEN';
+  if (hold) {
+    if (hold.stage === 'TRIMMING') restoreStatus = 'OPEN';
+    else if (hold.stage === 'INSPECTION') restoreStatus = 'TRIMMED';
+    else if (hold.stage === 'PACKING') restoreStatus = 'INSPECTED';
+  }
+
+  if (hold) {
+    await pool.query(
+      `UPDATE bag_hold_log SET is_active = FALSE, released_by_user_id = $1, released_at = now(), release_remarks = $2 WHERE id = $3`,
+      [req.user.id, release_remarks || 'Released by supervisor', hold.id]
+    );
+  }
+
+  await pool.query(`UPDATE bags SET status = $1 WHERE id = $2`, [restoreStatus, id]);
+  await logHistory(pool, id, 'HOLD', restoreStatus, `Hold Released: ${release_remarks || 'Supervisor release'}`);
+
+  res.json({ message: `Bag released to ${restoreStatus}`, status: restoreStatus });
+});
+
+// --- Get Trimming History / Pass Details for a Bag ---
+router.get('/:id/trim-summary', async (req, res) => {
+  const { id } = req.params;
+  const bag = await getBag(id);
+  if (!bag) return res.status(404).json({ error: 'Bag not found' });
+
+  const { rows: passes } = await pool.query(
+    `SELECT te.*, u.full_name as operator_name, ci.item_name as reject_reason_name
+     FROM trim_entries te
+     JOIN users u ON u.id = te.operator_user_id
+     LEFT JOIN check_items ci ON ci.id = te.reject_reason_id
+     WHERE te.bag_id = $1
+     ORDER BY te.created_at ASC`,
+    [id]
+  );
+
+  const totalTrimmed = passes.reduce((s, p) => s + Number(p.trimmed_wt_kg || 0), 0);
+  const totalRunner = passes.reduce((s, p) => s + Number(p.runner_wt_kg || 0), 0);
+  const totalReject = passes.reduce((s, p) => s + Number(p.reject_wt_kg || 0), 0);
+  const totalAccounted = totalTrimmed + totalRunner + totalReject;
+  const remainingWeightKg = Math.max(0, Number(bag.base_weight_kg) - totalAccounted);
+
+  res.json({
+    bag,
+    passes,
+    pass_count: passes.length,
+    total_trimmed_wt_kg: Number(totalTrimmed.toFixed(3)),
+    total_runner_wt_kg: Number(totalRunner.toFixed(3)),
+    total_reject_wt_kg: Number(totalReject.toFixed(3)),
+    remaining_wt_kg: Number(remainingWeightKg.toFixed(3)),
+  });
+});
+
+// --- Enhanced Multi-Pass Trimming entry ---
+router.post('/:id/trim', async (req, res) => {
+  const { id } = req.params;
+  const {
+    trimmed_wt_kg = 0,
+    runner_wt_kg = 0,
+    reject_wt_kg = 0,
+    reject_reason_id = null,
+    remaining_wt_kg, // optional override
+    is_partial = false,
+    confirm = false,
+    fifo_override,
+    fifo_override_reason,
+  } = req.body;
+
+  const bag = await getBag(id);
+  if (!bag) return res.status(404).json({ error: 'Bag not found' });
+  if (bag.status === 'HOLD') {
+    return res.status(403).json({ error: 'Bag is currently on HOLD. Must be released before trimming.' });
+  }
 
   // FIFO check
   const older = await checkFifo(bag.part_id, 'OPEN', bag.id, bag.entry_date, bag.shift, bag.created_at);
@@ -471,18 +586,41 @@ router.post('/:id/trim', async (req, res) => {
     );
   }
 
+  // Calculate pass number & remaining weight
+  const countRes = await pool.query(`SELECT count(*)::integer as pass_count FROM trim_entries WHERE bag_id = $1`, [id]);
+  const passNumber = (countRes.rows[0].pass_count || 0) + 1;
+
+  const currentPassWeight = Number(trimmed_wt_kg || 0) + Number(runner_wt_kg || 0) + Number(reject_wt_kg || 0);
+
+  // Previous passes
+  const sumRes = await pool.query(
+    `SELECT COALESCE(SUM(trimmed_wt_kg + runner_wt_kg + reject_wt_kg), 0)::numeric as total_prev
+     FROM trim_entries WHERE bag_id = $1`,
+    [id]
+  );
+  const totalPrev = Number(sumRes.rows[0].total_prev || 0);
+  const calculatedRemaining = Number(Math.max(0, Number(bag.base_weight_kg) - (totalPrev + currentPassWeight)).toFixed(3));
+  const finalRemaining = remaining_wt_kg != null ? Number(remaining_wt_kg) : calculatedRemaining;
+
   await pool.query(
-    `INSERT INTO trim_entries (bag_id, remaining_wt_kg, operator_user_id) VALUES ($1,$2,$3)`,
-    [id, remaining_wt_kg, req.user.id]
+    `INSERT INTO trim_entries (bag_id, trimmed_wt_kg, runner_wt_kg, reject_wt_kg, reject_reason_id, remaining_wt_kg, is_partial, pass_number, operator_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, trimmed_wt_kg, runner_wt_kg, reject_wt_kg, reject_reason_id || null, finalRemaining, is_partial, passNumber, req.user.id]
   );
 
-  const ready = remaining_wt_kg <= 0.001 || isWithinTrimTolerance(remaining_wt_kg, bag.base_weight_kg);
-  if (!ready) return res.json({ bag, closed: false });
+  const isComplete = !is_partial && (finalRemaining <= 0.001 || isWithinTrimTolerance(finalRemaining, bag.base_weight_kg));
+
+  if (!isComplete) {
+    await pool.query(`UPDATE bags SET status = 'PARTIAL_TRIM' WHERE id = $1 AND status != 'PARTIAL_TRIM'`, [id]);
+    await logHistory(pool, id, bag.status, 'PARTIAL_TRIM', `Pass ${passNumber} Trim (Remaining: ${finalRemaining}kg)`);
+    return res.json({ bag: { ...bag, status: 'PARTIAL_TRIM' }, closed: false, remaining_wt_kg: finalRemaining });
+  }
 
   if (!confirm) {
     return res.json({
       needsConfirmation: true,
-      message: 'This bag has been fully trimmed within tolerance. Mark status as TRIMMED?',
+      remaining_wt_kg: finalRemaining,
+      message: `Bag fully trimmed (Remaining variance: ${finalRemaining} kg). Mark status as TRIMMED?`,
     });
   }
 
@@ -492,7 +630,7 @@ router.post('/:id/trim', async (req, res) => {
   }
 
   await pool.query(`UPDATE bags SET status = 'TRIMMED' WHERE id = $1`, [id]);
-  await logHistory(pool, id, bag.status, 'TRIMMED', 'Trimming');
+  await logHistory(pool, id, bag.status, 'TRIMMED', `Trimming completed (Pass ${passNumber})`);
 
   await logAudit(pool, {
     process: 'trimming',
@@ -502,24 +640,37 @@ router.post('/:id/trim', async (req, res) => {
     part_id: bag.part_id,
     machine_id: bag.machine_id,
     user_id: req.user.id,
-    weight_kg: remaining_wt_kg,
+    weight_kg: trimmed_wt_kg,
     status_from: bag.status,
     status_to: 'TRIMMED',
     is_fifo_override: isFifoOverride,
     oldest_bag_code: older?.bag_code || null,
   });
 
-  res.json({ bag: { ...bag, status: 'TRIMMED' }, closed: true });
+  res.json({ bag: { ...bag, status: 'TRIMMED' }, closed: true, remaining_wt_kg: finalRemaining });
 });
 
-// --- Inspection entry ---
+// --- Enhanced Tiered Inspection entry ---
 router.post('/:id/inspect', async (req, res) => {
   const { id } = req.params;
-  const { remaining_wt_kg, reject_wt_kg, reject_reason_id, confirm, fifo_override, fifo_override_reason } = req.body;
-  if (remaining_wt_kg == null) return res.status(400).json({ error: 'remaining_wt_kg is required' });
+  const {
+    inspected_wt_kg,
+    remaining_wt_kg = 0,
+    reject_wt_kg = 0,
+    reject_reason_id,
+    sent_to_rework_qty = 0,
+    remarks,
+    confirm,
+    fifo_override,
+    fifo_override_reason,
+  } = req.body;
 
   const bag = await getBag(id);
   if (!bag) return res.status(404).json({ error: 'Bag not found' });
+  if (bag.status === 'HOLD') {
+    return res.status(403).json({ error: 'Bag is currently on HOLD. Must be released before inspection.' });
+  }
+
   const part = await getPart(bag.part_id);
   const requiredStatus = part.trim_required ? 'TRIMMED' : 'OPEN';
 
@@ -549,20 +700,45 @@ router.post('/:id/inspect', async (req, res) => {
     );
   }
 
-  await pool.query(
-    `INSERT INTO inspection_entries (bag_id, remaining_wt_kg, reject_wt_kg, reject_reason_id, operator_user_id)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [id, remaining_wt_kg, reject_wt_kg || 0, reject_reason_id || null, req.user.id]
-  );
+  const actualInspected = inspected_wt_kg != null ? Number(inspected_wt_kg) : Number(bag.base_weight_kg) - Number(remaining_wt_kg || 0);
+  const { getInspectionToleranceTier } = require('../lib/bagStatus');
+  const toleranceCheck = getInspectionToleranceTier(actualInspected, Number(bag.base_weight_kg));
 
-  const ready = remaining_wt_kg <= 0.001 || isWithinInspectionTolerance(remaining_wt_kg, bag.base_weight_kg);
-  if (!ready) return res.json({ bag, closed: false });
+  // If Tier 3 (>2% or >200g) and no remarks provided, block and require remarks
+  if (toleranceCheck.tier === 'REMARKS_REQUIRED' && (!remarks || !remarks.trim())) {
+    return res.status(422).json({
+      tier: 'REMARKS_REQUIRED',
+      diffKg: toleranceCheck.diffKg,
+      diffPct: toleranceCheck.diffPct,
+      message: toleranceCheck.message,
+    });
+  }
 
-  if (!confirm) {
+  // If Tier 2 (1-2% or <=200g) and not confirmed yet, ask for confirmation
+  if (toleranceCheck.tier === 'CONFIRM' && !confirm) {
     return res.json({
       needsConfirmation: true,
-      message: 'This bag has been fully inspected within tolerance. Mark status as INSPECTED?',
+      tier: 'CONFIRM',
+      diffKg: toleranceCheck.diffKg,
+      diffPct: toleranceCheck.diffPct,
+      message: toleranceCheck.message,
     });
+  }
+
+  // Insert inspection record
+  await pool.query(
+    `INSERT INTO inspection_entries (bag_id, inspected_wt_kg, remaining_wt_kg, reject_wt_kg, reject_reason_id, sent_to_rework_qty, variance_tier, remarks, operator_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, actualInspected, remaining_wt_kg || 0, reject_wt_kg || 0, reject_reason_id || null, sent_to_rework_qty || 0, toleranceCheck.tier, remarks || null, req.user.id]
+  );
+
+  // If sent to rework, log into rework_log
+  if (sent_to_rework_qty > 0) {
+    await pool.query(
+      `INSERT INTO rework_log (bag_id, part_id, stage, source_reject_reason_id, rework_qty, created_by_user_id)
+       VALUES ($1, $2, 'INSPECTION', $3, $4, $5)`,
+      [id, bag.part_id, reject_reason_id || null, sent_to_rework_qty, req.user.id]
+    );
   }
 
   if (!isLegitimateStatusAdvance(bag.status, 'INSPECTED', part.trim_required, part.inspection_required)) {
@@ -570,7 +746,7 @@ router.post('/:id/inspect', async (req, res) => {
   }
 
   await pool.query(`UPDATE bags SET status = 'INSPECTED' WHERE id = $1`, [id]);
-  await logHistory(pool, id, bag.status, 'INSPECTED', 'Inspection');
+  await logHistory(pool, id, bag.status, 'INSPECTED', `Inspection completed (Tier: ${toleranceCheck.tier})`);
 
   await logAudit(pool, {
     process: 'inspection',
@@ -580,7 +756,7 @@ router.post('/:id/inspect', async (req, res) => {
     part_id: bag.part_id,
     machine_id: bag.machine_id,
     user_id: req.user.id,
-    weight_kg: remaining_wt_kg,
+    weight_kg: actualInspected,
     status_from: bag.status,
     status_to: 'INSPECTED',
     is_fifo_override: isFifoOverride,
@@ -590,16 +766,110 @@ router.post('/:id/inspect', async (req, res) => {
   res.json({ bag: { ...bag, status: 'INSPECTED' }, closed: true });
 });
 
-// --- Packing entry ---
+// --- Packing Balance Pool: Get Available Balance for a Part ---
+router.get('/balance-pool/:part_id', async (req, res) => {
+  const { part_id } = req.params;
+  const part = await getPart(part_id);
+  if (!part) return res.status(404).json({ error: 'Part not found' });
+
+  const { rows } = await pool.query(
+    `SELECT COALESCE(SUM(quantity), 0)::integer as available_qty
+     FROM packing_balance_pool
+     WHERE part_id = $1 AND is_consumed = FALSE`,
+    [part_id]
+  );
+
+  const availableQty = rows[0].available_qty;
+  const standardPackQty = part.standard_pack_qty || 500;
+  const canPackPacket = availableQty >= standardPackQty;
+  const fullPackets = Math.floor(availableQty / standardPackQty);
+  const remainingBalance = availableQty % standardPackQty;
+
+  res.json({
+    part_id: Number(part_id),
+    available_qty: availableQty,
+    standard_pack_qty: standardPackQty,
+    can_pack_packet: canPackPacket,
+    full_packets: fullPackets,
+    remaining_balance: remainingBalance,
+  });
+});
+
+// --- Packing Balance Pool: Convert Pool Quantity into a Standard Packet ---
+router.post('/balance-pool/:part_id/pack-packet', async (req, res) => {
+  const { part_id } = req.params;
+  const part = await getPart(part_id);
+  if (!part) return res.status(404).json({ error: 'Part not found' });
+
+  const standardPackQty = part.standard_pack_qty || 500;
+
+  // Check available pool
+  const { rows } = await pool.query(
+    `SELECT id, quantity FROM packing_balance_pool
+     WHERE part_id = $1 AND is_consumed = FALSE
+     ORDER BY created_at ASC`,
+    [part_id]
+  );
+
+  const totalAvail = rows.reduce((s, r) => s + r.quantity, 0);
+  if (totalAvail < standardPackQty) {
+    return res.status(400).json({
+      error: `Insufficient balance pool quantity. Available: ${totalAvail}, Needed: ${standardPackQty}`,
+    });
+  }
+
+  // Consume entries up to standardPackQty
+  let remainingToDeduct = standardPackQty;
+  for (const entry of rows) {
+    if (remainingToDeduct <= 0) break;
+    if (entry.quantity <= remainingToDeduct) {
+      await pool.query(
+        `UPDATE packing_balance_pool SET is_consumed = TRUE, consumed_at = now() WHERE id = $1`,
+        [entry.id]
+      );
+      remainingToDeduct -= entry.quantity;
+    } else {
+      // Partial consumption: split entry
+      await pool.query(
+        `UPDATE packing_balance_pool SET quantity = quantity - $1 WHERE id = $2`,
+        [remainingToDeduct, entry.id]
+      );
+      remainingToDeduct = 0;
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `Successfully packed 1 packet (${standardPackQty} pcs) from balance pool`,
+    packed_qty: standardPackQty,
+  });
+});
+
+// --- Enhanced Packing entry with Counting Scale & Balance Pool ---
 router.post('/:id/pack', async (req, res) => {
   const { id } = req.params;
-  const { packed_qty, packed_wt_kg, confirm, fifo_override, fifo_override_reason } = req.body;
+  const {
+    packed_qty,
+    packed_wt_kg,
+    sample_packet_wt_g,
+    calculated_part_wt_g,
+    packets_count = 1,
+    balance_qty = 0,
+    confirm,
+    fifo_override,
+    fifo_override_reason,
+  } = req.body;
+
   if (packed_qty == null || packed_wt_kg == null) {
     return res.status(400).json({ error: 'packed_qty and packed_wt_kg are required' });
   }
 
   const bag = await getBag(id);
   if (!bag) return res.status(404).json({ error: 'Bag not found' });
+  if (bag.status === 'HOLD') {
+    return res.status(403).json({ error: 'Bag is currently on HOLD. Must be released before packing.' });
+  }
+
   const part = await getPart(bag.part_id);
   const requiredStatus = part.inspection_required ? 'INSPECTED' : (part.trim_required ? 'TRIMMED' : 'OPEN');
 
@@ -630,18 +900,24 @@ router.post('/:id/pack', async (req, res) => {
   }
 
   await pool.query(
-    `INSERT INTO packing_entries (bag_id, packed_qty, packed_wt_kg, operator_user_id) VALUES ($1,$2,$3,$4)`,
-    [id, packed_qty, packed_wt_kg, req.user.id]
+    `INSERT INTO packing_entries (bag_id, packed_qty, packed_wt_kg, sample_packet_wt_g, calculated_part_wt_g, packets_count, balance_qty, operator_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [id, packed_qty, packed_wt_kg, sample_packet_wt_g || null, calculated_part_wt_g || null, packets_count || 1, balance_qty || 0, req.user.id]
   );
 
-  const remainingWt = Math.max(0, bag.base_weight_kg - packed_wt_kg);
-  const ready = remainingWt <= 0.001 || isWithinTolerance(remainingWt, bag.base_weight_kg);
-  if (!ready) return res.json({ bag, closed: false });
+  // If there are balance pieces, save to packing_balance_pool
+  if (balance_qty > 0) {
+    await pool.query(
+      `INSERT INTO packing_balance_pool (part_id, bag_id, quantity, sample_packet_wt_g, calculated_part_wt_g, operator_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [bag.part_id, id, balance_qty, sample_packet_wt_g || null, calculated_part_wt_g || null, req.user.id]
+    );
+  }
 
   if (!confirm) {
     return res.json({
       needsConfirmation: true,
-      message: 'This bag has been fully packed within tolerance. Mark status as PACKED?',
+      message: `Bag packed into ${packets_count} packets (${packed_qty} pcs total) with ${balance_qty} balance pcs logged. Mark status as PACKED?`,
     });
   }
 
@@ -650,7 +926,7 @@ router.post('/:id/pack', async (req, res) => {
   }
 
   await pool.query(`UPDATE bags SET status = 'PACKED' WHERE id = $1`, [id]);
-  await logHistory(pool, id, bag.status, 'PACKED', 'Packing');
+  await logHistory(pool, id, bag.status, 'PACKED', `Packing completed (${packets_count} pkts, ${balance_qty} balance)`);
 
   await logAudit(pool, {
     process: 'packing',
@@ -669,6 +945,41 @@ router.post('/:id/pack', async (req, res) => {
   });
 
   res.json({ bag: { ...bag, status: 'PACKED' }, closed: true });
+});
+
+// --- Rework Pending Pool ---
+router.get('/rework/pending', async (req, res) => {
+  const { rows } = await pool.query(`
+    SELECT rl.*, p.part_code, p.part_name, p.shrp_part_code, b.bag_code, b.batch_no,
+           ci.item_name as reject_reason_name, u.full_name as creator_name
+    FROM rework_log rl
+    JOIN parts p ON p.id = rl.part_id
+    LEFT JOIN bags b ON b.id = rl.bag_id
+    LEFT JOIN check_items ci ON ci.id = rl.source_reject_reason_id
+    JOIN users u ON u.id = rl.created_by_user_id
+    WHERE rl.status = 'PENDING'
+    ORDER BY rl.created_at ASC
+  `);
+  res.json(rows);
+});
+
+// --- Complete Rework Item ---
+router.post('/rework/:id/complete', async (req, res) => {
+  const { id } = req.params;
+  const { reworked_good_qty, scrap_qty, remarks } = req.body;
+
+  if (reworked_good_qty == null && scrap_qty == null) {
+    return res.status(400).json({ error: 'Reworked good qty or scrap qty is required' });
+  }
+
+  await pool.query(
+    `UPDATE rework_log
+     SET reworked_good_qty = $1, scrap_qty = $2, remarks = $3, worked_by_user_id = $4, status = 'COMPLETED', completed_at = now()
+     WHERE id = $5`,
+    [Number(reworked_good_qty || 0), Number(scrap_qty || 0), remarks || null, req.user.id, id]
+  );
+
+  res.json({ success: true, message: 'Rework logged successfully' });
 });
 
 // --- Dispatch entry ---

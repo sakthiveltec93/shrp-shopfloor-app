@@ -76,6 +76,10 @@ export const or = {
         "label": "ଡିସପାଚ୍",
         "hint": "ଗ୍ରାହକ ଡିସପାଚ୍, FIFO"
       },
+      "rework": {
+        "label": "ରିୱର୍କ",
+        "hint": "ରିୱର୍କ ତାଲିକା"
+      },
       "approvals": {
         "label": "ଆପ୍ରୁଭାଲ୍",
         "hint": "ବକେୟା ମୋଲ୍ଡ ସେଟଅପ୍"

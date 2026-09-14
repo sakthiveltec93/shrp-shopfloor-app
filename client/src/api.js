@@ -153,9 +153,16 @@ export const api = {
   bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
   fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),
   trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),
+  trimSummary: (id) => request(`/bags/${id}/trim-summary`),
   inspectBag: (id, payload) => request(`/bags/${id}/inspect`, { method: 'POST', body: payload }),
   packBag: (id, payload) => request(`/bags/${id}/pack`, { method: 'POST', body: payload }),
   dispatchBag: (id, payload) => request(`/bags/${id}/dispatch`, { method: 'POST', body: payload }),
+  holdBag: (id, payload) => request(`/bags/${id}/hold`, { method: 'POST', body: payload }),
+  releaseHoldBag: (id, payload) => request(`/bags/${id}/release-hold`, { method: 'POST', body: payload }),
+  balancePool: (partId) => request(`/bags/balance-pool/${partId}`),
+  packPacketFromPool: (partId) => request(`/bags/balance-pool/${partId}/pack-packet`, { method: 'POST' }),
+  reworkPending: () => request('/bags/rework/pending'),
+  completeRework: (id, payload) => request(`/bags/rework/${id}/complete`, { method: 'POST', body: payload }),
   traceability: (bagCode) => request(`/bags/audit/traceability/${encodeURIComponent(bagCode)}`),
 
   notifications: {

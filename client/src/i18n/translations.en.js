@@ -81,6 +81,10 @@ export const en = {
         "label": "Dispatch",
         "hint": "Customer dispatch, FIFO"
       },
+      "rework": {
+        "label": "Rework Pool",
+        "hint": "Process pending reworks"
+      },
       "approvals": {
         "label": "Approvals",
         "hint": "Pending mould setups"
