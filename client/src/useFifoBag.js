@@ -22,15 +22,19 @@ export function useFifoBag(stage) {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    api.parts().then((res) => {
-      // If stage is trim, only show parts requiring trim; if inspect, parts requiring inspection
-      let filtered = res;
-      if (stage === 'trim') filtered = res.filter((p) => p.trim_required);
-      if (stage === 'inspect') filtered = res.filter((p) => p.inspection_required);
-      setParts(filtered);
-    }).catch(() => {});
+  const loadParts = useCallback(() => {
+    api.stageParts(stage)
+      .then((res) => {
+        setParts(res || []);
+      })
+      .catch(() => {
+        api.parts().then((res) => setParts(res || [])).catch(() => {});
+      });
   }, [stage]);
+
+  useEffect(() => {
+    loadParts();
+  }, [loadParts]);
 
   const loadBagByCode = useCallback(async (code) => {
     if (!code) return;
@@ -53,7 +57,7 @@ export function useFifoBag(stage) {
       }
     } catch (err) {
       setBag(null);
-      setError(err.message);
+      setError(err.message || 'Bag not found or not eligible for this stage');
     } finally {
       setLoading(false);
     }
@@ -65,7 +69,7 @@ export function useFifoBag(stage) {
     loadBagByCode(scanInput.trim());
   }
 
-  // Method A (Manual) Part Selection
+  // Method A (Manual) Part Selection: fetches only eligible stage bags
   async function selectPart(pid) {
     setPartId(pid);
     setBag(null);
@@ -78,15 +82,19 @@ export function useFifoBag(stage) {
     if (!pid) return;
     setLoading(true);
     try {
-      // First try to auto-load the FIFO head bag
-      const fifoHead = await api.fifoBag(pid, stage);
-      setBag(fifoHead);
-      setSelectedBatch(fifoHead.batch_no);
-      // Also load all bags for this batch
-      const bList = await api.bagsForBatch(fifoHead.batch_no);
-      setBatchBags(bList);
+      const eligibleBags = await api.bagsForPart(pid, stage);
+      setBatchBags(eligibleBags || []);
+
+      if (eligibleBags && eligibleBags.length > 0) {
+        const oldest = eligibleBags[0];
+        setBag(oldest);
+        setSelectedBatch(oldest.batch_no);
+      } else {
+        setBag(null);
+        setError(`No bag ready for ${stage === 'trim' ? 'trimming' : stage === 'inspect' ? 'inspection' : stage === 'pack' ? 'packing' : 'dispatch'} on this part.`);
+      }
     } catch (err) {
-      // If no bag ready, load list of bags for part to select
+      setBag(null);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -101,8 +109,11 @@ export function useFifoBag(stage) {
     if (!batchNo) return;
     setLoading(true);
     try {
-      const bList = await api.bagsForBatch(batchNo);
-      setBatchBags(bList);
+      const bList = await api.bagsForBatch(batchNo, stage);
+      setBatchBags(bList || []);
+      if (bList && bList.length > 0) {
+        setBag(bList[0]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -116,6 +127,7 @@ export function useFifoBag(stage) {
   }
 
   function refetch() {
+    loadParts();
     if (bag?.bag_code) {
       loadBagByCode(bag.bag_code);
     } else if (partId) {
@@ -162,5 +174,7 @@ export function useFifoBag(stage) {
     loading,
     refetch,
     clearBag,
+    loadParts,
   };
 }
+

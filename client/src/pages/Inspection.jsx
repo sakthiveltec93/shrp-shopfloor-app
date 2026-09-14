@@ -31,6 +31,13 @@ export default function Inspection() {
 
   const [saving, setSaving] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [directPromptDismissed, setDirectPromptDismissed] = useState(false);
+
+  const selectedPart = parts.find((p) => String(p.id) === String(partId));
+
+  useEffect(() => {
+    setDirectPromptDismissed(false);
+  }, [partId]);
 
   useEffect(() => {
     api.checkItems('reject_reason').then(setReasons).catch(() => {});
@@ -224,6 +231,45 @@ export default function Inspection() {
           )}
         </div>
       )}
+
+      {/* Direct Packing Confirmation Banner */}
+      {selectedPart && selectedPart.inspection_required === false && !directPromptDismissed && (
+        <div className="panel" style={{ borderColor: 'var(--blue, #3b82f6)', background: 'rgba(59,130,246,0.1)', marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 6px', color: '#60a5fa', fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+            ℹ️ Direct Packing Part
+          </h3>
+          <p style={{ fontSize: 13, margin: '0 0 10px' }}>
+            Part <strong>{selectedPart.shrp_part_code || selectedPart.part_code}</strong> does not normally require inspection.
+            Do you still want to inspect this bag?
+          </p>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => setDirectPromptDismissed(true)}
+            >
+              🔍 Yes, Inspect Anyway
+            </button>
+            <a
+              href="/packing"
+              className="btn btn-primary"
+              style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+            >
+              📦 Go to Packing
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Helpful context if no bags are ready for inspection */}
+      {error && error.includes('No bag ready') && selectedPart?.trim_required && (
+        <div className="panel" style={{ borderColor: 'var(--amber)', background: 'rgba(245,166,35,0.08)', marginBottom: 16, fontSize: 13 }}>
+          💡 <strong>Notice:</strong> Part <em>{selectedPart.shrp_part_code || selectedPart.part_code}</em> requires trimming first.
+          Make sure bags for this part are completed in the <strong>Trimming</strong> stage before inspecting.
+        </div>
+      )}
+
 
       {/* FIFO Violation Dialog per Section 4 */}
       {fifoViolation && (

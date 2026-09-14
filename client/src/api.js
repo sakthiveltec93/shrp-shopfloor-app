@@ -146,11 +146,17 @@ export const api = {
   changePin: (payload) => request('/account/change-pin', { method: 'POST', body: payload }),
 
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
+  stageParts: (stage) => request(`/bags/stage-parts${stage ? `?stage=${stage}` : ''}`),
   bagBatchInfo: (machineId, entryDate, shift) => request(`/bags/batch-info?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}`),
   productionVisibility: (machineId, entryDate, shift, partId) => request(`/bags/production-visibility?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}${partId ? `&part_id=${partId}` : ''}`),
   bagDetail: (id) => request(`/bags/${id}`),
   scanBag: (code, stage) => request(`/bags/by-code/${encodeURIComponent(code)}${stage ? `?stage=${stage}` : ''}`),
-  bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
+  bagsForBatch: (batch_no, stage) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}${stage ? `&stage=${stage}` : ''}`),
+  bagsForPart: (partId, stage) => request(`/bags?part_id=${partId}${stage ? `&stage=${stage}` : ''}`),
+  bagHistoryLog: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/bags/log/history${qs ? `?${qs}` : ''}`);
+  },
   fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),
   trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),
   trimSummary: (id) => request(`/bags/${id}/trim-summary`),

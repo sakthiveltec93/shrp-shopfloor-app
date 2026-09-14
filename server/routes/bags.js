@@ -316,23 +316,197 @@ router.get('/batch-info', async (req, res) => {
   });
 });
 
-// List bags with part identification
+// Stage-eligible parts: returns only parts that have bags entered in the system
+router.get('/stage-parts', async (req, res) => {
+  const { stage } = req.query;
+  const { rows } = await pool.query(`
+    SELECT p.id, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+           p.trim_required, p.inspection_required, p.packing_required, p.dispatch_required,
+           p.part_weight_g, p.unit_weight_g, p.batch_part_code, p.standard_pack_qty,
+           COUNT(b.id) FILTER (WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND b.status != 'SCRAPPED') AS active_bag_count,
+           COUNT(b.id) FILTER (
+             WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND (
+               ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
+               ($1 = 'inspect' AND (
+                 (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+                 (NOT p.trim_required AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
+               )) OR
+               ($1 = 'pack' AND (
+                 (p.inspection_required AND b.status = 'INSPECTED') OR
+                 (NOT p.inspection_required AND p.trim_required AND b.status = 'TRIMMED') OR
+                 (NOT p.inspection_required AND NOT p.trim_required AND b.status = 'OPEN')
+               )) OR
+               ($1 = 'dispatch' AND b.status = 'PACKED')
+             )
+           ) AS ready_bag_count
+    FROM parts p
+    JOIN bags b ON b.part_id = p.id
+    WHERE p.active = TRUE
+    GROUP BY p.id
+    HAVING COUNT(b.id) > 0
+    ORDER BY p.part_code
+  `, [stage || '']);
+  res.json(rows);
+});
+
+// Comprehensive bag history log with operator details and stage timelines
+router.get('/log/history', async (req, res) => {
+  const { date, shift, stage, part_id, search } = req.query;
+  const clauses = [];
+  const params = [];
+
+  if (date) {
+    params.push(date);
+    clauses.push(`b.entry_date = $${params.length}`);
+  }
+  if (shift && shift !== 'ALL') {
+    params.push(shift);
+    clauses.push(`b.shift = $${params.length}`);
+  }
+  if (part_id) {
+    params.push(part_id);
+    clauses.push(`b.part_id = $${params.length}`);
+  }
+  if (search && search.trim()) {
+    params.push(`%${search.trim().toLowerCase()}%`);
+    clauses.push(`(LOWER(b.bag_code) LIKE $${params.length} OR LOWER(b.batch_no) LIKE $${params.length} OR LOWER(p.shrp_part_code) LIKE $${params.length} OR LOWER(p.customer_part_no) LIKE $${params.length})`);
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const query = `
+    SELECT b.*,
+           m.machine_code,
+           p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+           u.full_name AS created_by_name,
+           (
+             SELECT json_agg(json_build_object(
+               'id', te.id,
+               'trimmed_wt_kg', te.trimmed_wt_kg,
+               'runner_wt_kg', te.runner_wt_kg,
+               'reject_wt_kg', te.reject_wt_kg,
+               'remaining_wt_kg', te.remaining_wt_kg,
+               'is_partial', te.is_partial,
+               'pass_number', te.pass_number,
+               'reject_reason', ci.item_name,
+               'operator_name', ou.full_name,
+               'created_at', te.created_at
+             ) ORDER BY te.pass_number ASC, te.created_at ASC)
+             FROM trim_entries te
+             LEFT JOIN check_items ci ON ci.id = te.reject_reason_id
+             LEFT JOIN users ou ON ou.id = te.operator_user_id
+             WHERE te.bag_id = b.id
+           ) AS trim_history,
+           (
+             SELECT json_agg(json_build_object(
+               'id', ie.id,
+               'inspected_wt_kg', ie.inspected_wt_kg,
+               'remaining_wt_kg', ie.remaining_wt_kg,
+               'reject_wt_kg', ie.reject_wt_kg,
+               'sent_to_rework_qty', ie.sent_to_rework_qty,
+               'variance_tier', ie.variance_tier,
+               'is_partial', ie.is_partial,
+               'remarks', ie.remarks,
+               'reject_reason', ci.item_name,
+               'operator_name', ou.full_name,
+               'created_at', ie.created_at
+             ) ORDER BY ie.created_at ASC)
+             FROM inspection_entries ie
+             LEFT JOIN check_items ci ON ci.id = ie.reject_reason_id
+             LEFT JOIN users ou ON ou.id = ie.operator_user_id
+             WHERE ie.bag_id = b.id
+           ) AS inspection_history,
+           (
+             SELECT json_agg(json_build_object(
+               'id', pe.id,
+               'packed_qty', pe.packed_qty,
+               'packed_wt_kg', pe.packed_wt_kg,
+               'sample_packet_wt_g', pe.sample_packet_wt_g,
+               'packets_count', pe.packets_count,
+               'balance_qty', pe.balance_qty,
+               'operator_name', ou.full_name,
+               'created_at', pe.created_at
+             ) ORDER BY pe.created_at ASC)
+             FROM packing_entries pe
+             LEFT JOIN users ou ON ou.id = pe.operator_user_id
+             WHERE pe.bag_id = b.id
+           ) AS packing_history,
+           (
+             SELECT json_agg(json_build_object(
+               'id', hl.id,
+               'stage', hl.stage,
+               'reason', hl.reason,
+               'hold_by', hu.full_name,
+               'hold_at', hl.hold_at,
+               'released_by', ru.full_name,
+               'released_at', hl.released_at,
+               'release_remarks', hl.release_remarks,
+               'is_active', hl.is_active
+             ) ORDER BY hl.hold_at DESC)
+             FROM bag_hold_log hl
+             LEFT JOIN users hu ON hu.id = hl.hold_by_user_id
+             LEFT JOIN users ru ON ru.id = hl.released_by_user_id
+             WHERE hl.bag_id = b.id
+           ) AS hold_history
+    FROM bags b
+    JOIN machines m ON m.id = b.machine_id
+    JOIN parts p ON p.id = b.part_id
+    JOIN users u ON u.id = b.operator_user_id
+    ${where}
+    ORDER BY b.entry_date DESC, b.created_at DESC
+    LIMIT 500
+  `;
+
+  const { rows } = await pool.query(query, params);
+  res.json(rows);
+});
+
+// List bags with stage filtering: only returns eligible PART bags ready for that stage
 router.get('/', async (req, res) => {
-  const { batch_no, status, part_id } = req.query;
+  const { batch_no, status, part_id, stage, bag_type } = req.query;
   const clauses = [];
   const params = [];
   if (batch_no) { params.push(batch_no); clauses.push(`b.batch_no = $${params.length}`); }
   if (status) { params.push(status); clauses.push(`b.status = $${params.length}`); }
   if (part_id) { params.push(part_id); clauses.push(`b.part_id = $${params.length}`); }
+  if (bag_type) {
+    params.push(bag_type);
+    clauses.push(`b.bag_type = $${params.length}`);
+  }
+
+  // If a specific shopfloor stage is passed, filter strictly for eligible PART bags
+  if (stage === 'trim') {
+    clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.status IN ('OPEN', 'PARTIAL_TRIM')`);
+  } else if (stage === 'inspect') {
+    clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`(
+      (p.trim_required = TRUE AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+      (p.trim_required = FALSE AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
+    )`);
+  } else if (stage === 'pack') {
+    clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`(
+      (p.inspection_required = TRUE AND b.status = 'INSPECTED') OR
+      (p.inspection_required = FALSE AND p.trim_required = TRUE AND b.status = 'TRIMMED') OR
+      (p.inspection_required = FALSE AND p.trim_required = FALSE AND b.status = 'OPEN')
+    )`);
+  } else if (stage === 'dispatch') {
+    clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.status = 'PACKED'`);
+  }
+
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const { rows } = await pool.query(`
-    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no
+    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+           p.trim_required, p.inspection_required, p.packing_required, p.dispatch_required
     FROM bags b
     JOIN machines m ON m.id = b.machine_id
     JOIN parts p ON p.id = b.part_id
     ${where}
-    ORDER BY b.created_at DESC LIMIT 200
+    ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
+    LIMIT 300
   `, params);
   res.json(rows);
 });
@@ -346,11 +520,11 @@ router.get('/fifo', async (req, res) => {
   const part = partRes.rows[0];
   if (!part) return res.status(404).json({ error: 'Part not found' });
 
-  let requiredStatus;
-  if (stage === 'trim') requiredStatus = 'OPEN';
-  else if (stage === 'inspect') requiredStatus = part.trim_required ? 'TRIMMED' : 'OPEN';
-  else if (stage === 'pack') requiredStatus = part.inspection_required ? 'INSPECTED' : (part.trim_required ? 'TRIMMED' : 'OPEN');
-  else if (stage === 'dispatch') requiredStatus = 'PACKED';
+  let statusFilter;
+  if (stage === 'trim') statusFilter = "b.status IN ('OPEN', 'PARTIAL_TRIM')";
+  else if (stage === 'inspect') statusFilter = part.trim_required ? "b.status IN ('TRIMMED', 'PARTIAL_INSPECT')" : "b.status IN ('OPEN', 'PARTIAL_INSPECT')";
+  else if (stage === 'pack') statusFilter = part.inspection_required ? "b.status = 'INSPECTED'" : (part.trim_required ? "b.status = 'TRIMMED'" : "b.status = 'OPEN'");
+  else if (stage === 'dispatch') statusFilter = "b.status = 'PACKED'";
   else return res.status(400).json({ error: "stage must be 'trim', 'inspect', 'pack', or 'dispatch'" });
 
   const { rows } = await pool.query(`
@@ -358,16 +532,16 @@ router.get('/fifo', async (req, res) => {
     FROM bags b
     JOIN machines m ON m.id = b.machine_id
     JOIN parts p ON p.id = b.part_id
-    WHERE b.part_id = $1 AND b.bag_type = 'PART' AND b.status = $2
+    WHERE b.part_id = $1 AND b.bag_type = 'PART' AND ${statusFilter}
     ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
     LIMIT 1
-  `, [part_id, requiredStatus]);
+  `, [part_id]);
 
   if (!rows[0]) return res.status(404).json({ error: `No bag ready for ${stage} on this part` });
   res.json(rows[0]);
 });
 
-// QR Code / Barcode Scan Lookup & Validation
+// QR Code / Barcode Scan Lookup & Validation with strict stage gating
 router.get('/by-code/:code', async (req, res) => {
   let { code } = req.params;
   const { stage } = req.query;
@@ -391,6 +565,65 @@ router.get('/by-code/:code', async (req, res) => {
   const bag = rows[0];
   if (!bag) return res.status(404).json({ error: `Bag '${code}' not found` });
 
+  // Stage validation & Gating
+  if (stage) {
+    if (bag.status === 'HOLD') {
+      return res.status(409).json({
+        error: `⛔ Bag '${bag.bag_code}' is on HOLD (Quarantined). Must be released by Supervisor before processing.`,
+        bag,
+        fifoValid: false,
+      });
+    }
+
+    if (stage === 'trim') {
+      if (bag.bag_type !== 'PART') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be trimmed.` });
+      }
+      if (bag.status === 'PACKED' || bag.status === 'INSPECTED' || bag.status === 'TRIMMED') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is already ${bag.status} and cannot be trimmed again.` });
+      }
+    } else if (stage === 'inspect') {
+      if (bag.bag_type !== 'PART') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be inspected.` });
+      }
+      if (bag.trim_required && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
+        return res.status(409).json({
+          error: `⛔ Trimming Required: Part '${bag.shrp_part_code || bag.part_code}' requires trimming. Bag '${bag.bag_code}' must be trimmed first before inspection.`,
+          bag,
+          fifoValid: false
+        });
+      }
+      if (bag.status === 'PACKED') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is already PACKED.` });
+      }
+    } else if (stage === 'pack') {
+      if (bag.bag_type !== 'PART') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be packed.` });
+      }
+      if (bag.trim_required && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
+        return res.status(409).json({
+          error: `⛔ Trimming Required: Bag '${bag.bag_code}' must be trimmed and inspected first before packing.`,
+          bag,
+          fifoValid: false
+        });
+      }
+      if (bag.inspection_required && bag.status !== 'INSPECTED') {
+        return res.status(409).json({
+          error: `⛔ Inspection Required: Part '${bag.shrp_part_code || bag.part_code}' requires inspection. Bag '${bag.bag_code}' must be inspected first before packing.`,
+          bag,
+          fifoValid: false
+        });
+      }
+      if (bag.status === 'PACKED') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is already PACKED.` });
+      }
+    } else if (stage === 'dispatch') {
+      if (bag.status !== 'PACKED') {
+        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is not PACKED yet (Status: ${bag.status}).` });
+      }
+    }
+  }
+
   let fifoValid = true;
   let oldestBag = null;
 
@@ -401,7 +634,7 @@ router.get('/by-code/:code', async (req, res) => {
     else if (stage === 'pack') requiredStatus = bag.inspection_required ? 'INSPECTED' : (bag.trim_required ? 'TRIMMED' : 'OPEN');
     else if (stage === 'dispatch') requiredStatus = 'PACKED';
 
-    if (requiredStatus && bag.status === requiredStatus) {
+    if (requiredStatus && (bag.status === requiredStatus || bag.status === 'PARTIAL_TRIM' || bag.status === 'PARTIAL_INSPECT')) {
       const older = await checkFifo(bag.part_id, requiredStatus, bag.id, bag.entry_date, bag.shift, bag.created_at);
       if (older) {
         fifoValid = false;
@@ -435,6 +668,7 @@ router.get('/:id', async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'Bag not found' });
   res.json(rows[0]);
 });
+
 
 // --- Trimming entry ---
 // --- Bag HOLD / Quarantine ---

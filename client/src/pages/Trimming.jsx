@@ -30,6 +30,13 @@ export default function Trimming() {
   const [confirmMsg, setConfirmMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [directPromptDismissed, setDirectPromptDismissed] = useState(false);
+
+  const selectedPart = parts.find((p) => String(p.id) === String(partId));
+
+  useEffect(() => {
+    setDirectPromptDismissed(false);
+  }, [partId]);
 
   useEffect(() => {
     api.checkItems('reject_reason').then(setReasons).catch(() => {});
@@ -235,6 +242,37 @@ export default function Trimming() {
           )}
         </div>
       )}
+
+      {/* Direct Inspection Confirmation Banner */}
+      {selectedPart && selectedPart.trim_required === false && !directPromptDismissed && (
+        <div className="panel" style={{ borderColor: 'var(--blue, #3b82f6)', background: 'rgba(59,130,246,0.1)', marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 6px', color: '#60a5fa', fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+            ℹ️ Direct Inspection Part
+          </h3>
+          <p style={{ fontSize: 13, margin: '0 0 10px' }}>
+            Part <strong>{selectedPart.shrp_part_code || selectedPart.part_code}</strong> does not normally require trimming.
+            Do you still want to trim this bag?
+          </p>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => setDirectPromptDismissed(true)}
+            >
+              ✂️ Yes, Trim Anyway
+            </button>
+            <a
+              href="/inspection"
+              className="btn btn-primary"
+              style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+            >
+              🔍 Go to Inspection
+            </a>
+          </div>
+        </div>
+      )}
+
 
       {/* FIFO Violation Dialog per Section 4 */}
       {fifoViolation && (
