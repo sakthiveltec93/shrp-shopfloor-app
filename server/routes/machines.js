@@ -265,6 +265,18 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
     screw_diameter_mm,
     clamping_force_kn,
     pm_due_date,
+    tie_bar_distance_mm,
+    platen_size_mm,
+    min_mould_height_mm,
+    max_mould_height_mm,
+    clamping_stroke_mm,
+    max_daylight_mm,
+    ejector_stroke_mm,
+    ejector_force_kn,
+    max_shot_weight_g,
+    motor_type,
+    connected_load_kw,
+    hourly_rate_inr,
   } = req.body;
 
   const { rows } = await pool.query(`
@@ -275,17 +287,41 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
         year_of_commission = COALESCE($4, year_of_commission),
         screw_diameter_mm = COALESCE($5, screw_diameter_mm),
         clamping_force_kn = COALESCE($6, clamping_force_kn),
-        pm_due_date = COALESCE($7, pm_due_date)
-    WHERE id = $8
+        pm_due_date = COALESCE($7, pm_due_date),
+        tie_bar_distance_mm = COALESCE($8, tie_bar_distance_mm),
+        platen_size_mm = COALESCE($9, platen_size_mm),
+        min_mould_height_mm = COALESCE($10, min_mould_height_mm),
+        max_mould_height_mm = COALESCE($11, max_mould_height_mm),
+        clamping_stroke_mm = COALESCE($12, clamping_stroke_mm),
+        max_daylight_mm = COALESCE($13, max_daylight_mm),
+        ejector_stroke_mm = COALESCE($14, ejector_stroke_mm),
+        ejector_force_kn = COALESCE($15, ejector_force_kn),
+        max_shot_weight_g = COALESCE($16, max_shot_weight_g),
+        motor_type = COALESCE($17, motor_type),
+        connected_load_kw = COALESCE($18, connected_load_kw),
+        hourly_rate_inr = COALESCE($19, hourly_rate_inr)
+    WHERE id = $20
     RETURNING *
   `, [
     description,
-    tonnage ? Number(tonnage) : null,
+    tonnage != null ? Number(tonnage) : null,
     make_model,
-    year_of_commission ? Number(year_of_commission) : null,
-    screw_diameter_mm ? Number(screw_diameter_mm) : null,
-    clamping_force_kn ? Number(clamping_force_kn) : null,
+    year_of_commission != null ? Number(year_of_commission) : null,
+    screw_diameter_mm != null ? Number(screw_diameter_mm) : null,
+    clamping_force_kn != null ? Number(clamping_force_kn) : null,
     pm_due_date || null,
+    tie_bar_distance_mm,
+    platen_size_mm,
+    min_mould_height_mm != null ? Number(min_mould_height_mm) : null,
+    max_mould_height_mm != null ? Number(max_mould_height_mm) : null,
+    clamping_stroke_mm != null ? Number(clamping_stroke_mm) : null,
+    max_daylight_mm != null ? Number(max_daylight_mm) : null,
+    ejector_stroke_mm != null ? Number(ejector_stroke_mm) : null,
+    ejector_force_kn != null ? Number(ejector_force_kn) : null,
+    max_shot_weight_g != null ? Number(max_shot_weight_g) : null,
+    motor_type,
+    connected_load_kw != null ? Number(connected_load_kw) : null,
+    hourly_rate_inr != null ? Number(hourly_rate_inr) : null,
     id,
   ]);
 
@@ -304,6 +340,18 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
     screw_diameter_mm = 35,
     clamping_force_kn = 1000,
     pm_due_date,
+    tie_bar_distance_mm = '410 x 410',
+    platen_size_mm = '600 x 600',
+    min_mould_height_mm = 150,
+    max_mould_height_mm = 450,
+    clamping_stroke_mm = 350,
+    max_daylight_mm = 800,
+    ejector_stroke_mm = 100,
+    ejector_force_kn = 35,
+    max_shot_weight_g = 180,
+    motor_type = 'Servo Hydraulic',
+    connected_load_kw = 22,
+    hourly_rate_inr = 450,
   } = req.body;
 
   if (!machine_code) {
@@ -313,8 +361,11 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
     const { rows } = await pool.query(`
       INSERT INTO machines
-        (machine_code, description, tonnage, make_model, year_of_commission, screw_diameter_mm, clamping_force_kn, pm_due_date, active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE + INTERVAL '30 days'), TRUE)
+        (machine_code, description, tonnage, make_model, year_of_commission, screw_diameter_mm, clamping_force_kn, pm_due_date,
+         tie_bar_distance_mm, platen_size_mm, min_mould_height_mm, max_mould_height_mm, clamping_stroke_mm, max_daylight_mm,
+         ejector_stroke_mm, ejector_force_kn, max_shot_weight_g, motor_type, connected_load_kw, hourly_rate_inr, active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE + INTERVAL '30 days'),
+              $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, TRUE)
       RETURNING *
     `, [
       machine_code.trim().toUpperCase(),
@@ -325,6 +376,18 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
       Number(screw_diameter_mm) || 35,
       Number(clamping_force_kn) || 1000,
       pm_due_date || null,
+      tie_bar_distance_mm || '410 x 410',
+      platen_size_mm || '600 x 600',
+      Number(min_mould_height_mm) || 150,
+      Number(max_mould_height_mm) || 450,
+      Number(clamping_stroke_mm) || 350,
+      Number(max_daylight_mm) || 800,
+      Number(ejector_stroke_mm) || 100,
+      Number(ejector_force_kn) || 35,
+      Number(max_shot_weight_g) || 180,
+      motor_type || 'Servo Hydraulic',
+      Number(connected_load_kw) || 22,
+      Number(hourly_rate_inr) || 450,
     ]);
     res.status(201).json(rows[0]);
   } catch (err) {

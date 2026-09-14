@@ -12,6 +12,37 @@ const BREAKDOWN_TYPES = [
   { value: 'other', label: '🛠️ Other Maintenance Issue' },
 ];
 
+const MOTOR_TYPES = [
+  'Servo Hydraulic',
+  'All-Electric Servo',
+  'Hydraulic Standard',
+  'Rubber Compression / Heating',
+  'Hybrid Servo',
+];
+
+const emptyMachineForm = {
+  machine_code: '',
+  description: '',
+  tonnage: 100,
+  make_model: '',
+  year_of_commission: new Date().getFullYear(),
+  screw_diameter_mm: 35,
+  clamping_force_kn: 1000,
+  tie_bar_distance_mm: '410 x 410',
+  platen_size_mm: '600 x 600',
+  min_mould_height_mm: 150,
+  max_mould_height_mm: 450,
+  clamping_stroke_mm: 350,
+  max_daylight_mm: 800,
+  ejector_stroke_mm: 100,
+  ejector_force_kn: 35,
+  max_shot_weight_g: 180,
+  motor_type: 'Servo Hydraulic',
+  connected_load_kw: 22,
+  hourly_rate_inr: 450,
+  pm_due_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+};
+
 export default function MachinesDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -26,6 +57,12 @@ export default function MachinesDashboard() {
   const [machineHistory, setMachineHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyTab, setHistoryTab] = useState('breakdowns'); // 'breakdowns' | 'moulds' | 'production'
+
+  // Add / Edit Machine modal
+  const [machineModalMode, setMachineModalMode] = useState(null); // 'add' | 'edit' | null
+  const [machineFormData, setMachineFormData] = useState(emptyMachineForm);
+  const [machineFormSubmitting, setMachineFormSubmitting] = useState(false);
+  const [editMachineId, setEditMachineId] = useState(null);
 
   // Breakdown Form state
   const [bdType, setBdType] = useState('mechanical');
@@ -47,6 +84,57 @@ export default function MachinesDashboard() {
   useEffect(() => {
     loadOverview();
   }, [selectedDate]);
+
+  function openAddMachineModal() {
+    setMachineModalMode('add');
+    setEditMachineId(null);
+    setMachineFormData(emptyMachineForm);
+  }
+
+  function openEditMachineModal(m) {
+    setMachineModalMode('edit');
+    setEditMachineId(m.id);
+    setMachineFormData({
+      machine_code: m.machine_code || '',
+      description: m.description || '',
+      tonnage: m.tonnage || 100,
+      make_model: m.make_model || '',
+      year_of_commission: m.year_of_commission || 2020,
+      screw_diameter_mm: m.screw_diameter_mm || 35,
+      clamping_force_kn: m.clamping_force_kn || 1000,
+      tie_bar_distance_mm: m.tie_bar_distance_mm || '410 x 410',
+      platen_size_mm: m.platen_size_mm || '600 x 600',
+      min_mould_height_mm: m.min_mould_height_mm || 150,
+      max_mould_height_mm: m.max_mould_height_mm || 450,
+      clamping_stroke_mm: m.clamping_stroke_mm || 350,
+      max_daylight_mm: m.max_daylight_mm || 800,
+      ejector_stroke_mm: m.ejector_stroke_mm || 100,
+      ejector_force_kn: m.ejector_force_kn || 35,
+      max_shot_weight_g: m.max_shot_weight_g || 180,
+      motor_type: m.motor_type || 'Servo Hydraulic',
+      connected_load_kw: m.connected_load_kw || 22,
+      hourly_rate_inr: m.hourly_rate_inr || 450,
+      pm_due_date: m.pm_due_date ? String(m.pm_due_date).slice(0, 10) : '',
+    });
+  }
+
+  async function handleMachineFormSubmit(e) {
+    e.preventDefault();
+    setMachineFormSubmitting(true);
+    try {
+      if (machineModalMode === 'add') {
+        await api.machines_mgmt.create(machineFormData);
+      } else {
+        await api.machines_mgmt.update(editMachineId, machineFormData);
+      }
+      setMachineModalMode(null);
+      loadOverview();
+    } catch (err) {
+      alert('Error saving machine: ' + (err.message || 'Server error'));
+    } finally {
+      setMachineFormSubmitting(false);
+    }
+  }
 
   function openBreakdownModal(m) {
     setBreakdownModalMachine(m);
@@ -114,11 +202,11 @@ export default function MachinesDashboard() {
             </h1>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-            IATF 16949 Clause 8.5.1.5 · Total Productive Maintenance, Machine Status & Historical Tracking
+            IATF 16949 Clause 8.5.1.5 · Total Productive Maintenance, Machine Capacity & Specifications
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             type="date"
             value={selectedDate}
@@ -130,6 +218,12 @@ export default function MachinesDashboard() {
             style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#60a5fa', padding: '8px 14px', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
           >
             ⚙️ View Moulds & Tool Life →
+          </button>
+          <button
+            onClick={openAddMachineModal}
+            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            ➕ Add Machine
           </button>
         </div>
       </div>
@@ -162,7 +256,7 @@ export default function MachinesDashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading machine status...</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 16 }}>
           {machines.map((m) => {
             const isRunning = m.status === 'RUNNING';
             const isStarted = m.status === 'STARTED';
@@ -194,9 +288,16 @@ export default function MachinesDashboard() {
                       <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>
                         {m.tonnage}T
                       </span>
+                      <button
+                        onClick={() => openEditMachineModal(m)}
+                        title="Edit Machine Capacity & Engineering Specs"
+                        style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: 0 }}
+                      >
+                        ✏️
+                      </button>
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {m.make_model}
+                      {m.make_model || 'Injection Moulding Machine'} · {m.motor_type || 'Servo'}
                     </div>
                   </div>
 
@@ -207,17 +308,14 @@ export default function MachinesDashboard() {
                   </div>
                 </div>
 
-                {/* Technical Specs Pill Bar */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--line)' }}>
-                    Clamp: <strong>{m.clamping_force_kn} kN</strong>
-                  </span>
-                  <span style={{ background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--line)' }}>
-                    Screw: <strong>{m.screw_diameter_mm} mm</strong>
-                  </span>
-                  <span style={{ background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--line)' }}>
-                    YOM: <strong>{m.year_of_commission}</strong>
-                  </span>
+                {/* Technical Engineering Specs Grid */}
+                <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', color: 'var(--text-muted)' }}>
+                  <div>Tie Bar: <strong style={{ color: 'var(--text)' }}>{m.tie_bar_distance_mm || '-'}</strong> mm</div>
+                  <div>Platen: <strong style={{ color: 'var(--text)' }}>{m.platen_size_mm || '-'}</strong> mm</div>
+                  <div>Mould Ht: <strong style={{ color: 'var(--text)' }}>{m.min_mould_height_mm || 0}-{m.max_mould_height_mm || 0}</strong> mm</div>
+                  <div>Max Daylight: <strong style={{ color: 'var(--text)' }}>{m.max_daylight_mm || '-'}</strong> mm</div>
+                  <div>Max Shot: <strong style={{ color: 'var(--text)' }}>{m.max_shot_weight_g || '-'}</strong> g</div>
+                  <div>Rate: <strong style={{ color: '#34d399' }}>₹{m.hourly_rate_inr || 450}</strong>/hr</div>
                 </div>
 
                 {/* Running Part Card */}
@@ -312,6 +410,232 @@ export default function MachinesDashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* MODAL: Add / Edit Machine with Engineering Specs */}
+      {machineModalMode && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+          <div style={{ background: '#181a1b', border: '1px solid var(--line)', borderRadius: 12, width: '100%', maxWidth: 720, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text)' }}>
+                  {machineModalMode === 'add' ? '➕ Add New Machine to Fleet' : `✏️ Edit Machine Specifications: ${machineFormData.machine_code}`}
+                </h3>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Engineering capacity parameters for quote planning, mould fitting & costing
+                </div>
+              </div>
+              <button onClick={() => setMachineModalMode(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleMachineFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Machine Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. HSIM - 06"
+                    disabled={machineModalMode === 'edit'}
+                    value={machineFormData.machine_code}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, machine_code: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Tonnage (T) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    max="3000"
+                    value={machineFormData.tonnage}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, tonnage: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Commission Year</label>
+                  <input
+                    type="number"
+                    min="1990"
+                    max="2030"
+                    value={machineFormData.year_of_commission}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, year_of_commission: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Make & Model</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. L&T Demag Ergotech 100"
+                    value={machineFormData.make_model}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, make_model: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Motor / Drive Type</label>
+                  <select
+                    value={machineFormData.motor_type}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, motor_type: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  >
+                    {MOTOR_TYPES.map((mt) => (
+                      <option key={mt} value={mt}>{mt}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Physical & Dimensional Specifications */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 10 }}>📐 Mould Clamping & Dimensional Limits</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Tie Bar Distance (H x V mm)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 410 x 410"
+                      value={machineFormData.tie_bar_distance_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, tie_bar_distance_mm: e.target.value })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Platen Size (H x V mm)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 600 x 600"
+                      value={machineFormData.platen_size_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, platen_size_mm: e.target.value })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Daylight (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.max_daylight_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, max_daylight_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Min Mould Height (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.min_mould_height_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, min_mould_height_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Mould Height (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.max_mould_height_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, max_mould_height_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Stroke (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.clamping_stroke_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, clamping_stroke_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Injection & Power Specs */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#34d399', marginBottom: 10 }}>⚡ Injection, Ejector & Hourly Rate</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Screw Diameter (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.screw_diameter_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, screw_diameter_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Shot Weight (PS/PP g)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.max_shot_weight_g}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, max_shot_weight_g: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Force (kN)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.clamping_force_kn}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, clamping_force_kn: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Ejector Stroke (mm)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.ejector_stroke_mm}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, ejector_stroke_mm: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Connected Load (kW)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={machineFormData.connected_load_kw}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, connected_load_kw: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Hourly Rate (₹/hr for costing)</label>
+                    <input
+                      type="number"
+                      value={machineFormData.hourly_rate_inr}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, hourly_rate_inr: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setMachineModalMode(null)}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text-muted)', padding: '8px 16px', borderRadius: 6, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={machineFormSubmitting}
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', color: '#fff', padding: '8px 20px', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {machineFormSubmitting ? 'Saving...' : '💾 Save Machine Specifications'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

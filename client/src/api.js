@@ -206,6 +206,8 @@ export const api = {
     history: (id) => request(`/machines/${id}/history`),
     logBreakdown: (id, payload) => request(`/machines/${id}/breakdown`, { method: 'POST', body: payload }),
     update: (id, payload) => request(`/machines/${id}`, { method: 'PUT', body: payload }),
+    create: (payload) => request('/machines', { method: 'POST', body: payload }),
+    remove: (id) => request(`/machines/${id}`, { method: 'DELETE' }),
   },
 
   moulds: {
@@ -214,7 +216,13 @@ export const api = {
     create: (payload) => request('/moulds', { method: 'POST', body: payload }),
     update: (id, payload) => request(`/moulds/${id}`, { method: 'PUT', body: payload }),
     logMaintenance: (id, payload) => request(`/moulds/${id}/maintenance`, { method: 'POST', body: payload }),
+    uploadFile: (id, payload) => request(`/moulds/${id}/files`, { method: 'POST', body: payload }),
+    deleteFile: (mouldId, fileId) => request(`/moulds/${mouldId}/files/${fileId}`, { method: 'DELETE' }),
+    updateParts: (id, parts) => request(`/moulds/${id}/parts`, { method: 'PUT', body: { parts } }),
   },
+
+  linkPartMould: (partId, mouldId, cavities) =>
+    request(`/masters/parts/${partId}/mould`, { method: 'PUT', body: { mould_id: mouldId, cavities_for_part: cavities } }),
 
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
