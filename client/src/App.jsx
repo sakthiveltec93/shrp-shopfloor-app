@@ -24,11 +24,13 @@ import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
 import MachinesDashboard from './pages/MachinesDashboard'
 import MouldsDashboard from './pages/MouldsDashboard'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
   return (
     <Layout>
-      <Routes>
+      <ErrorBoundary>
+        <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute page="reports"><Reports /></ProtectedRoute>} />
@@ -74,6 +76,7 @@ export default function App() {
         />
         <Route path="/change-pin" element={<ProtectedRoute><PinChange /></ProtectedRoute>} />
       </Routes>
+      </ErrorBoundary>
     </Layout>
   )
 }

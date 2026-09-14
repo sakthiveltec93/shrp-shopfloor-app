@@ -8,7 +8,7 @@ function getToken() {
 }
 
 function isQueueable(path, method) {
-  if (method !== 'POST' && method !== 'PUT') return false;
+  if (method !== 'POST' && method !== 'PUT' && method !== 'DELETE') return false;
   // Auth and PIN changes must not be queued offline
   if (path.startsWith('/auth') || path.startsWith('/account/change-pin')) return false;
   return true;
@@ -64,6 +64,26 @@ async function request(path, { method = 'GET', body, isOfflineReplay = false, de
   try { data = await res.json(); } catch { /* no body */ }
 
   if (!res.ok) {
+    // If the server returns a 5xx error (502 Bad Gateway, 503, 504, 500) during deployment or crash:
+    if (res.status >= 500) {
+      if (method === 'GET') {
+        const cached = cacheStorage.get(path);
+        if (cached !== null) {
+          console.warn(`Server returned ${res.status}, falling back to offline cache for ${path}`);
+          return cached;
+        }
+      }
+      if (!isOfflineReplay && isQueueable(path, method)) {
+        const item = offlineQueue.enqueue({ path, method, body, description });
+        return {
+          ok: true,
+          queuedOffline: true,
+          queueId: item.id,
+          message: 'Server temporarily unavailable (updating). Entry securely saved offline and will automatically sync!',
+        };
+      }
+    }
+
     const message = (data && data.error) || `Request failed (${res.status})`;
     const err = new Error(message);
     err.status = res.status;

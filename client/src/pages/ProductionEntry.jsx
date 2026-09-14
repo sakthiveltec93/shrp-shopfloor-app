@@ -171,9 +171,13 @@ export default function ProductionEntry() {
         remarks: withRemarks ? entryForm.remarks : (entryForm.remarks || undefined),
       });
       setBelowTargetPrompt(null);
-      setLastEntry(entry);
-      const effText = entry.efficiency_pct != null ? t('entry.efficiencySuffix', { pct: entry.efficiency_pct }) : '';
-      setSuccess(t('entry.hourLogged', { hour: context.hour_slot }) + effText);
+      if (entry.queuedOffline) {
+        setSuccess('💾 ' + (entry.message || 'Saved offline! Will sync automatically when connected.'));
+      } else {
+        setLastEntry(entry);
+        const effText = entry.efficiency_pct != null ? t('entry.efficiencySuffix', { pct: entry.efficiency_pct }) : '';
+        setSuccess(t('entry.hourLogged', { hour: context.hour_slot }) + effText);
+      }
       setEntryForm({ end_count: '', remarks: '' });
       setRejectRows([]);
       setDowntimeRows([]);

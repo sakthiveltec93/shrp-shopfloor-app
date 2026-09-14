@@ -31,7 +31,12 @@ export default function Trimming() {
         fifo_override_reason: fifoOverrideReason,
       });
 
-      if (res.needsConfirmation) {
+      if (res.queuedOffline) {
+        setConfirmMsg('');
+        setSuccess('💾 ' + (res.message || 'Saved offline! Will sync automatically when connected.'));
+        setRemaining('');
+        clearBag();
+      } else if (res.needsConfirmation) {
         setConfirmMsg(res.message);
       } else {
         setConfirmMsg('');
