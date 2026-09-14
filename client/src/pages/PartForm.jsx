@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, getToken } from '../api';
 
 const emptyBasic = {
-  part_code: '', part_name: '', cavity_count: '1', standard_cycle_time_sec: '',
+  part_code: '', shrp_part_code: '', customer_part_no: '', part_name: '', cavity_count: '1', standard_cycle_time_sec: '',
   unit_weight_g: '', part_weight_g: '', batch_part_code: '', standard_pack_qty: '', customer_id: '', notes: '',
   trim_required: false, inspection_required: false, packing_required: true, dispatch_required: true,
 };
@@ -40,7 +40,8 @@ export default function PartForm() {
     if (!isNew) {
       api.partDetail(id).then((d) => {
         setBasic({
-          part_code: d.part_code, part_name: d.part_name, cavity_count: String(d.cavity_count),
+          part_code: d.part_code, shrp_part_code: d.shrp_part_code || '', customer_part_no: d.customer_part_no || '',
+          part_name: d.part_name, cavity_count: String(d.cavity_count),
           standard_cycle_time_sec: String(d.standard_cycle_time_sec), unit_weight_g: d.unit_weight_g ? String(d.unit_weight_g) : '',
           part_weight_g: d.part_weight_g ? String(d.part_weight_g) : '', batch_part_code: d.batch_part_code || '',
           standard_pack_qty: d.standard_pack_qty ? String(d.standard_pack_qty) : '', customer_id: d.customer_id || '',
@@ -198,11 +199,22 @@ export default function PartForm() {
         <h2 style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>Basic info</h2>
         <div className="btn-row" style={{ marginBottom: 14 }}>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Part code</label>
-            <input value={basic.part_code} onChange={(e) => updateBasic('part_code', e.target.value)} required />
+            <label>SHRP Part Code (short)</label>
+            <input placeholder="e.g. LBB" value={basic.shrp_part_code} onChange={(e) => updateBasic('shrp_part_code', e.target.value)} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label>Part name</label>
+            <label>Part code / Internal *</label>
+            <input value={basic.part_code} onChange={(e) => updateBasic('part_code', e.target.value)} required />
+          </div>
+        </div>
+
+        <div className="btn-row" style={{ marginBottom: 14 }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Customer Part No.</label>
+            <input placeholder="e.g. HC442L3LBB01" value={basic.customer_part_no} onChange={(e) => updateBasic('customer_part_no', e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Part name *</label>
             <input value={basic.part_name} onChange={(e) => updateBasic('part_name', e.target.value)} required />
           </div>
         </div>

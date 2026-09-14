@@ -72,6 +72,10 @@ export const or = {
         "label": "ପ୍ୟାକିଂ",
         "hint": "ପରବର୍ତ୍ତୀ ବ୍ୟାଗ୍, FIFO"
       },
+      "dispatch": {
+        "label": "ଡିସପାଚ୍",
+        "hint": "ଗ୍ରାହକ ଡିସପାଚ୍, FIFO"
+      },
       "approvals": {
         "label": "ଆପ୍ରୁଭାଲ୍",
         "hint": "ବକେୟା ମୋଲ୍ଡ ସେଟଅପ୍"
@@ -224,6 +228,14 @@ export const or = {
     "packedWt": "ପ୍ୟାକ୍ ହୋଇଥିବା ଓଜନ (kg)",
     "saving": "ସେଭ୍ ହେଉଛି…",
     "bagMarkedPacked": "ବ୍ୟାଗ୍ {{code}} PACKED ବୋଲି ଚିହ୍ନଟ ହେଲା।"
+  },
+  "dispatch": {
+    "title": "ଡିସପାଚ୍",
+    "subtitle": "FIFO ଯାଞ୍ଚ କରି ଗ୍ରାହକଙ୍କୁ ପ୍ୟାକ୍ ହୋଇଥିବା ବ୍ୟାଗ୍ ପଠାନ୍ତୁ",
+    "dispatchedQty": "ପଠାଯାଇଥିବା ସଂଖ୍ୟା",
+    "dispatchedWt": "ପଠାଯାଇଥିବା ଓଜନ (kg)",
+    "saving": "ସେଭ୍ ହେଉଛି…",
+    "bagMarkedDispatched": "ବ୍ୟାଗ୍ {{code}} DISPATCHED ବୋଲି ଚିହ୍ନଟ ହେଲା।"
   },
   "attendance": {
     "title": "ଉପସ୍ଥିତି",

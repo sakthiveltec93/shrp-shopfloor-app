@@ -46,30 +46,32 @@ export default function ProductionEntry() {
 
   useEffect(() => {
     (async () => {
-      const [m, a, r, rr, ctx, items, mine] = await Promise.all([
-        api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
-        api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
-        api.mySession(),
-      ]);
-      setMachines(m);
-      setAssignments(a);
-      setDowntimeReasons(r);
-      setRejectReasons(rr);
-      setContext(ctx);
-      setCheckSheetItems(items);
-      // If this operator already has a machine running, jump straight to it -
-      // no need to reselect from the dropdown every time they open this screen.
-      if (mine) {
-        setMachineId(String(mine.machine_id));
-        setSession(mine);
-        setOffForm({ off_count: '', off_reason: '', off_remarks: '' });
+      try {
+        const [m, a, r, rr, ctx, items, mine] = await Promise.all([
+          api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
+          api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
+          api.mySession(),
+        ]);
+        if (m) setMachines(m);
+        if (a) setAssignments(a);
+        if (r) setDowntimeReasons(r);
+        if (rr) setRejectReasons(rr);
+        if (ctx) setContext(ctx);
+        if (items) setCheckSheetItems(items);
+        if (mine) {
+          setMachineId(String(mine.machine_id));
+          setSession(mine);
+          setOffForm({ off_count: '', off_reason: '', off_remarks: '' });
+        }
+      } catch (err) {
+        console.warn('Initial load using cached state or offline:', err);
       }
     })();
   }, []);
 
   const assigned = assignments.find((a) => String(a.machine_id) === String(machineId));
-  const isOwnSession = !!(session && user && session.operator_user_id === user.id);
-  const lockedByOther = !!(session && user && session.operator_user_id !== user.id);
+  const isOwnSession = !!(session && user && (session.operator_user_id === user.id || user.role === 'admin'));
+  const lockedByOther = !!(session && user && session.operator_user_id !== user.id && user.role !== 'admin');
 
   async function selectMachine(id) {
     setMachineId(id);
@@ -233,7 +235,7 @@ export default function ProductionEntry() {
         {machineId && (
           <div className="readout" style={{ marginBottom: 14 }}>
             <div className="readout-label">{t('entry.assignedPart')}</div>
-            {assigned ? `${assigned.part_code} — ${assigned.part_name}` : t('entry.noneAssigned')}
+            {assigned ? `${assigned.shrp_part_code || assigned.part_code} — ${assigned.part_name}` : t('entry.noneAssigned')}
           </div>
         )}
 

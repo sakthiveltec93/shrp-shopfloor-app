@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 export default function ProtectedRoute({ roles, page, children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) {
+  if (roles && user.role !== 'admin' && !roles.includes(user.role)) {
     return (
       <div className="screen">
         <p className="muted">Your role ({user.role}) doesn't have access to this page.</p>

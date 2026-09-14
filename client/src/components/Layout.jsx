@@ -19,10 +19,59 @@ export default function Layout({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [pendingSyncCount, setPendingSyncCount] = useState(api.offlineQueue ? api.offlineQueue.getPendingCount() : 0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const visibleNavItems = user
     ? NAV_ITEMS.filter((item) => !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key)))
     : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOnline(true);
+      if (api.syncOffline) {
+        setIsSyncing(true);
+        api.syncOffline().finally(() => {
+          setIsSyncing(false);
+          setPendingSyncCount(api.offlineQueue ? api.offlineQueue.getPendingCount() : 0);
+        });
+      }
+    }
+    function handleOffline() {
+      setIsOnline(false);
+    }
+    function handleQueueUpdated(e) {
+      setPendingSyncCount(e.detail?.count ?? (api.offlineQueue ? api.offlineQueue.getPendingCount() : 0));
+    }
+    function handleSyncStarted() {
+      setIsSyncing(true);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('shrp:offline-queue-updated', handleQueueUpdated);
+    window.addEventListener('shrp:offline-sync-started', handleSyncStarted);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('shrp:offline-queue-updated', handleQueueUpdated);
+      window.removeEventListener('shrp:offline-sync-started', handleSyncStarted);
+    };
+  }, []);
+
+  async function handleManualSync() {
+    if (!api.syncOffline) return;
+    setIsSyncing(true);
+    try {
+      await api.syncOffline();
+    } finally {
+      setIsSyncing(false);
+      setPendingSyncCount(api.offlineQueue ? api.offlineQueue.getPendingCount() : 0);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -154,6 +203,27 @@ export default function Layout({ children }) {
           </div>
         )}
       </header>
+
+      {(!isOnline || pendingSyncCount > 0 || isSyncing) && (
+        <div className={`offline-banner ${!isOnline ? 'is-offline' : isSyncing ? 'is-syncing' : 'is-offline'}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{!isOnline ? '📡 Offline Mode' : isSyncing ? '🔄 Syncing data…' : '⚠️ Pending Offline Sync'}</span>
+            {pendingSyncCount > 0 && (
+              <span className="offline-badge">{pendingSyncCount} pending</span>
+            )}
+          </div>
+          {isOnline && pendingSyncCount > 0 && (
+            <button
+              type="button"
+              className="offline-banner-btn"
+              disabled={isSyncing}
+              onClick={handleManualSync}
+            >
+              {isSyncing ? 'Syncing…' : 'Sync Now'}
+            </button>
+          )}
+        </div>
+      )}
 
       <main className="app-main">{children}</main>
 

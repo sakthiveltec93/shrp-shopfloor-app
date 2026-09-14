@@ -275,7 +275,7 @@ CREATE TABLE IF NOT EXISTS daily_check_items (
 CREATE TABLE IF NOT EXISTS daily_check_submissions (
   id SERIAL PRIMARY KEY,
   machine_id INTEGER NOT NULL REFERENCES machines(id),
-  shift TEXT NOT NULL CHECK (shift IN ('@', 'B')),
+  shift TEXT NOT NULL CHECK (shift IN ('A', 'B')),
   entry_date DATE NOT NULL,
   operator_user_id INTEGER NOT NULL REFERENCES users(id),
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -380,3 +380,100 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
+
+-- Ensure daily_check_submissions shift check includes 'A' even if migrated from older schema
+DO $$
+BEGIN
+  ALTER TABLE daily_check_submissions DROP CONSTRAINT IF EXISTS daily_check_submissions_shift_check;
+  ALTER TABLE daily_check_submissions ADD CONSTRAINT daily_check_submissions_shift_check CHECK (shift IN ('A', 'B'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- ============================================================
+-- SHRP Part Code identification & Customer Part No separation
+-- ============================================================
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS shrp_part_code TEXT;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS customer_part_no TEXT;
+
+-- Backfill customer_part_no with part_code if not set
+UPDATE parts SET customer_part_no = part_code WHERE customer_part_no IS NULL;
+-- Backfill shrp_part_code from batch_part_code or clean prefix if not set
+UPDATE parts SET shrp_part_code = COALESCE(batch_part_code, split_part(part_code, '-', 1)) WHERE shrp_part_code IS NULL;
+UPDATE parts SET shrp_part_code = 'LBB' WHERE part_code = 'HC442L3LBB01';
+UPDATE parts SET shrp_part_code = 'LAC' WHERE part_code = 'HC442L3LAC01';
+UPDATE parts SET shrp_part_code = 'LBC' WHERE part_code = 'HC442L3LBC02';
+UPDATE parts SET shrp_part_code = 'FC1' WHERE part_code = 'FC1F2AN6BA01';
+UPDATE parts SET shrp_part_code = 'A710' WHERE part_code = 'A710-BBWBA-01';
+
+-- ============================================================
+-- Bag status: include DISPATCHED, tolerance approval & FIFO override
+-- ============================================================
+DO $$
+BEGIN
+  ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
+  ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'TRIMMED', 'INSPECTED', 'PACKED', 'DISPATCHED'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS is_over_tolerance BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approved_by INTEGER REFERENCES users(id);
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approved_at TIMESTAMPTZ;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approval_remarks TEXT;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS is_fifo_override BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_by INTEGER REFERENCES users(id);
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_at TIMESTAMPTZ;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_reason TEXT;
+
+-- ============================================================
+-- Dispatch Entries: final stage in process status flow
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dispatch_entries (
+  id SERIAL PRIMARY KEY,
+  bag_id INTEGER NOT NULL REFERENCES bags(id),
+  dispatched_qty INTEGER NOT NULL,
+  dispatched_wt_kg NUMERIC NOT NULL,
+  customer_id INTEGER REFERENCES customers(id),
+  invoice_no TEXT,
+  vehicle_no TEXT,
+  operator_user_id INTEGER NOT NULL REFERENCES users(id),
+  remarks TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispatch_entries_bag ON dispatch_entries(bag_id);
+
+-- ============================================================
+-- Full Audit Trail: complete traceability from production to dispatch
+-- ============================================================
+CREATE TABLE IF NOT EXISTS traceability_audit_log (
+  id SERIAL PRIMARY KEY,
+  process TEXT NOT NULL, -- production, bagging, trimming, inspection, packing, dispatch, setup, session
+  bag_id INTEGER REFERENCES bags(id),
+  bag_code TEXT,
+  batch_no TEXT,
+  part_id INTEGER REFERENCES parts(id),
+  machine_id INTEGER REFERENCES machines(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  qty INTEGER,
+  weight_kg NUMERIC,
+  status_from TEXT,
+  status_to TEXT,
+  is_fifo_override BOOLEAN DEFAULT FALSE,
+  oldest_bag_code TEXT,
+  is_over_tolerance BOOLEAN DEFAULT FALSE,
+  approved_by INTEGER REFERENCES users(id),
+  approval_reason TEXT,
+  remarks TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_traceability_bag_code ON traceability_audit_log(bag_code);
+CREATE INDEX IF NOT EXISTS idx_traceability_batch_no ON traceability_audit_log(batch_no);
+CREATE INDEX IF NOT EXISTS idx_traceability_process ON traceability_audit_log(process, created_at DESC);
+
+-- ============================================================
+-- Specific user permissions for FIFO override and tolerance approval
+-- ============================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_override_fifo BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_approve_tolerance BOOLEAN DEFAULT FALSE;
+

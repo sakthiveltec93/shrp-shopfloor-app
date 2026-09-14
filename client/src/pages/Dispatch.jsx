@@ -1,29 +1,60 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useFifoBag } from '../useFifoBag';
 import { useLanguage } from '../i18n/LanguageContext';
 
-export default function Trimming() {
+export default function Dispatch() {
   const { t } = useLanguage();
   const {
     parts, partId, bag, method, setMethod, scanInput, setScanInput, handleScanSubmit,
-    selectedBatch, batchBags, selectPart, selectBatch, selectSpecificBag,
+    batchBags, selectPart, selectSpecificBag,
     fifoViolation, setFifoViolation, fifoOverrideReason, setFifoOverrideReason,
     isFifoOverridden, setIsFifoOverridden, error, setError, success, setSuccess,
     loading, refetch, clearBag,
-  } = useFifoBag('trim');
+  } = useFifoBag('dispatch');
 
-  const [remaining, setRemaining] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState('');
+  const [dispatchedQty, setDispatchedQty] = useState('');
+  const [dispatchedWt, setDispatchedWt] = useState('');
+  const [invoiceNo, setInvoiceNo] = useState('');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [confirmMsg, setConfirmMsg] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.customers().then(setCustomers).catch(() => {});
+  }, []);
+
+  // When a bag is loaded, pre-populate qty & weight from bag
+  useEffect(() => {
+    if (bag) {
+      setDispatchedQty(String(bag.packed_qty || bag.qty || ''));
+      setDispatchedWt(String(bag.packed_wt_kg || bag.base_weight_kg || ''));
+    } else {
+      setDispatchedQty('');
+      setDispatchedWt('');
+      setInvoiceNo('');
+      setVehicleNo('');
+      setRemarks('');
+      setCustomerId('');
+      setConfirmMsg('');
+    }
+  }, [bag]);
 
   async function submit(confirm = false) {
     setError('');
     setSuccess('');
     setSaving(true);
     try {
-      const res = await api.trimBag(bag.id, {
-        remaining_wt_kg: Number(remaining),
+      const res = await api.dispatchBag(bag.id, {
+        dispatched_qty: Number(dispatchedQty),
+        dispatched_wt_kg: Number(dispatchedWt),
+        customer_id: customerId ? Number(customerId) : null,
+        invoice_no: invoiceNo.trim() || null,
+        vehicle_no: vehicleNo.trim() || null,
+        remarks: remarks.trim() || null,
         confirm,
         fifo_override: isFifoOverridden,
         fifo_override_reason: fifoOverrideReason,
@@ -34,9 +65,8 @@ export default function Trimming() {
       } else {
         setConfirmMsg('');
         setSuccess(res.closed
-          ? t('trimming.bagMarkedTrimmed', { code: bag.bag_code })
-          : t('common.readingSaved'));
-        setRemaining('');
+          ? `Bag ${bag.bag_code} marked DISPATCHED successfully.`
+          : 'Dispatch reading saved.');
         if (res.closed) {
           clearBag();
         } else {
@@ -59,8 +89,8 @@ export default function Trimming() {
 
   return (
     <div className="screen">
-      <h1 className="screen-title">{t('trimming.title')}</h1>
-      <p className="screen-sub">{t('trimming.subtitle')}</p>
+      <h1 className="screen-title">{t('dispatch.title') || 'Dispatch'}</h1>
+      <p className="screen-sub">{t('dispatch.subtitle') || 'Verify FIFO and dispatch packed bags to customers'}</p>
 
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
@@ -148,11 +178,11 @@ export default function Trimming() {
             ⚠️ FIFO Violation
           </h3>
           <p style={{ fontSize: 13, margin: '0 0 6px' }}>
-            An older available bag must be processed first:
+            An older available bag must be dispatched first:
           </p>
           <div className="readout" style={{ marginBottom: 10 }}>
             <div>Oldest available bag: <strong>{fifoViolation.oldestBag.bag_code}</strong></div>
-            <div>Production Date: <strong>{new Date(fifoViolation.oldestBag.entry_date).toLocaleDateString('en-GB')} (Shift {fifoViolation.oldestBag.shift})</strong></div>
+            <div>Production Date: <strong>{new Date(fifoViolation.oldestBag.entry_date).toLocaleDateString('en-GB')}</strong></div>
           </div>
 
           {fifoViolation.canOverride ? (
@@ -195,8 +225,22 @@ export default function Trimming() {
         </div>
       )}
 
-      {/* Scanned / Loaded Bag Details per Section 3 */}
-      {bag && !fifoViolation && (
+      {/* Bag Not Packed Notice */}
+      {bag && bag.status !== 'PACKED' && (
+        <div className="panel" style={{ borderColor: 'var(--red)', background: 'rgba(235,87,87,0.08)' }}>
+          <h4 style={{ margin: '0 0 6px', color: 'var(--red)' }}>⚠️ Bag Not Ready for Dispatch</h4>
+          <p style={{ fontSize: 13, margin: 0 }}>
+            Bag <strong>{bag.bag_code}</strong> is currently in <strong>{bag.status}</strong> status.
+            It must be packed before it can be dispatched.
+          </p>
+          <button type="button" className="btn btn-secondary" style={{ marginTop: 10 }} onClick={clearBag}>
+            Select Another Bag
+          </button>
+        </div>
+      )}
+
+      {/* Scanned / Loaded Bag Details per Section 3 & 13 */}
+      {bag && bag.status === 'PACKED' && !fifoViolation && (
         <div className="panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--amber)' }}>
@@ -213,15 +257,15 @@ export default function Trimming() {
             <div>Batch No:</div><strong>{bag.batch_no}</strong>
             <div>Bag Code:</div><strong>{bag.bag_code}</strong>
             <div>Prod Date:</div><strong>{new Date(bag.entry_date).toLocaleDateString('en-GB')} (Shift {bag.shift})</strong>
-            <div>Weight:</div><strong>{Number(bag.base_weight_kg).toFixed(3)} Kg</strong>
-            <div>Quantity:</div><strong>{bag.qty} Nos</strong>
+            <div>Base Weight:</div><strong>{Number(bag.base_weight_kg).toFixed(3)} Kg</strong>
+            <div>Total Quantity:</div><strong>{bag.qty} Nos</strong>
           </div>
 
           {/* Stage Completion Confirmation per Section 9 */}
           {confirmMsg ? (
             <div className="panel" style={{ borderColor: 'var(--green)', background: 'rgba(76,175,125,0.08)' }}>
               <p style={{ marginTop: 0, fontWeight: 600 }}>
-                This bag has been fully trimmed within tolerance. Mark status as TRIMMED?
+                {confirmMsg}
               </p>
               <div className="btn-row">
                 <button className="btn btn-primary" disabled={saving} onClick={() => submit(true)}>
@@ -234,27 +278,93 @@ export default function Trimming() {
             </div>
           ) : (
             <>
+              <div className="btn-row" style={{ marginBottom: 14 }}>
+                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                  <label htmlFor="dispatched_qty">Dispatched Qty (Nos) *</label>
+                  <input
+                    id="dispatched_qty"
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="Dispatched Qty"
+                    value={dispatchedQty}
+                    onChange={(e) => setDispatchedQty(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                  <label htmlFor="dispatched_wt">Dispatched Wt (Kg) *</label>
+                  <input
+                    id="dispatched_wt"
+                    type="number"
+                    step="0.001"
+                    inputMode="decimal"
+                    placeholder="Dispatched Wt"
+                    value={dispatchedWt}
+                    onChange={(e) => setDispatchedWt(e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div className="field">
-                <label htmlFor="remaining">{t('trimming.remainingWeight')}</label>
+                <label htmlFor="customer">Customer</label>
+                <select
+                  id="customer"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                >
+                  <option value="">Select customer…</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="btn-row" style={{ marginBottom: 14 }}>
+                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                  <label htmlFor="invoice_no">Invoice / DC No.</label>
+                  <input
+                    id="invoice_no"
+                    type="text"
+                    placeholder="e.g. INV-2026-001"
+                    value={invoiceNo}
+                    onChange={(e) => setInvoiceNo(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                  <label htmlFor="vehicle_no">Vehicle No.</label>
+                  <input
+                    id="vehicle_no"
+                    type="text"
+                    placeholder="e.g. TN-01-AB-1234"
+                    value={vehicleNo}
+                    onChange={(e) => setVehicleNo(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="remarks">Remarks (optional)</label>
                 <input
-                  id="remaining"
-                  type="number"
-                  step="0.001"
-                  inputMode="decimal"
-                  placeholder="Enter remaining kg"
-                  value={remaining}
-                  onChange={(e) => setRemaining(e.target.value)}
+                  id="remarks"
+                  type="text"
+                  placeholder="Dispatch notes or remarks"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
                 />
               </div>
+
               <div className="btn-row">
                 <button
                   className="btn btn-primary"
-                  disabled={saving || remaining === ''}
+                  disabled={saving || !dispatchedQty || !dispatchedWt}
                   onClick={() => submit(false)}
                 >
-                  {saving ? t('trimming.saving') : t('common.saveReading')}
+                  {saving ? 'Saving…' : 'Record Dispatch'}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={clearBag}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={clearBag}
+                >
                   Cancel
                 </button>
               </div>

@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { currentShift, hourSlot, istDateString } = require('../lib/shift');
+const { logAudit } = require('../lib/auditTrail');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -132,6 +133,16 @@ router.post('/', async (req, res) => {
     await client.query('COMMIT');
     entry.rejects = rejectRows;
     entry.downtimes = downtimeRows;
+
+    await logAudit(pool, {
+      process: 'production',
+      part_id: session.part_id,
+      machine_id: session.machine_id,
+      user_id: req.user.id,
+      qty: goodQty,
+      remarks: remarks || null,
+    });
+
     res.status(201).json(entry);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -155,7 +166,7 @@ router.get('/', async (req, res) => {
     where += ` AND pe.operator_user_id = $${params.length}`;
   }
   const { rows } = await pool.query(`
-    SELECT pe.*, m.machine_code, p.part_code, p.part_name, u.full_name AS operator_name
+    SELECT pe.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
     FROM production_entries pe
     JOIN machines m ON m.id = pe.machine_id
     JOIN parts p ON p.id = pe.part_id

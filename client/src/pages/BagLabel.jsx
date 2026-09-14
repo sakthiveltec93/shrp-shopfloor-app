@@ -16,7 +16,23 @@ export default function BagLabel() {
 
   useEffect(() => {
     if (bag && canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, bag.bag_code, { width: 110, margin: 1 });
+      const qrPayload = JSON.stringify({
+        shrp_part_code: bag.shrp_part_code || bag.part_code,
+        cust_part_no: bag.customer_part_no || bag.part_code,
+        batch_no: bag.batch_no,
+        bag_code: bag.bag_code,
+        prod_date: bag.entry_date,
+        shift: bag.shift,
+        qty: bag.qty,
+        weight_kg: Number(bag.base_weight_kg),
+        machine: bag.machine_code,
+      });
+
+      QRCode.toCanvas(canvasRef.current, qrPayload, {
+        width: 80,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
     }
   }, [bag]);
 
@@ -30,33 +46,31 @@ export default function BagLabel() {
       </button>
 
       <div className="label-print-area">
+        <div className="label-shrp-code">{bag.shrp_part_code || bag.part_code}</div>
         <div className="label-part-name">{bag.part_name}</div>
 
-        <div className="label-row">
-          <span>Bag Wt</span>
-          <span>{Number(bag.base_weight_kg).toFixed(3)} Kg</span>
-        </div>
-        <div className="label-row">
-          <span>Aprox Qty</span>
-          <span>{bag.qty > 0 ? `${bag.qty} Nos` : '-'}</span>
-        </div>
-        <div className="label-row">
-          <span>Prod Date</span>
-          <span>{new Date(bag.entry_date).toLocaleDateString('en-GB')}</span>
-        </div>
-        <div className="label-row">
-          <span>Batch No</span>
-          <span>{bag.bag_code}</span>
-        </div>
+        <div className="label-content-grid">
+          <div className="label-details">
+            <div>Bag Wt: <strong>{Number(bag.base_weight_kg).toFixed(3)} Kg</strong></div>
+            <div>Aprox Qty: <strong>{bag.qty > 0 ? `${bag.qty} Nos` : '-'}</strong></div>
+            <div>Prod Date: <strong>{new Date(bag.entry_date).toLocaleDateString('en-GB')}</strong></div>
+            <div>Shift: <strong>{bag.shift}</strong> · M/C: <strong>{bag.machine_code}</strong></div>
+            <div>Batch: <strong>{bag.batch_no}</strong></div>
+            <div>Bag: <strong>{bag.bag_code}</strong></div>
+          </div>
 
-        <canvas ref={canvasRef} className="label-qr" />
+          <div className="label-qr-container">
+            <canvas ref={canvasRef} className="label-qr-canvas" />
+          </div>
+        </div>
 
         <div className="label-footer">SRI HARI RUBBER PRODUCTS</div>
       </div>
 
       <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => window.print()}>
-        Print label
+        Print label (3" × 2" Thermal)
       </button>
     </div>
   );
 }
+

@@ -26,7 +26,7 @@ export default function PartsList() {
         <Link key={p.id} to={`/parts/${p.id}/edit`} className="panel" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontWeight: 600 }}>{p.part_code}</div>
+              <div style={{ fontWeight: 600 }}>{p.shrp_part_code ? `${p.shrp_part_code} (${p.part_code})` : p.part_code}</div>
               <div className="muted" style={{ fontSize: 12 }}>{p.part_name}</div>
             </div>
             <div className="muted" style={{ fontSize: 12, textAlign: 'right' }}>

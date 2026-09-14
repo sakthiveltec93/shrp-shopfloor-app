@@ -1,19 +1,64 @@
+import { cacheStorage } from './offline/cacheStorage';
+import { offlineQueue } from './offline/offlineQueue';
+
 const BASE = '/api';
 
 function getToken() {
   return localStorage.getItem('shrp_token');
 }
 
-async function request(path, { method = 'GET', body } = {}) {
+function isQueueable(path, method) {
+  if (method !== 'POST' && method !== 'PUT') return false;
+  // Auth and PIN changes must not be queued offline
+  if (path.startsWith('/auth') || path.startsWith('/account/change-pin')) return false;
+  return true;
+}
+
+async function request(path, { method = 'GET', body, isOfflineReplay = false, description } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // If we are completely offline and this is a mutating queueable action, queue immediately
+  if (!isOfflineReplay && typeof navigator !== 'undefined' && !navigator.onLine && isQueueable(path, method)) {
+    const item = offlineQueue.enqueue({ path, method, body, description });
+    return {
+      ok: true,
+      queuedOffline: true,
+      queueId: item.id,
+      message: 'Saved offline. Will sync when reconnected.',
+    };
+  }
+
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (netErr) {
+    // If GET request fails and we have cached data, return it
+    if (method === 'GET') {
+      const cached = cacheStorage.get(path);
+      if (cached !== null) {
+        return cached;
+      }
+    }
+    // If mutating request fails due to network drop, queue it
+    if (!isOfflineReplay && isQueueable(path, method)) {
+      const item = offlineQueue.enqueue({ path, method, body, description });
+      return {
+        ok: true,
+        queuedOffline: true,
+        queueId: item.id,
+        message: 'Network error. Saved offline and will sync when reconnected.',
+      };
+    }
+    const err = new Error(netErr.message || 'Network request failed');
+    err.isNetworkError = true;
+    throw err;
+  }
 
   let data = null;
   try { data = await res.json(); } catch { /* no body */ }
@@ -21,10 +66,24 @@ async function request(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status})`;
     const err = new Error(message);
-    err.data = data; // lets callers branch on structured fields, e.g. err.data?.code
+    err.status = res.status;
+    err.data = data;
     throw err;
   }
+
+  // Cache successful GET requests for offline use
+  if (method === 'GET' && data) {
+    cacheStorage.set(path, data);
+  }
+
   return data;
+}
+
+// Auto-sync whenever the browser detects network reconnection
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    offlineQueue.syncQueue(request);
+  });
 }
 
 export const api = {
@@ -68,12 +127,16 @@ export const api = {
 
   createBag: (payload) => request('/bags', { method: 'POST', body: payload }),
   bagBatchInfo: (machineId, entryDate, shift) => request(`/bags/batch-info?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}`),
+  productionVisibility: (machineId, entryDate, shift, partId) => request(`/bags/production-visibility?machine_id=${machineId}&entry_date=${entryDate}&shift=${shift}${partId ? `&part_id=${partId}` : ''}`),
   bagDetail: (id) => request(`/bags/${id}`),
+  scanBag: (code, stage) => request(`/bags/by-code/${encodeURIComponent(code)}${stage ? `?stage=${stage}` : ''}`),
   bagsForBatch: (batch_no) => request(`/bags?batch_no=${encodeURIComponent(batch_no)}`),
   fifoBag: (part_id, stage) => request(`/bags/fifo?part_id=${part_id}&stage=${stage}`),
   trimBag: (id, payload) => request(`/bags/${id}/trim`, { method: 'POST', body: payload }),
   inspectBag: (id, payload) => request(`/bags/${id}/inspect`, { method: 'POST', body: payload }),
   packBag: (id, payload) => request(`/bags/${id}/pack`, { method: 'POST', body: payload }),
+  dispatchBag: (id, payload) => request(`/bags/${id}/dispatch`, { method: 'POST', body: payload }),
+  traceability: (bagCode) => request(`/bags/audit/traceability/${encodeURIComponent(bagCode)}`),
 
   notifications: {
     list: () => request('/notifications'),
@@ -89,6 +152,9 @@ export const api = {
     updateSettings: (payload) => request('/attendance/settings', { method: 'PUT', body: payload }),
     roster: (date) => request(`/attendance${date ? `?date=${date}` : ''}`),
   },
+  offlineQueue,
+  syncOffline: () => offlineQueue.syncQueue(request),
 };
 
-export { getToken };
+export { getToken, offlineQueue };
+

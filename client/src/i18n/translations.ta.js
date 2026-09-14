@@ -29,6 +29,11 @@ export const ta = {
     "noNotifications": "இதுவரை அறிவிப்புகள் இல்லை.",
     "changePin": "PIN மாற்று",
     "signOut": "வெளியேறு",
+    "offlineMessage": "நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். பதிவுகள் இணைக்கப்பட்டதும் ஒத்திசைக்கப்படும்.",
+    "syncingMessage": "பதிவுகள் ஒத்திசைக்கப்படுகின்றன…",
+    "syncedMessage": "அனைத்து பதிவுகளும் ஒத்திசைக்கப்பட்டன.",
+    "pending": "நிலுவை",
+    "syncNow": "இப்போது ஒத்திசை",
     "nav": {
       "home": "முகப்பு",
       "mouldSetup": "மோல்டு செட்அப்",
@@ -71,6 +76,10 @@ export const ta = {
       "packing": {
         "label": "பேக்கிங்",
         "hint": "அடுத்த பேக், FIFO"
+      },
+      "dispatch": {
+        "label": "டிஸ்பாட்ச்",
+        "hint": "வாடிக்கையாளர் டிஸ்பாட்ச், FIFO"
       },
       "approvals": {
         "label": "அப்ரூவல்ஸ்",
@@ -224,6 +233,14 @@ export const ta = {
     "packedWt": "பேக் செய்த எடை (kg)",
     "saving": "சேமிக்கிறது…",
     "bagMarkedPacked": "பேக் {{code}} PACKED என குறிக்கப்பட்டது."
+  },
+  "dispatch": {
+    "title": "டிஸ்பாட்ச்",
+    "subtitle": "FIFO சரிபார்த்து வாடிக்கையாளருக்கு அனுப்பவும்",
+    "dispatchedQty": "அனுப்பப்பட்ட எண்ணிக்கை",
+    "dispatchedWt": "அனுப்பப்பட்ட எடை (kg)",
+    "saving": "சேமிக்கிறது…",
+    "bagMarkedDispatched": "பேக் {{code}} DISPATCHED என குறிக்கப்பட்டது."
   },
   "attendance": {
     "title": "அட்டெண்டன்ஸ்",

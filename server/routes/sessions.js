@@ -14,7 +14,7 @@ router.get('/active', async (req, res) => {
   const { machine_id } = req.query;
   if (!machine_id) return res.status(400).json({ error: 'machine_id is required' });
   const { rows } = await pool.query(`
-    SELECT ms.*, m.machine_code, p.part_code, p.part_name, u.full_name AS operator_name
+    SELECT ms.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
     FROM machine_sessions ms
     JOIN machines m ON m.id = ms.machine_id
     JOIN parts p ON p.id = ms.part_id
@@ -38,7 +38,7 @@ router.get('/active', async (req, res) => {
 // instead of making them pick it from the dropdown every time.
 router.get('/mine', async (req, res) => {
   const { rows } = await pool.query(`
-    SELECT ms.*, m.machine_code, p.part_code, p.part_name, u.full_name AS operator_name
+    SELECT ms.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
     FROM machine_sessions ms
     JOIN machines m ON m.id = ms.machine_id
     JOIN parts p ON p.id = ms.part_id

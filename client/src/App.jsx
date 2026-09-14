@@ -13,6 +13,7 @@ import BagEntry from './pages/BagEntry'
 import Trimming from './pages/Trimming'
 import Inspection from './pages/Inspection'
 import Packing from './pages/Packing'
+import Dispatch from './pages/Dispatch'
 import PartsList from './pages/PartsList'
 import PartForm from './pages/PartForm'
 import BagLabel from './pages/BagLabel'
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/trimming" element={<ProtectedRoute page="trimming"><Trimming /></ProtectedRoute>} />
         <Route path="/inspection" element={<ProtectedRoute page="inspection"><Inspection /></ProtectedRoute>} />
         <Route path="/packing" element={<ProtectedRoute page="packing"><Packing /></ProtectedRoute>} />
+        <Route path="/dispatch" element={<ProtectedRoute page="dispatch"><Dispatch /></ProtectedRoute>} />
         <Route path="/log" element={<ProtectedRoute page="log"><TodayLog /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute page="attendance"><Attendance /></ProtectedRoute>} />
         <Route

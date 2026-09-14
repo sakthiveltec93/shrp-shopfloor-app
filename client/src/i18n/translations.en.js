@@ -29,6 +29,11 @@ export const en = {
     "noNotifications": "No notifications yet.",
     "changePin": "Change PIN",
     "signOut": "Sign out",
+    "offlineMessage": "You are offline. Entries will be saved and synced when connected.",
+    "syncingMessage": "Syncing offline entries…",
+    "syncedMessage": "All offline entries synced successfully.",
+    "pending": "pending",
+    "syncNow": "Sync now",
     "nav": {
       "home": "Home",
       "mouldSetup": "Mould Setup",
@@ -71,6 +76,10 @@ export const en = {
       "packing": {
         "label": "Packing",
         "hint": "Next bag, FIFO"
+      },
+      "dispatch": {
+        "label": "Dispatch",
+        "hint": "Customer dispatch, FIFO"
       },
       "approvals": {
         "label": "Approvals",
@@ -224,6 +233,14 @@ export const en = {
     "packedWt": "Packed wt (kg)",
     "saving": "Saving…",
     "bagMarkedPacked": "Bag {{code}} marked PACKED."
+  },
+  "dispatch": {
+    "title": "Dispatch",
+    "subtitle": "Verify FIFO and dispatch packed bags to customers",
+    "dispatchedQty": "Dispatched Qty (Nos)",
+    "dispatchedWt": "Dispatched Wt (Kg)",
+    "saving": "Saving…",
+    "bagMarkedDispatched": "Bag {{code}} marked DISPATCHED."
   },
   "attendance": {
     "title": "Attendance",

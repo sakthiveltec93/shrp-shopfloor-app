@@ -17,7 +17,8 @@ function requireAuth(req, res, next) {
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    // Admin users have full system access across all roles
+    if (!req.user || (!roles.includes(req.user.role) && req.user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not permitted for this role' });
     }
     next();

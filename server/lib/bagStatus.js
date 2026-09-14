@@ -38,6 +38,8 @@ function isLegitimateStatusAdvance(currentStatus, toStatus, trimReq, inspReq) {
       if (inspReq) return cs === 'INSPECTED';
       if (trimReq) return cs === 'TRIMMED';
       return cs === 'OPEN';
+    case 'DISPATCHED':
+      return cs === 'PACKED';
     default:
       return true;
   }

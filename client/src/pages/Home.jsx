@@ -9,6 +9,7 @@ const TILES = [
   { key: 'trimming', to: '/trimming', icon: '✂' },
   { key: 'inspection', to: '/inspection', icon: '◎' },
   { key: 'packing', to: '/packing', icon: '▧' },
+  { key: 'dispatch', to: '/dispatch', icon: '🚚' },
   { key: 'approvals', to: '/approvals', icon: '✓' },
   { key: 'parts', to: '/parts', icon: '📋' },
   { key: 'users', to: '/users', icon: '👤' },

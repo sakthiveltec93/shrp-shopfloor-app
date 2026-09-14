@@ -9,7 +9,7 @@ router.use(requireRole('admin'));
 
 const VALID_PAGES = [
   'mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection',
-  'packing', 'log', 'approvals', 'parts', 'users', 'attendance',
+  'packing', 'dispatch', 'log', 'approvals', 'parts', 'users', 'attendance',
 ];
 
 async function pagesForUser(userId) {
@@ -18,13 +18,13 @@ async function pagesForUser(userId) {
 }
 
 router.get('/', async (req, res) => {
-  const { rows } = await pool.query('SELECT id, username, full_name, role, active, created_at FROM users ORDER BY full_name');
+  const { rows } = await pool.query('SELECT id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at FROM users ORDER BY full_name');
   const withPages = await Promise.all(rows.map(async (u) => ({ ...u, pages: await pagesForUser(u.id) })));
   res.json(withPages);
 });
 
 router.post('/', async (req, res) => {
-  const { username, pin, full_name, role, pages } = req.body;
+  const { username, pin, full_name, role, pages, can_override_fifo, can_approve_tolerance } = req.body;
   if (!username || !pin || !full_name || !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'username, pin, full_name and a valid role are required' });
   }
@@ -39,9 +39,9 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO users (username, pin_hash, full_name, role) VALUES ($1,$2,$3,$4)
-       RETURNING id, username, full_name, role, active, created_at`,
-      [username.trim().toLowerCase(), pinHash, full_name, role]
+      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance) VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at`,
+      [username.trim().toLowerCase(), pinHash, full_name, role, !!can_override_fifo, !!can_approve_tolerance]
     );
     const user = rows[0];
     for (const page of pages || []) {
@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { full_name, role, active, pin, pages } = req.body;
+  const { full_name, role, active, pin, pages, can_override_fifo, can_approve_tolerance } = req.body;
   if (role && !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -81,9 +81,11 @@ router.put('/:id', async (req, res) => {
          full_name = COALESCE($1, full_name),
          role = COALESCE($2, role),
          active = COALESCE($3, active),
-         pin_hash = COALESCE($4, pin_hash)
-       WHERE id = $5 RETURNING id, username, full_name, role, active, created_at`,
-      [full_name || null, role || null, active, pinHash, id]
+         pin_hash = COALESCE($4, pin_hash),
+         can_override_fifo = COALESCE($5, can_override_fifo),
+         can_approve_tolerance = COALESCE($6, can_approve_tolerance)
+       WHERE id = $7 RETURNING id, username, full_name, role, active, can_override_fifo, can_approve_tolerance, created_at`,
+      [full_name || null, role || null, active, pinHash, can_override_fifo != null ? !!can_override_fifo : null, can_approve_tolerance != null ? !!can_approve_tolerance : null, id]
     );
     if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'User not found' }); }
 

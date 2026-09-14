@@ -9,6 +9,7 @@ const PAGES = [
   { key: 'trimming', label: 'Trimming' },
   { key: 'inspection', label: 'Inspection' },
   { key: 'packing', label: 'Packing' },
+  { key: 'dispatch', label: 'Dispatch' },
   { key: 'log', label: "Today's Log" },
   { key: 'approvals', label: 'Approvals' },
   { key: 'parts', label: 'Parts' },
@@ -17,8 +18,8 @@ const PAGES = [
 ];
 
 const DEFAULTS_BY_ROLE = {
-  operator: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log', 'attendance'],
-  supervisor: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'log', 'approvals', 'parts', 'attendance'],
+  operator: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'dispatch', 'log', 'attendance'],
+  supervisor: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'dispatch', 'log', 'approvals', 'parts', 'attendance'],
   admin: PAGES.map((p) => p.key),
 };
 
@@ -33,6 +34,8 @@ export default function UserForm() {
   const [active, setActive] = useState(true);
   const [pin, setPin] = useState('');
   const [pages, setPages] = useState(DEFAULTS_BY_ROLE.operator);
+  const [canOverrideFifo, setCanOverrideFifo] = useState(false);
+  const [canApproveTolerance, setCanApproveTolerance] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
@@ -47,6 +50,8 @@ export default function UserForm() {
           setRole(u.role);
           setActive(u.active);
           setPages(u.pages);
+          setCanOverrideFifo(!!u.can_override_fifo);
+          setCanApproveTolerance(!!u.can_approve_tolerance);
         }
       });
     }
@@ -66,10 +71,25 @@ export default function UserForm() {
     setSaving(true);
     try {
       if (isNew) {
-        await api.createUser({ username: username.trim(), pin, full_name: fullName, role, pages });
+        await api.createUser({
+          username: username.trim(),
+          pin,
+          full_name: fullName,
+          role,
+          pages,
+          can_override_fifo: canOverrideFifo,
+          can_approve_tolerance: canApproveTolerance,
+        });
         navigate('/users');
       } else {
-        const payload = { full_name: fullName, role, active, pages };
+        const payload = {
+          full_name: fullName,
+          role,
+          active,
+          pages,
+          can_override_fifo: canOverrideFifo,
+          can_approve_tolerance: canApproveTolerance,
+        };
         if (pin) payload.pin = pin;
         await api.updateUser(id, payload);
         setSuccess('Saved.');
@@ -118,6 +138,30 @@ export default function UserForm() {
             </label>
           </div>
         )}
+
+        <div className="field">
+          <label style={{ fontWeight: 600 }}>Special Permissions</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={canOverrideFifo || role === 'admin' || role === 'supervisor'}
+                disabled={role === 'admin' || role === 'supervisor'}
+                onChange={(e) => setCanOverrideFifo(e.target.checked)}
+              />
+              Can Override FIFO (Admin & Supervisor always allowed)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={canApproveTolerance || role === 'admin' || role === 'supervisor'}
+                disabled={role === 'admin' || role === 'supervisor'}
+                onChange={(e) => setCanApproveTolerance(e.target.checked)}
+              />
+              Can Approve Tolerance Excess (Supervisor PIN approval)
+            </label>
+          </div>
+        </div>
 
         <div className="field">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
