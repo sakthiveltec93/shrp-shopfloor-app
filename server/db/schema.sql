@@ -729,4 +729,108 @@ CREATE TABLE IF NOT EXISTS mould_files (
 
 CREATE INDEX IF NOT EXISTS idx_mould_files_mould ON mould_files(mould_id, file_type);
 
+-- ================================================================
+-- PHASE 1: RAW MATERIAL INWARD, DUAL-LAYER RECIPES & STOCK REGISTERS
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS raw_materials (
+  id SERIAL PRIMARY KEY,
+  material_code TEXT UNIQUE NOT NULL,
+  material_name TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('VIRGIN_POLYMER', 'MASTERBATCH', 'RUBBER_COMPOUND', 'CHEMICAL_ADDITIVE', 'REGRIND')),
+  supplier_name TEXT,
+  grade_code TEXT,
+  color TEXT,
+  density_g_cm3 NUMERIC,
+  mfi_g_10min NUMERIC,
+  standard_bag_wt_kg NUMERIC DEFAULT 25.0,
+  min_stock_kg NUMERIC DEFAULT 100.0,
+  default_parameters TEXT, -- JSON array of check parameters
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS rm_inward_entries (
+  id SERIAL PRIMARY KEY,
+  inward_no TEXT UNIQUE NOT NULL,
+  material_id INTEGER NOT NULL REFERENCES raw_materials(id),
+  supplier_name TEXT NOT NULL,
+  invoice_no TEXT NOT NULL,
+  invoice_date DATE NOT NULL,
+  supplier_lot_no TEXT NOT NULL,
+  received_bags INTEGER NOT NULL,
+  received_wt_kg NUMERIC NOT NULL,
+  standard_bag_wt_kg NUMERIC DEFAULT 25.0,
+  sample_size_bags INTEGER DEFAULT 5,
+  has_supplier_tc BOOLEAN DEFAULT TRUE,
+  tc_document_data TEXT,
+  tc_filename TEXT,
+  status TEXT NOT NULL DEFAULT 'PENDING_INSPECTION' CHECK (status IN ('PENDING_INSPECTION', 'ACCEPTED', 'REJECTED', 'QUARANTINE')),
+  inspector_user_id INTEGER REFERENCES users(id),
+  approved_by_user_id INTEGER REFERENCES users(id),
+  inspected_at TIMESTAMPTZ,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS rm_inspection_parameters (
+  id SERIAL PRIMARY KEY,
+  inward_id INTEGER NOT NULL REFERENCES rm_inward_entries(id) ON DELETE CASCADE,
+  parameter_name TEXT NOT NULL,
+  specification TEXT,
+  method_of_checking TEXT,
+  obs_b1 TEXT,
+  obs_b2 TEXT,
+  obs_b3 TEXT,
+  obs_b4 TEXT,
+  obs_b5 TEXT,
+  result TEXT NOT NULL DEFAULT 'OK' CHECK (result IN ('OK', 'NOT_OK', 'NA')),
+  remarks TEXT
+);
+
+CREATE TABLE IF NOT EXISTS rm_stock_register (
+  id SERIAL PRIMARY KEY,
+  material_id INTEGER NOT NULL REFERENCES raw_materials(id),
+  lot_no TEXT NOT NULL,
+  inward_id INTEGER REFERENCES rm_inward_entries(id),
+  current_stock_kg NUMERIC NOT NULL DEFAULT 0,
+  reserved_stock_kg NUMERIC NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(material_id, lot_no)
+);
+
+CREATE TABLE IF NOT EXISTS part_recipes (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id) UNIQUE,
+  primary_material_id INTEGER NOT NULL REFERENCES raw_materials(id),
+  primary_ratio_pct NUMERIC NOT NULL DEFAULT 100.0,
+  secondary_material_id INTEGER REFERENCES raw_materials(id),
+  secondary_ratio_pct NUMERIC DEFAULT 0.0,
+  regrind_material_id INTEGER REFERENCES raw_materials(id),
+  regrind_ratio_pct NUMERIC DEFAULT 0.0,
+  masterbatch_material_id INTEGER REFERENCES raw_materials(id),
+  masterbatch_ratio_pct NUMERIC DEFAULT 0.0,
+  max_allowed_regrind_pct NUMERIC DEFAULT 15.0,
+  mixing_instructions TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS shopfloor_wip_rm_pool (
+  id SERIAL PRIMARY KEY,
+  date DATE NOT NULL,
+  shift TEXT NOT NULL CHECK (shift IN ('A', 'B')),
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  material_id INTEGER NOT NULL REFERENCES raw_materials(id),
+  opening_balance_kg NUMERIC NOT NULL DEFAULT 0,
+  issued_qty_kg NUMERIC NOT NULL DEFAULT 0,
+  consumed_qty_kg NUMERIC NOT NULL DEFAULT 0,
+  closing_balance_kg NUMERIC NOT NULL DEFAULT 0,
+  is_over_consumed BOOLEAN DEFAULT FALSE,
+  over_consumed_approved_by INTEGER REFERENCES users(id),
+  approval_remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(date, shift, machine_id, material_id)
+);
+
+
 

@@ -109,6 +109,18 @@ export const en = {
         "label": "Moulds & Tool Life",
         "hint": "Shot tracking, PM & history"
       },
+      "rm_inward": {
+        "label": "RM Inward & QA",
+        "hint": "SHRP/QA/R/01 Rev.02 receipt & inspection"
+      },
+      "rm_stock": {
+        "label": "RM Stock Register",
+        "hint": "Virgin, regrind & WIP pool"
+      },
+      "recipes": {
+        "label": "Compounding Recipes",
+        "hint": "Dual-layer blend ratios"
+      },
       "log": {
         "label": "Today's Log",
         "hint": "All entries today"

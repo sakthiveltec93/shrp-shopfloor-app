@@ -3,6 +3,7 @@ const path = require('path');
 const pool = require('./pool');
 const { syncParts } = require('./clean_parts');
 const { syncMoulds } = require('./sync_moulds');
+const { syncMaterials } = require('./seed_materials');
 
 async function initDb() {
   try {
@@ -18,6 +19,10 @@ async function initDb() {
     console.log('[DB-INIT] Syncing 73 tooling masters & part linkages...');
     await syncMoulds(false);
     console.log('[DB-INIT] Moulds and part linkages synced successfully.');
+
+    console.log('[DB-INIT] Syncing standard raw materials & default recipes...');
+    await syncMaterials();
+    console.log('[DB-INIT] Raw materials and default recipes synced successfully.');
 
     console.log('[DB-INIT] Cleaning up bag types for historical rejection/runner/lump bags...');
     await pool.query(`

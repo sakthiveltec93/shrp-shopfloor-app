@@ -25,6 +25,9 @@ import Reports from './pages/Reports'
 import MachinesDashboard from './pages/MachinesDashboard'
 import MouldsDashboard from './pages/MouldsDashboard'
 import Rework from './pages/Rework'
+import RMInward from './pages/RMInward'
+import RMStockRegister from './pages/RMStockRegister'
+import PartRecipes from './pages/PartRecipes'
 import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
@@ -37,6 +40,9 @@ export default function App() {
         <Route path="/reports" element={<ProtectedRoute page="reports"><Reports /></ProtectedRoute>} />
         <Route path="/machines" element={<ProtectedRoute><MachinesDashboard /></ProtectedRoute>} />
         <Route path="/moulds" element={<ProtectedRoute><MouldsDashboard /></ProtectedRoute>} />
+        <Route path="/rm-inward" element={<ProtectedRoute><RMInward /></ProtectedRoute>} />
+        <Route path="/rm-stock" element={<ProtectedRoute><RMStockRegister /></ProtectedRoute>} />
+        <Route path="/recipes" element={<ProtectedRoute><PartRecipes /></ProtectedRoute>} />
         <Route path="/mould-setup" element={<ProtectedRoute page="mould_setup"><MouldSetup /></ProtectedRoute>} />
         <Route
           path="/approvals"

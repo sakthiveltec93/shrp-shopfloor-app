@@ -230,6 +230,20 @@ export const api = {
   linkPartMould: (partId, mouldId, cavities) =>
     request(`/masters/parts/${partId}/mould`, { method: 'PUT', body: { mould_id: mouldId, cavities_for_part: cavities } }),
 
+  rawMaterials: {
+    list: () => request('/raw-materials'),
+    save: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
+    inwardList: () => request('/raw-materials/inward'),
+    inwardDetail: (id) => request(`/raw-materials/inward/${id}`),
+    createInward: (payload) => request('/raw-materials/inward', { method: 'POST', body: payload, description: `RM Inward ${payload.supplier_lot_no || ''}` }),
+    inspectInward: (id, payload) => request(`/raw-materials/inward/${id}/inspect`, { method: 'POST', body: payload, description: `RM Inward Inspection #${id}` }),
+    stockRegister: () => request('/raw-materials/stock-register'),
+    recipes: () => request('/raw-materials/recipes'),
+    saveRecipe: (partId, payload) => request(`/raw-materials/recipes/${partId}`, { method: 'POST', body: payload }),
+    wipPool: (date, shift) => request(`/raw-materials/wip-pool?date=${date || ''}&shift=${shift || ''}`),
+    issue: (payload) => request('/raw-materials/issue', { method: 'POST', body: payload, description: `RM Issue ${payload.material_id}` }),
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };
