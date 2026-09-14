@@ -60,5 +60,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
+const { initDb } = require('./db/initDb');
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`SHRP shop floor server listening on ${PORT}`));
+app.listen(PORT, async () => {
+  console.log(`SHRP shop floor server listening on ${PORT}`);
+  await initDb();
+});

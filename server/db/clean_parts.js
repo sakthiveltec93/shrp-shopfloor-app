@@ -82,7 +82,7 @@ const EXCEL_PARTS = [
   ['VK GR -6', 'VK GR -6', 3.0, false, true, true, true, 2, 500, 1, 3, 'VK GR'],
 ];
 
-async function main() {
+async function syncParts(closePool = false) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -142,10 +142,17 @@ async function main() {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error syncing parts:', err);
+    throw err;
   } finally {
     client.release();
-    pool.end();
+    if (closePool) {
+      await pool.end();
+    }
   }
 }
 
-main();
+if (require.main === module) {
+  syncParts(true).catch(() => process.exit(1));
+}
+
+module.exports = { syncParts, EXCEL_PARTS };
