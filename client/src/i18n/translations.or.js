@@ -37,7 +37,7 @@ export const or = {
     }
   },
   "login": {
-    "title": "SHRP ସପ୍ ଫ୍ଲୋର୍",
+    "title": "SHRP MES",
     "subtitle": "ଆପଣଙ୍କ ୟୁଜରନେମ୍ ଏବଂ PIN ସହିତ ସାଇନ୍ ଇନ୍ କରନ୍ତୁ",
     "username": "ୟୁଜରନେମ୍",
     "pin": "PIN",

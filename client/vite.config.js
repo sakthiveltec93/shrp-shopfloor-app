@@ -10,9 +10,9 @@ export default defineConfig({
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         id: '/',
-        name: 'SHRP Shop Floor',
-        short_name: 'SHRP Floor',
-        description: 'SHRP shop floor mould setup and hourly production entry',
+        name: 'SHRP MES',
+        short_name: 'SHRP MES',
+        description: 'SHRP Manufacturing Execution System (MES)',
         theme_color: '#1c1f26',
         background_color: '#1c1f26',
         display: 'standalone',

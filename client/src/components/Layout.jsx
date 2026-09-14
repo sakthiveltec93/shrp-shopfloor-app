@@ -131,7 +131,7 @@ export default function Layout({ children }) {
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
           <div>
-            <div className="app-header-title">SHRP SHOP FLOOR</div>
+            <div className="app-header-title">SHRP MES</div>
             <div className="app-header-sub">{user ? `${user.full_name} · ${user.role}` : ''}</div>
           </div>
         </div>

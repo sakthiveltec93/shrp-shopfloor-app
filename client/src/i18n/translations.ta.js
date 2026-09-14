@@ -42,7 +42,7 @@ export const ta = {
     }
   },
   "login": {
-    "title": "SHRP ஷாப் ஃப்ளோர்",
+    "title": "SHRP MES",
     "subtitle": "உங்கள் யூசர்நேம் மற்றும் PIN மூலம் உள்நுழையவும்",
     "username": "யூசர்நேம்",
     "pin": "PIN",

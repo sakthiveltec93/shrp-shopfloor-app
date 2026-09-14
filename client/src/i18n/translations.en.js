@@ -42,7 +42,7 @@ export const en = {
     }
   },
   "login": {
-    "title": "SHRP Shop Floor",
+    "title": "SHRP MES",
     "subtitle": "Sign in with your username and PIN",
     "username": "Username",
     "pin": "PIN",

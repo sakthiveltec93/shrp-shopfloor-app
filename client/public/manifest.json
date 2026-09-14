@@ -1,7 +1,7 @@
 {
-  "name": "SHRP Shop Floor Operations",
-  "short_name": "SHRP Floor",
-  "description": "SHRP Plastics Injection Moulding Shopfloor Production & Bag Operations",
+  "name": "SHRP MES - Manufacturing Execution System",
+  "short_name": "SHRP MES",
+  "description": "SHRP Plastics Injection Moulding Manufacturing Execution System (MES)",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
