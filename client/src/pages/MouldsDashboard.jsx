@@ -150,14 +150,14 @@ export default function MouldsDashboard() {
           onClick={() => setFilterStatus('due_soon')}
           style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'due_soon' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}
         >
-          <div style={{ fontSize: 12, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Due Soon (&ge;80%)</div>
+          <div style={{ fontSize: 12, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Due Soon (≥80%)</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', marginTop: 4 }}>{dueSoonCount}</div>
         </div>
         <div
           onClick={() => setFilterStatus('overdue')}
           style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'overdue' ? '#ef4444' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}
         >
-          <div style={{ fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Overdue (&ge;100%)</div>
+          <div style={{ fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Overdue (≥100%)</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: overdueCount > 0 ? '#f87171' : 'var(--text-muted)', marginTop: 4 }}>{overdueCount}</div>
         </div>
       </div>

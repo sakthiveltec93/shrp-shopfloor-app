@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Phase 1: Machine & Mould History, Tool Life Tracking & TPM
 -- IATF 16949 Clause 8.5.1.5 (Total Productive Maintenance)
 -- ============================================================
@@ -219,8 +219,8 @@ INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavi
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 6 FROM moulds m, parts p WHERE m.mould_code = 'SH HC43' AND (p.shrp_part_code = 'UMNAA' OR p.part_name = 'FC1F2UMNAA' OR p.customer_part_no = 'FC1F2UMNAA' OR p.part_code = 'FC1F2UMNAA') ON CONFLICT (mould_id, part_id) DO NOTHING;
 INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH HC44', 'NDGAA (FC1F2NDGAA)', 'Customer', 'HASI CHENNAI', 6, 6, 906, 906, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: HSIM 02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 6 FROM moulds m, parts p WHERE m.mould_code = 'SH HC44' AND (p.shrp_part_code = 'NDGAA' OR p.part_name = 'FC1F2NDGAA' OR p.customer_part_no = 'FC1F2NDGAA' OR p.part_code = 'FC1F2NDGAA') ON CONFLICT (mould_id, part_id) DO NOTHING;
-INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH HC01', 'CEEAA-ORANGE (FC1F2CEEAA02)', 'Customer', 'HASI CHENNAI', 6, 6, 1486, 1486, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE- ORANGE | Suitable: HSIM 04,05') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
-INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 6 FROM moulds m, parts p WHERE m.mould_code = 'SH HC01' AND (p.shrp_part_code = 'CEEAA-ORANGE' OR p.part_name = 'FC1F2CEEAA02' OR p.customer_part_no = 'FC1F2CEEAA02' OR p.part_code = 'FC1F2CEEAA02') ON CONFLICT (mould_id, part_id) DO NOTHING;
+INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH HC01A', 'CEEAA-ORANGE (FC1F2CEEAA02)', 'Customer', 'HASI CHENNAI', 6, 6, 1486, 1486, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE- ORANGE | Suitable: HSIM 04,05') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
+INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 6 FROM moulds m, parts p WHERE m.mould_code = 'SH HC01A' AND (p.shrp_part_code = 'CEEAA-ORANGE' OR p.part_name = 'FC1F2CEEAA02' OR p.customer_part_no = 'FC1F2CEEAA02' OR p.part_code = 'FC1F2CEEAA02') ON CONFLICT (mould_id, part_id) DO NOTHING;
 INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH OLD01', 'F442 QQ (F442-QQ7AA-01)', 'Customer', 'HASI CHENNAI', 4, 4, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VSIM 01') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 4 FROM moulds m, parts p WHERE m.mould_code = 'SH OLD01' AND (p.shrp_part_code = 'F442 QQ' OR p.part_name = 'F442-QQ7AA-01' OR p.customer_part_no = 'F442-QQ7AA-01' OR p.part_code = 'F442-QQ7AA-01') ON CONFLICT (mould_id, part_id) DO NOTHING;
 
@@ -229,14 +229,20 @@ INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id
 INSERT INTO machine_breakdown_logs (machine_id, incident_date, breakdown_type, downtime_minutes, root_cause, corrective_action, parts_replaced, technician_name)
 SELECT m.id, CURRENT_DATE - INTERVAL '12 days', 'heater', 45, 'Band heater burn out on Zone 2', 'Replaced ceramic band heater and verified thermocouple calibration', 'Zone 2 Band Heater 230V 1.5kW', 'MUTHUPANDI'
 FROM machines m WHERE m.machine_code = 'HSIM - 01'
-ON CONFLICT DO NOTHING;
+AND NOT EXISTS (
+  SELECT 1 FROM machine_breakdown_logs bl WHERE bl.machine_id = m.id AND bl.root_cause LIKE 'Band heater%'
+);
 
 INSERT INTO machine_breakdown_logs (machine_id, incident_date, breakdown_type, downtime_minutes, root_cause, corrective_action, parts_replaced, technician_name)
 SELECT m.id, CURRENT_DATE - INTERVAL '5 days', 'hydraulic', 90, 'Hydraulic oil return line filter clogged', 'Flushed return line and replaced 10-micron element', 'Hydraulic Filter Cartridge', 'SAKTHIVEL'
 FROM machines m WHERE m.machine_code = 'HSIM - 04'
-ON CONFLICT DO NOTHING;
+AND NOT EXISTS (
+  SELECT 1 FROM machine_breakdown_logs bl WHERE bl.machine_id = m.id AND bl.root_cause LIKE 'Hydraulic oil return line%'
+);
 
 INSERT INTO mould_maintenance_logs (mould_id, action_type, shots_at_service, description, technician_name)
 SELECT m.id, 'pm_service', 20000, 'Scheduled 20K PM: Core/cavity ultrasonic cleaning, guide pin greasing, vent deepening and parting line inspection.', 'MUTHUPANDI'
 FROM moulds m WHERE m.mould_code = 'SH HC09'
-ON CONFLICT DO NOTHING;
+AND NOT EXISTS (
+  SELECT 1 FROM mould_maintenance_logs ml WHERE ml.mould_id = m.id AND ml.description LIKE 'Scheduled 20K PM%'
+);

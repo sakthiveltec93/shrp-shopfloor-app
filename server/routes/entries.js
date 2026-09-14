@@ -132,7 +132,7 @@ router.post('/', async (req, res) => {
 
     // Automatically accumulate shots on the mould(s) linked to this part
     const grossQty = Math.max(0, Number(end_count) - Number(startCount));
-    const cav = Math.max(1, Number(session.cavity_count) || 1);
+    const cav = Math.max(1, Number(part?.cavity_count) || 1);
     const shotsRun = Math.round(grossQty / cav);
     if (shotsRun > 0) {
       await client.query(`

@@ -24,10 +24,10 @@ router.get('/overview', async (req, res) => {
 
   // Fetch active sessions
   const { rows: sessions } = await pool.query(`
-    SELECT us.*, u.full_name AS operator_name
-    FROM user_sessions us
-    JOIN users u ON u.id = us.user_id
-    WHERE us.status = 'ACTIVE'
+    SELECT ms.*, u.full_name AS operator_name
+    FROM machine_sessions ms
+    JOIN users u ON u.id = ms.operator_user_id
+    WHERE ms.status = 'RUNNING'
   `);
   const sessionMap = {};
   for (const s of sessions) sessionMap[s.machine_id] = s;
@@ -84,7 +84,7 @@ router.get('/overview', async (req, res) => {
     let statusLabel = 'Idle - No Operator';
     let statusClass = 'idle';
 
-    if (s && s.status === 'ACTIVE') {
+    if (s && s.status === 'RUNNING') {
       if (prodQty > 0) {
         status = 'RUNNING';
         statusLabel = 'Running Production';
@@ -115,7 +115,7 @@ router.get('/overview', async (req, res) => {
       status,
       status_label: statusLabel,
       status_class: statusClass,
-      active_session: s ? { operator_name: s.operator_name, started_at: s.started_at } : null,
+      active_session: s ? { operator_name: s.operator_name, started_at: s.start_time } : null,
       current_part: a ? {
         part_id: a.part_id,
         shrp_part_code: a.shrp_part_code || a.part_code,
