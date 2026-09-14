@@ -12,8 +12,8 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Username and PIN required' });
   }
   const { rows } = await pool.query(
-    'SELECT * FROM users WHERE username = $1 AND active = TRUE',
-    [username.trim().toLowerCase()]
+    'SELECT * FROM users WHERE LOWER(username) = LOWER($1) AND active = TRUE',
+    [username.trim()]
   );
   const user = rows[0];
   if (!user) return res.status(401).json({ error: 'Invalid username or PIN' });
