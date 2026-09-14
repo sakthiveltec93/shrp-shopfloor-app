@@ -28,10 +28,26 @@ export default function Login() {
 
   return (
     <div className="screen">
-      <div style={{ textAlign: 'center', margin: '40px 0 28px' }}>
-        <div className="app-header-mark" style={{ margin: '0 auto 14px', width: 22, height: 22 }} />
-        <h1 className="screen-title">{t('login.title')}</h1>
-        <p className="screen-sub">{t('login.subtitle')}</p>
+      <div style={{ textAlign: 'center', margin: '30px 0 24px' }}>
+        <img
+          src="/shrp-logo.png"
+          alt="SHRP Logo"
+          style={{
+            height: 52,
+            width: 'auto',
+            margin: '0 auto 16px',
+            background: '#ffffff',
+            padding: '4px 12px',
+            borderRadius: 8,
+            display: 'block',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+          }}
+          onError={(e) => {
+            e.currentTarget.src = '/logo.png';
+          }}
+        />
+        <h1 className="screen-title" style={{ fontSize: 22, margin: '0 0 6px' }}>{t('login.title')}</h1>
+        <p className="screen-sub" style={{ margin: 0 }}>{t('login.subtitle')}</p>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
