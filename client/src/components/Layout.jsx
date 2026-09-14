@@ -2,17 +2,19 @@ import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
+import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: '⌂', key: null },
-  { to: '/mould-setup', label: 'Mould Setup', icon: '⚙', key: 'mould_setup' },
-  { to: '/entry', label: 'Entry', icon: '▤', key: 'entry' },
-  { to: '/log', label: "Today's Log", icon: '≣', key: 'log' },
+  { to: '/', labelKey: 'layout.nav.home', icon: '⌂', key: null },
+  { to: '/mould-setup', labelKey: 'layout.nav.mouldSetup', icon: '⚙', key: 'mould_setup' },
+  { to: '/entry', labelKey: 'layout.nav.entry', icon: '▤', key: 'entry' },
+  { to: '/log', labelKey: 'layout.nav.log', icon: '≣', key: 'log' },
 ];
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { lang, setLang, t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -65,16 +67,35 @@ export default function Layout({ children }) {
         </div>
         {user && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
+            <div className="btn-row" style={{ gap: 2 }} role="group" aria-label="Language">
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  className="logout-btn"
+                  style={{
+                    padding: '4px 8px', fontSize: 11, minWidth: 0,
+                    fontWeight: lang === l.code ? 700 : 400,
+                    borderColor: lang === l.code ? 'var(--amber, #d97706)' : undefined,
+                    color: lang === l.code ? 'var(--amber, #d97706)' : undefined,
+                  }}
+                  onClick={() => setLang(l.code)}
+                  aria-pressed={lang === l.code}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
             {hasAttendanceAccess && (
               <button className="logout-btn" onClick={() => navigate('/attendance')}>
-                Attendance
+                {t('layout.attendance')}
               </button>
             )}
             <button
               className="logout-btn"
               style={{ position: 'relative' }}
               onClick={() => setShowNotifications((v) => !v)}
-              aria-label="Notifications"
+              aria-label={t('layout.notifications')}
             >
               🔔
               {unreadCount > 0 && (
@@ -89,10 +110,10 @@ export default function Layout({ children }) {
               )}
             </button>
             <button className="logout-btn" onClick={() => navigate('/change-pin')}>
-              Change PIN
+              {t('layout.changePin')}
             </button>
             <button className="logout-btn" onClick={() => { logout(); navigate('/login'); }}>
-              Sign out
+              {t('layout.signOut')}
             </button>
 
             {showNotifications && (
@@ -102,15 +123,15 @@ export default function Layout({ children }) {
                 boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 50,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--border, #333)' }}>
-                  <strong style={{ fontSize: 13 }}>Notifications</strong>
+                  <strong style={{ fontSize: 13 }}>{t('layout.notifications')}</strong>
                   {unreadCount > 0 && (
                     <button type="button" onClick={markAllRead} style={{ background: 'none', border: 'none', color: 'var(--text-secondary, #999)', fontSize: 11, cursor: 'pointer' }}>
-                      Mark all read
+                      {t('layout.markAllRead')}
                     </button>
                   )}
                 </div>
                 {notifications.length === 0 && (
-                  <div style={{ padding: 16, fontSize: 12, color: 'var(--text-secondary, #999)' }}>No notifications yet.</div>
+                  <div style={{ padding: 16, fontSize: 12, color: 'var(--text-secondary, #999)' }}>{t('layout.noNotifications')}</div>
                 )}
                 {notifications.map((n) => (
                   <div
@@ -146,7 +167,7 @@ export default function Layout({ children }) {
               end={item.to === '/'}
             >
               <span className="bottom-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           ))}
         </nav>

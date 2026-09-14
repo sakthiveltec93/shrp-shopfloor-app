@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -9,6 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -28,15 +30,15 @@ export default function Login() {
     <div className="screen">
       <div style={{ textAlign: 'center', margin: '40px 0 28px' }}>
         <div className="app-header-mark" style={{ margin: '0 auto 14px', width: 22, height: 22 }} />
-        <h1 className="screen-title">SHRP Shop Floor</h1>
-        <p className="screen-sub">Sign in with your username and PIN</p>
+        <h1 className="screen-title">{t('login.title')}</h1>
+        <p className="screen-sub">{t('login.subtitle')}</p>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="username">Username</label>
+          <label htmlFor="username">{t('login.username')}</label>
           <input
             id="username"
             autoComplete="username"
@@ -46,7 +48,7 @@ export default function Login() {
           />
         </div>
         <div className="field">
-          <label htmlFor="pin">PIN</label>
+          <label htmlFor="pin">{t('login.pin')}</label>
           <input
             id="pin"
             type="password"
@@ -58,7 +60,7 @@ export default function Login() {
           />
         </div>
         <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? t('login.signingIn') : t('login.signIn')}
         </button>
       </form>
     </div>

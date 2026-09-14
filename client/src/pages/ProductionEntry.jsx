@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const OFF_REASONS = [
-  { value: 'mould_change', label: 'Mould Change' },
-  { value: 'shift_completed', label: 'Shift Completed' },
-  { value: 'breakdown', label: 'Breakdown' },
-  { value: 'operator_change', label: 'Change Operator' },
-  { value: 'other', label: 'Other' },
+  { value: 'mould_change', labelKey: 'entry.offReasons.mould_change' },
+  { value: 'shift_completed', labelKey: 'entry.offReasons.shift_completed' },
+  { value: 'breakdown', labelKey: 'entry.offReasons.breakdown' },
+  { value: 'operator_change', labelKey: 'entry.offReasons.operator_change' },
+  { value: 'other', labelKey: 'entry.offReasons.other' },
 ];
 
 export default function ProductionEntry() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
@@ -106,11 +108,11 @@ export default function ProductionEntry() {
       remarks: checkResponses[item.id]?.remarks || '',
     }));
     if (responses.some((r) => !r.status)) {
-      setError('Answer every check item before submitting.');
+      setError(t('entry.answerAllItems'));
       return;
     }
     if (responses.some((r) => r.status === 'NG' && !r.remarks)) {
-      setError('Add remarks for any item marked NG.');
+      setError(t('entry.remarksRequiredForNg'));
       return;
     }
     setSubmittingCheck(true);
@@ -131,7 +133,7 @@ export default function ProductionEntry() {
     try {
       const s = await api.startMachine({ machine_id: Number(machineId), start_count: Number(startCount) });
       setSession(s);
-      setSuccess(`Machine started at ${new Date(s.start_time).toLocaleString()}.`);
+      setSuccess(t('entry.machineStartedAt', { time: new Date(s.start_time).toLocaleString() }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -168,8 +170,8 @@ export default function ProductionEntry() {
       });
       setBelowTargetPrompt(null);
       setLastEntry(entry);
-      const effText = entry.efficiency_pct != null ? ` · Efficiency ${entry.efficiency_pct}%` : '';
-      setSuccess(`Hour ${context.hour_slot} logged.${effText}`);
+      const effText = entry.efficiency_pct != null ? t('entry.efficiencySuffix', { pct: entry.efficiency_pct }) : '';
+      setSuccess(t('entry.hourLogged', { hour: context.hour_slot }) + effText);
       setEntryForm({ end_count: '', remarks: '' });
       setRejectRows([]);
       setDowntimeRows([]);
@@ -193,7 +195,7 @@ export default function ProductionEntry() {
   function handleOffSubmit(e) {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!offForm.off_reason) { setError('Select a reason for switching the machine off.'); return; }
+    if (!offForm.off_reason) { setError(t('entry.selectOffReasonError')); return; }
     setEndingOff(true);
     api.offMachine(session.id, {
       off_count: Number(offForm.off_count),
@@ -202,7 +204,8 @@ export default function ProductionEntry() {
     }).then((closed) => {
       setSession(null);
       setShowOff(false);
-      setSuccess(`Machine switched off (${OFF_REASONS.find((r) => r.value === closed.off_reason)?.label}).`);
+      const reasonEntry = OFF_REASONS.find((r) => r.value === closed.off_reason);
+      setSuccess(t('entry.machineSwitchedOff', { reason: reasonEntry ? t(reasonEntry.labelKey) : closed.off_reason }));
       if (closed.off_reason === 'mould_change') {
         window.location.href = '/mould-setup';
       }
@@ -212,38 +215,38 @@ export default function ProductionEntry() {
 
   return (
     <div className="screen">
-      <h1 className="screen-title">Production Entry</h1>
-      {context && <p className="screen-sub">Shift {context.shift} · Hour {context.hour_slot}</p>}
+      <h1 className="screen-title">{t('entry.title')}</h1>
+      {context && <p className="screen-sub">{t('entry.shiftHour', { shift: context.shift, hour: context.hour_slot })}</p>}
 
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
 
       <div className="panel">
         <div className="field">
-          <label htmlFor="machine">Machine</label>
+          <label htmlFor="machine">{t('common.machine')}</label>
           <select id="machine" value={machineId} onChange={(e) => selectMachine(e.target.value)}>
-            <option value="" disabled>Select machine</option>
+            <option value="" disabled>{t('common.selectMachine')}</option>
             {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
           </select>
         </div>
 
         {machineId && (
           <div className="readout" style={{ marginBottom: 14 }}>
-            <div className="readout-label">Assigned part</div>
-            {assigned ? `${assigned.part_code} — ${assigned.part_name}` : 'None — submit a Mould Setup request first'}
+            <div className="readout-label">{t('entry.assignedPart')}</div>
+            {assigned ? `${assigned.part_code} — ${assigned.part_name}` : t('entry.noneAssigned')}
           </div>
         )}
 
-        {machineId && session === undefined && <p className="muted">Checking machine status…</p>}
+        {machineId && session === undefined && <p className="muted">{t('entry.checkingStatus')}</p>}
 
         {machineId && session === null && assigned && checkSheetStatus === undefined && (
-          <p className="muted">Checking today's check sheet…</p>
+          <p className="muted">{t('entry.checkingCheckSheet')}</p>
         )}
 
         {machineId && session === null && assigned && checkSheetStatus === null && (
           <form onSubmit={handleSubmitCheckSheet}>
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-              Complete today's check sheet for this machine before starting.
+              {t('entry.completeCheckSheet')}
             </p>
             {checkSheetItems.map((item) => (
               <div key={item.id} className="field">
@@ -265,14 +268,14 @@ export default function ProductionEntry() {
                   ))}
                 </div>
                 {checkResponses[item.id]?.status === 'NG' && (
-                  <input placeholder="Remarks (required for NG)"
+                  <input placeholder={t('entry.remarksNgPlaceholder')}
                     value={checkResponses[item.id]?.remarks || ''}
                     onChange={(e) => setCheckResponse(item.id, 'remarks', e.target.value)} />
                 )}
               </div>
             ))}
             <button className="btn btn-primary" type="submit" disabled={submittingCheck}>
-              {submittingCheck ? 'Submitting…' : 'Submit check sheet'}
+              {submittingCheck ? t('entry.submitting') : t('entry.submitCheckSheet')}
             </button>
           </form>
         )}
@@ -280,16 +283,16 @@ export default function ProductionEntry() {
         {machineId && session === null && assigned && checkSheetStatus && (
           <form onSubmit={handleStart}>
             <div className="readout" style={{ marginBottom: 14 }}>
-              <div className="readout-label">Check sheet</div>
-              Completed by {checkSheetStatus.operator_name} at {new Date(checkSheetStatus.submitted_at).toLocaleTimeString()}
+              <div className="readout-label">{t('entry.checkSheetLabel')}</div>
+              {t('entry.checkSheetCompletedBy', { name: checkSheetStatus.operator_name, time: new Date(checkSheetStatus.submitted_at).toLocaleTimeString() })}
             </div>
             <div className="field">
-              <label htmlFor="start_count">Start count (confirm counter reading)</label>
+              <label htmlFor="start_count">{t('entry.startCountLabel')}</label>
               <input id="start_count" type="number" inputMode="numeric" required
                 value={startCount} onChange={(e) => setStartCount(e.target.value)} />
             </div>
             <button className="btn btn-primary" type="submit" disabled={starting}>
-              {starting ? 'Starting…' : 'Start Machine'}
+              {starting ? t('entry.starting') : t('entry.startMachine')}
             </button>
           </form>
         )}
@@ -298,13 +301,11 @@ export default function ProductionEntry() {
       {session && lockedByOther && (
         <div className="panel" style={{ borderColor: 'var(--amber)' }}>
           <div className="readout" style={{ marginBottom: 8 }}>
-            <div className="readout-label">Running since</div>
-            {new Date(session.start_time).toLocaleString()} · started by {session.operator_name}
+            <div className="readout-label">{t('entry.runningSince')}</div>
+            {t('entry.startedBy', { time: new Date(session.start_time).toLocaleString(), name: session.operator_name })}
           </div>
           <p style={{ fontSize: 13, marginBottom: 0 }}>
-            This machine is running under <strong>{session.operator_name}</strong>. You can't log entries or switch
-            it off from your login — pick a different machine, or ask {session.operator_name} (or a supervisor) to
-            close it out first.
+            {t('entry.lockedMessage', { name: session.operator_name })}
           </p>
         </div>
       )}
@@ -312,34 +313,34 @@ export default function ProductionEntry() {
       {session && isOwnSession && (
         <div className="panel">
           <div className="readout" style={{ marginBottom: 14 }}>
-            <div className="readout-label">Running since</div>
-            {new Date(session.start_time).toLocaleString()} · started by {session.operator_name}
+            <div className="readout-label">{t('entry.runningSince')}</div>
+            {t('entry.startedBy', { time: new Date(session.start_time).toLocaleString(), name: session.operator_name })}
           </div>
 
           {belowTargetPrompt ? (
             <div className="panel" style={{ borderColor: 'var(--amber)' }}>
               <p style={{ marginTop: 0, fontSize: 13 }}>{belowTargetPrompt.error}</p>
               {belowTargetPrompt.efficiency_pct != null && (
-                <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>Efficiency: {belowTargetPrompt.efficiency_pct}%</p>
+                <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>{t('entry.efficiencyLabel', { pct: belowTargetPrompt.efficiency_pct })}</p>
               )}
               <div className="field">
-                <label htmlFor="remarks_req">Remarks (required)</label>
+                <label htmlFor="remarks_req">{t('entry.remarksRequired')}</label>
                 <textarea id="remarks_req" rows={2} required
                   value={entryForm.remarks} onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))} />
               </div>
               <button className="btn btn-primary" disabled={savingEntry || !entryForm.remarks}
                 onClick={() => submitEntry(true)}>
-                {savingEntry ? 'Saving…' : 'Save with remarks'}
+                {savingEntry ? t('entry.saving') : t('entry.saveWithRemarks')}
               </button>
             </div>
           ) : (
             <form onSubmit={handleEntrySubmit}>
               <div className="field">
-                <label htmlFor="end_count">Machine count now</label>
+                <label htmlFor="end_count">{t('entry.machineCountNow')}</label>
                 {session.last_count != null && (
                   <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                    Last count: {session.last_count}
-                    {session.last_entry_time && ` at ${new Date(session.last_entry_time).toLocaleTimeString()}`}
+                    {t('entry.lastCount', { count: session.last_count })}
+                    {session.last_entry_time && t('entry.lastCountAt', { time: new Date(session.last_entry_time).toLocaleTimeString() })}
                   </div>
                 )}
                 <input id="end_count" type="number" inputMode="numeric" required
@@ -347,83 +348,83 @@ export default function ProductionEntry() {
               </div>
 
               <div className="field">
-                <label>Rejects</label>
+                <label>{t('entry.rejects')}</label>
                 {rejectRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}>
-                    <option value="">Reason</option>
+                    <option value="">{t('entry.reasonPlaceholder')}</option>
                       {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.code ? `${r.code} - ${r.item_name}` : r.item_name}</option>)}
                     </select>
-                    <input type="number" inputMode="numeric" placeholder="Qty"
+                    <input type="number" inputMode="numeric" placeholder={t('entry.qtyPlaceholder')}
                       value={row.qty} onChange={(e) => updateRejectRow(i, 'qty', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeRejectRow(i)}>✕</button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-secondary" onClick={addRejectRow}>+ Add reject reason</button>
+                <button type="button" className="btn btn-secondary" onClick={addRejectRow}>{t('entry.addRejectReason')}</button>
               </div>
 
               <div className="field">
-                <label>Downtime</label>
+                <label>{t('entry.downtime')}</label>
                 {downtimeRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}>
-                      <option value="">Reason</option>
+                      <option value="">{t('entry.reasonPlaceholder')}</option>
                       {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.related_to ? `${r.item_name} (${r.related_to})` : r.item_name}</option>)}
                     </select>
-                    <input type="number" inputMode="numeric" placeholder="Minutes"
+                    <input type="number" inputMode="numeric" placeholder={t('entry.minutesPlaceholder')}
                       value={row.minutes} onChange={(e) => updateDowntimeRow(i, 'minutes', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeDowntimeRow(i)}>✕</button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-secondary" onClick={addDowntimeRow}>+ Add downtime reason</button>
+                <button type="button" className="btn btn-secondary" onClick={addDowntimeRow}>{t('entry.addDowntimeReason')}</button>
               </div>
 
               <div className="field">
-                <label htmlFor="remarks">Remarks (optional)</label>
+                <label htmlFor="remarks">{t('entry.remarksOptional')}</label>
                 <textarea id="remarks" rows={2} value={entryForm.remarks}
                   onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))} />
               </div>
               <button className="btn btn-primary" type="submit" disabled={savingEntry}>
-                {savingEntry ? 'Saving…' : 'Save entry'}
+                {savingEntry ? t('entry.saving') : t('entry.saveEntry')}
               </button>
             </form>
           )}
 
           {lastEntry && (
             <div className="readout" style={{ marginTop: 14 }}>
-              <div className="readout-label">Last entry — Hour {lastEntry.hour_slot}</div>
-              Good {lastEntry.good_qty} · Reject {lastEntry.reject_qty} · Downtime {lastEntry.downtime_minutes}min
-              {lastEntry.efficiency_pct != null && ` · Efficiency ${lastEntry.efficiency_pct}%`}
+              <div className="readout-label">{t('entry.lastEntry', { hour: lastEntry.hour_slot })}</div>
+              {t('entry.lastEntryDetail', { good: lastEntry.good_qty, reject: lastEntry.reject_qty, downtime: lastEntry.downtime_minutes })}
+              {lastEntry.efficiency_pct != null && t('entry.efficiencySuffix', { pct: lastEntry.efficiency_pct })}
             </div>
           )}
 
           <button type="button" className="btn btn-secondary" style={{ marginTop: 14 }}
             onClick={() => setShowOff((v) => !v)}>
-            {showOff ? 'Cancel' : 'Off Machine'}
+            {showOff ? t('entry.cancel') : t('entry.offMachine')}
           </button>
 
           {showOff && (
             <form onSubmit={handleOffSubmit} style={{ marginTop: 14 }}>
               <div className="field">
-                <label htmlFor="off_reason">Reason</label>
+                <label htmlFor="off_reason">{t('entry.offReason')}</label>
                 <select id="off_reason" value={offForm.off_reason} required
                   onChange={(e) => setOffForm((f) => ({ ...f, off_reason: e.target.value }))}>
-                  <option value="" disabled>Select reason</option>
-                  {OFF_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  <option value="" disabled>{t('entry.selectReasonOption')}</option>
+                  {OFF_REASONS.map((r) => <option key={r.value} value={r.value}>{t(r.labelKey)}</option>)}
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="off_count">Final count</label>
+                <label htmlFor="off_count">{t('entry.finalCount')}</label>
                 <input id="off_count" type="number" inputMode="numeric" required
                   value={offForm.off_count} onChange={(e) => setOffForm((f) => ({ ...f, off_count: e.target.value }))} />
               </div>
               <div className="field">
-                <label htmlFor="off_remarks">Remarks (optional)</label>
+                <label htmlFor="off_remarks">{t('entry.remarksOptional')}</label>
                 <textarea id="off_remarks" rows={2} value={offForm.off_remarks}
                   onChange={(e) => setOffForm((f) => ({ ...f, off_remarks: e.target.value }))} />
               </div>
               <button className="btn btn-primary" type="submit" disabled={endingOff}>
-                {endingOff ? 'Submitting…' : 'Confirm Off Machine'}
+                {endingOff ? t('entry.submitting') : t('entry.confirmOffMachine')}
               </button>
             </form>
           )}
