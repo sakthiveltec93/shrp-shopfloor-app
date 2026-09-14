@@ -23,7 +23,13 @@ async function checkFifo(partId, requiredStatus, currentBagId, entryDate, shift,
   const { rows } = await pool.query(`
     SELECT b.bag_code, b.entry_date, b.shift, b.id
     FROM bags b
-    WHERE b.part_id = $1 AND b.bag_type = 'PART' AND b.status = $2 AND b.id != $3
+    WHERE b.part_id = $1 AND b.bag_type = 'PART'
+      AND b.bag_code NOT ILIKE '%-REJ%'
+      AND b.bag_code NOT ILIKE '%-RUNNER%'
+      AND b.bag_code NOT ILIKE '%-LUMP%'
+      AND b.bag_code NOT ILIKE '%-SCRAP%'
+      AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')
+      AND b.status = $2 AND b.id != $3
       AND (
         b.entry_date < $4 OR
         (b.entry_date = $4 AND b.shift = 'A' AND $5 = 'B') OR
@@ -323,10 +329,23 @@ router.get('/stage-parts', async (req, res) => {
     SELECT p.id, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
            p.trim_required, p.inspection_required, p.packing_required, p.dispatch_required,
            p.part_weight_g, p.unit_weight_g, p.batch_part_code, p.standard_pack_qty,
-           COUNT(b.id) FILTER (WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND b.status != 'SCRAPPED') AS active_bag_count,
            COUNT(b.id) FILTER (
-             WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND (
-               ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
+             WHERE b.bag_type = 'PART'
+               AND b.bag_code NOT ILIKE '%-REJ%'
+               AND b.bag_code NOT ILIKE '%-RUNNER%'
+               AND b.bag_code NOT ILIKE '%-LUMP%'
+               AND b.bag_code NOT ILIKE '%-SCRAP%'
+               AND b.status != 'HOLD'
+               AND b.status != 'SCRAPPED'
+           ) AS active_bag_count,
+           COUNT(b.id) FILTER (
+             WHERE b.bag_type = 'PART'
+               AND b.bag_code NOT ILIKE '%-REJ%'
+               AND b.bag_code NOT ILIKE '%-RUNNER%'
+               AND b.bag_code NOT ILIKE '%-LUMP%'
+               AND b.bag_code NOT ILIKE '%-SCRAP%'
+               AND b.status != 'HOLD' AND (
+               ($1 = 'trim' AND p.trim_required = TRUE AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
                ($1 = 'inspect' AND (
                  (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
                  (NOT p.trim_required AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
@@ -345,8 +364,13 @@ router.get('/stage-parts', async (req, res) => {
     GROUP BY p.id
     ORDER BY (
       COUNT(b.id) FILTER (
-        WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND (
-          ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
+        WHERE b.bag_type = 'PART'
+          AND b.bag_code NOT ILIKE '%-REJ%'
+          AND b.bag_code NOT ILIKE '%-RUNNER%'
+          AND b.bag_code NOT ILIKE '%-LUMP%'
+          AND b.bag_code NOT ILIKE '%-SCRAP%'
+          AND b.status != 'HOLD' AND (
+          ($1 = 'trim' AND p.trim_required = TRUE AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
           ($1 = 'inspect' AND (
             (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
             (NOT p.trim_required AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
@@ -360,7 +384,15 @@ router.get('/stage-parts', async (req, res) => {
         )
       )
     ) DESC,
-    COUNT(b.id) FILTER (WHERE b.bag_type = 'PART' AND b.status != 'HOLD' AND b.status != 'SCRAPPED') DESC,
+    COUNT(b.id) FILTER (
+      WHERE b.bag_type = 'PART'
+        AND b.bag_code NOT ILIKE '%-REJ%'
+        AND b.bag_code NOT ILIKE '%-RUNNER%'
+        AND b.bag_code NOT ILIKE '%-LUMP%'
+        AND b.bag_code NOT ILIKE '%-SCRAP%'
+        AND b.status != 'HOLD'
+        AND b.status != 'SCRAPPED'
+    ) DESC,
     p.part_code ASC
   `, [stage || '']);
   res.json(rows);
@@ -510,15 +542,19 @@ router.get('/', async (req, res) => {
   // If a specific shopfloor stage is passed, filter strictly for eligible PART bags
   if (stage === 'trim') {
     clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`b.status IN ('OPEN', 'PARTIAL_TRIM')`);
+    clauses.push(`p.trim_required = TRUE`);
   } else if (stage === 'inspect') {
     clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`(
       (p.trim_required = TRUE AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
       (p.trim_required = FALSE AND b.status IN ('OPEN', 'PARTIAL_INSPECT'))
     )`);
   } else if (stage === 'pack') {
     clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`(
       (p.inspection_required = TRUE AND b.status = 'INSPECTED') OR
       (p.inspection_required = FALSE AND p.trim_required = TRUE AND b.status = 'TRIMMED') OR
@@ -526,6 +562,7 @@ router.get('/', async (req, res) => {
     )`);
   } else if (stage === 'dispatch') {
     clauses.push(`b.bag_type = 'PART'`);
+    clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`b.status = 'PACKED'`);
   }
 
@@ -554,18 +591,31 @@ router.get('/fifo', async (req, res) => {
   if (!part) return res.status(404).json({ error: 'Part not found' });
 
   let statusFilter;
-  if (stage === 'trim') statusFilter = "b.status IN ('OPEN', 'PARTIAL_TRIM')";
-  else if (stage === 'inspect') statusFilter = part.trim_required ? "b.status IN ('TRIMMED', 'PARTIAL_INSPECT')" : "b.status IN ('OPEN', 'PARTIAL_INSPECT')";
-  else if (stage === 'pack') statusFilter = part.inspection_required ? "b.status = 'INSPECTED'" : (part.trim_required ? "b.status = 'TRIMMED'" : "b.status = 'OPEN'");
-  else if (stage === 'dispatch') statusFilter = "b.status = 'PACKED'";
-  else return res.status(400).json({ error: "stage must be 'trim', 'inspect', 'pack', or 'dispatch'" });
+  if (stage === 'trim') {
+    if (!part.trim_required) return res.status(404).json({ error: 'This part does not require trimming' });
+    statusFilter = "b.status IN ('OPEN', 'PARTIAL_TRIM')";
+  } else if (stage === 'inspect') {
+    statusFilter = part.trim_required ? "b.status IN ('TRIMMED', 'PARTIAL_INSPECT')" : "b.status IN ('OPEN', 'PARTIAL_INSPECT')";
+  } else if (stage === 'pack') {
+    statusFilter = part.inspection_required ? "b.status = 'INSPECTED'" : (part.trim_required ? "b.status = 'TRIMMED'" : "b.status = 'OPEN'");
+  } else if (stage === 'dispatch') {
+    statusFilter = "b.status = 'PACKED'";
+  } else {
+    return res.status(400).json({ error: "stage must be 'trim', 'inspect', 'pack', or 'dispatch'" });
+  }
 
   const { rows } = await pool.query(`
     SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no
     FROM bags b
     JOIN machines m ON m.id = b.machine_id
     JOIN parts p ON p.id = b.part_id
-    WHERE b.part_id = $1 AND b.bag_type = 'PART' AND ${statusFilter}
+    WHERE b.part_id = $1 AND b.bag_type = 'PART'
+      AND b.bag_code NOT ILIKE '%-REJ%'
+      AND b.bag_code NOT ILIKE '%-RUNNER%'
+      AND b.bag_code NOT ILIKE '%-LUMP%'
+      AND b.bag_code NOT ILIKE '%-SCRAP%'
+      AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')
+      AND ${statusFilter}
     ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
     LIMIT 1
   `, [part_id]);
@@ -598,6 +648,13 @@ router.get('/by-code/:code', async (req, res) => {
   const bag = rows[0];
   if (!bag) return res.status(404).json({ error: `Bag '${code}' not found` });
 
+  // Exclude non-part bags from shopfloor process stages
+  const isNonPartBag = bag.bag_type !== 'PART' ||
+    bag.bag_code.includes('-REJ-') ||
+    bag.bag_code.includes('-RUNNER-') ||
+    bag.bag_code.includes('-LUMP-') ||
+    bag.bag_code.includes('-SCRAP-');
+
   // Stage validation & Gating
   if (stage) {
     if (bag.status === 'HOLD') {
@@ -608,10 +665,13 @@ router.get('/by-code/:code', async (req, res) => {
       });
     }
 
+    if (isNonPartBag) {
+      return res.status(409).json({
+        error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type || 'Non-Part'} bag and cannot be processed in ${stage}.`,
+      });
+    }
+
     if (stage === 'trim') {
-      if (bag.bag_type !== 'PART') {
-        return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be trimmed.` });
-      }
       if (bag.status === 'PACKED' || bag.status === 'INSPECTED' || bag.status === 'TRIMMED') {
         return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is already ${bag.status} and cannot be trimmed again.` });
       }
@@ -688,8 +748,34 @@ router.get('/by-code/:code', async (req, res) => {
   });
 });
 
+// --- List HOLD bags for a stage or part (placed before parameterized :id routes) ---
+router.get('/hold-bags', async (req, res) => {
+  const { stage, part_id } = req.query;
+  const clauses = ["b.status = 'HOLD'"];
+  const params = [];
+  if (part_id) {
+    params.push(part_id);
+    clauses.push(`b.part_id = $${params.length}`);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const { rows } = await pool.query(`
+    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
+           hl.reason AS hold_reason, hl.stage AS hold_stage, hl.hold_at, hu.full_name AS hold_by_name
+    FROM bags b
+    JOIN machines m ON m.id = b.machine_id
+    JOIN parts p ON p.id = b.part_id
+    LEFT JOIN bag_hold_log hl ON hl.bag_id = b.id AND hl.is_active = TRUE
+    LEFT JOIN users hu ON hu.id = hl.hold_by_user_id
+    ${where}
+    ORDER BY hl.hold_at DESC NULLS LAST, b.created_at DESC
+  `, params);
+
+  res.json(rows);
+});
+
 // Single bag detail
-router.get('/:id', async (req, res) => {
+router.get('/:id(\\d+)', async (req, res) => {
   const { id } = req.params;
   const { rows } = await pool.query(`
     SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no
@@ -702,10 +788,9 @@ router.get('/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-
 // --- Trimming entry ---
 // --- Bag HOLD / Quarantine ---
-router.post('/:id/hold', async (req, res) => {
+router.post('/:id(\\d+)/hold', async (req, res) => {
   const { id } = req.params;
   const { stage, reason } = req.body;
   if (!reason || !reason.trim()) {
@@ -732,7 +817,7 @@ router.post('/:id/hold', async (req, res) => {
 });
 
 // --- Release from HOLD (Supervisor / Admin or Operator with Supervisor PIN) ---
-router.post('/:id/release-hold', async (req, res) => {
+router.post('/:id(\\d+)/release-hold', async (req, res) => {
   const { id } = req.params;
   const { release_remarks, supervisor_pin } = req.body;
 
@@ -790,34 +875,8 @@ router.post('/:id/release-hold', async (req, res) => {
   res.json({ message: `Bag released to ${restoreStatus}`, status: restoreStatus });
 });
 
-// --- List HOLD bags for a stage or part ---
-router.get('/hold-bags', async (req, res) => {
-  const { stage, part_id } = req.query;
-  const clauses = ["b.status = 'HOLD'"];
-  const params = [];
-  if (part_id) {
-    params.push(part_id);
-    clauses.push(`b.part_id = $${params.length}`);
-  }
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-
-  const { rows } = await pool.query(`
-    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
-           hl.reason AS hold_reason, hl.stage AS hold_stage, hl.hold_at, hu.full_name AS hold_by_name
-    FROM bags b
-    JOIN machines m ON m.id = b.machine_id
-    JOIN parts p ON p.id = b.part_id
-    LEFT JOIN bag_hold_log hl ON hl.bag_id = b.id AND hl.is_active = TRUE
-    LEFT JOIN users hu ON hu.id = hl.hold_by_user_id
-    ${where}
-    ORDER BY hl.hold_at DESC NULLS LAST, b.created_at DESC
-  `, params);
-
-  res.json(rows);
-});
-
 // --- Get Trimming History / Pass Details for a Bag ---
-router.get('/:id/trim-summary', async (req, res) => {
+router.get('/:id(\\d+)/trim-summary', async (req, res) => {
   const { id } = req.params;
   const bag = await getBag(id);
   if (!bag) return res.status(404).json({ error: 'Bag not found' });
@@ -850,7 +909,7 @@ router.get('/:id/trim-summary', async (req, res) => {
 });
 
 // --- Enhanced Multi-Pass Trimming entry with multiple rejects and auto-rework ---
-router.post('/:id/trim', async (req, res) => {
+router.post('/:id(\\d+)/trim', async (req, res) => {
   const { id } = req.params;
   const {
     trimmed_wt_kg = 0,
@@ -1005,7 +1064,7 @@ router.post('/:id/trim', async (req, res) => {
 });
 
 // --- Enhanced Tiered Inspection entry with multiple rejects and auto-rework ---
-router.post('/:id/inspect', async (req, res) => {
+router.post('/:id(\\d+)/inspect', async (req, res) => {
   const { id } = req.params;
   const {
     inspected_wt_kg,
@@ -1162,7 +1221,7 @@ router.post('/:id/inspect', async (req, res) => {
 
 
 // --- Packing Balance Pool: Get Available Balance for a Part ---
-router.get('/balance-pool/:part_id', async (req, res) => {
+router.get('/balance-pool/:part_id(\\d+)', async (req, res) => {
   const { part_id } = req.params;
   const part = await getPart(part_id);
   if (!part) return res.status(404).json({ error: 'Part not found' });
@@ -1191,7 +1250,7 @@ router.get('/balance-pool/:part_id', async (req, res) => {
 });
 
 // --- Packing Balance Pool: Convert Pool Quantity into a Standard Packet ---
-router.post('/balance-pool/:part_id/pack-packet', async (req, res) => {
+router.post('/balance-pool/:part_id(\\d+)/pack-packet', async (req, res) => {
   const { part_id } = req.params;
   const part = await getPart(part_id);
   if (!part) return res.status(404).json({ error: 'Part not found' });
@@ -1241,7 +1300,7 @@ router.post('/balance-pool/:part_id/pack-packet', async (req, res) => {
 });
 
 // --- Enhanced Packing entry with Counting Scale & Balance Pool ---
-router.post('/:id/pack', async (req, res) => {
+router.post('/:id(\\d+)/pack', async (req, res) => {
   const { id } = req.params;
   const {
     packed_qty,
@@ -1359,7 +1418,7 @@ router.get('/rework/pending', async (req, res) => {
 });
 
 // --- Complete Rework Item ---
-router.post('/rework/:id/complete', async (req, res) => {
+router.post('/rework/:id(\\d+)/complete', async (req, res) => {
   const { id } = req.params;
   const { reworked_good_qty, scrap_qty, remarks } = req.body;
 
@@ -1378,7 +1437,7 @@ router.post('/rework/:id/complete', async (req, res) => {
 });
 
 // --- Dispatch entry ---
-router.post('/:id/dispatch', async (req, res) => {
+router.post('/:id(\\d+)/dispatch', async (req, res) => {
   const { id } = req.params;
   const {
     dispatched_qty, dispatched_wt_kg, customer_id, invoice_no, vehicle_no,

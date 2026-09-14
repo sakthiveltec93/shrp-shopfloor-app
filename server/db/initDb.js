@@ -18,6 +18,25 @@ async function initDb() {
     console.log('[DB-INIT] Syncing 73 tooling masters & part linkages...');
     await syncMoulds(false);
     console.log('[DB-INIT] Moulds and part linkages synced successfully.');
+
+    console.log('[DB-INIT] Cleaning up bag types for historical rejection/runner/lump bags...');
+    await pool.query(`
+      UPDATE bags SET bag_type = 'REJECTION'
+      WHERE (bag_code ILIKE '%-REJ%' OR bag_code ILIKE '%REJECTION%') AND bag_type != 'REJECTION'
+    `);
+    await pool.query(`
+      UPDATE bags SET bag_type = 'RUNNER'
+      WHERE (bag_code ILIKE '%-RUNNER%' OR bag_code ILIKE '%RUNNER%') AND bag_type != 'RUNNER'
+    `);
+    await pool.query(`
+      UPDATE bags SET bag_type = 'LUMP'
+      WHERE (bag_code ILIKE '%-LUMP%' OR bag_code ILIKE '%LUMPS%') AND bag_type != 'LUMP'
+    `);
+    await pool.query(`
+      UPDATE bags SET bag_type = 'SCRAP'
+      WHERE (bag_code ILIKE '%-SCRAP%' OR bag_code ILIKE '%SCRAP%') AND bag_type != 'SCRAP'
+    `);
+    console.log('[DB-INIT] Bag types cleaned up successfully.');
   } catch (err) {
     console.error('[DB-INIT] Warning during database init:', err.message || err);
   }

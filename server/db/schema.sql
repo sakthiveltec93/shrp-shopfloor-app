@@ -132,6 +132,9 @@ CREATE TABLE IF NOT EXISTS bags (
 ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
 ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'HOLD', 'SCRAPPED'));
 
+ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_bag_type_check;
+ALTER TABLE bags ADD CONSTRAINT bags_bag_type_check CHECK (bag_type IN ('PART', 'RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP'));
+
 CREATE INDEX IF NOT EXISTS idx_bags_batch ON bags(batch_no);
 CREATE INDEX IF NOT EXISTS idx_bags_part_status ON bags(part_id, status, bag_type);
 
