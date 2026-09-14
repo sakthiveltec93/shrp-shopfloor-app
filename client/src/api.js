@@ -152,6 +152,22 @@ export const api = {
     updateSettings: (payload) => request('/attendance/settings', { method: 'PUT', body: payload }),
     roster: (date) => request(`/attendance${date ? `?date=${date}` : ''}`),
   },
+
+  deletions: {
+    request: (payload) => request('/deletions/request', { method: 'POST', body: payload }),
+    pending: () => request('/deletions/pending'),
+    approve: (id, review_notes) => request(`/deletions/${id}/approve`, { method: 'POST', body: { review_notes } }),
+    reject: (id, review_notes) => request(`/deletions/${id}/reject`, { method: 'POST', body: { review_notes } }),
+    directDelete: (entity_type, entity_id, reason) => request(`/deletions/direct/${entity_type}/${entity_id}`, { method: 'DELETE', body: { reason } }),
+  },
+
+  reports: {
+    dailySummary: (date, shift) => request(`/reports/daily-summary?date=${date || ''}&shift=${shift || 'ALL'}`),
+    processSummary: (date) => request(`/reports/process-summary?date=${date || ''}`),
+    trendSummary: (startDate, endDate) => request(`/reports/trend-summary?start_date=${startDate || ''}&end_date=${endDate || ''}`),
+    stageRaw: (stage, date) => request(`/reports/stage-raw?stage=${stage}&date=${date || ''}`),
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

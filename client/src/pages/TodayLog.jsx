@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import CameraScanner from '../components/CameraScanner';
+import DeletionModal from '../components/DeletionModal';
 
 function todayLocal() {
   const d = new Date();
@@ -23,6 +24,8 @@ export default function TodayLog() {
   const { user } = useAuth();
   const [date, setDate] = useState(todayLocal());
   const [entries, setEntries] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [statusMsg, setStatusMsg] = useState('');
   const [traceCode, setTraceCode] = useState('');
   const [traceLogs, setTraceLogs] = useState(null);
   const [traceLoading, setTraceLoading] = useState(false);
@@ -149,6 +152,7 @@ export default function TodayLog() {
                   <th>Rej</th>
                   <th>Eff%</th>
                   {!isOperator && <th>Operator</th>}
+                  <th style={{ width: 40 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -164,12 +168,42 @@ export default function TodayLog() {
                     <td>{e.reject_qty}</td>
                     <td>{e.efficiency_pct != null ? e.efficiency_pct : '—'}</td>
                     {!isOperator && <td>{e.operator_name}</td>}
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: 11, width: 'auto', background: 'none', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}
+                        title={user.role === 'admin' ? 'Delete entry' : 'Request deletion approval'}
+                        onClick={() => setDeleteTarget({
+                          id: e.id,
+                          title: `${e.machine_code} Hr ${e.hour_slot} (${e.shrp_part_code || e.part_code}, ${e.good_qty} good)`,
+                        })}
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </>
+      )}
+
+      {deleteTarget && (
+        <DeletionModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          entityType="production_entry"
+          entityId={deleteTarget.id}
+          entityTitle={deleteTarget.title}
+          isAdmin={user.role === 'admin'}
+          onSuccess={() => {
+            setStatusMsg(user.role === 'admin' ? 'Entry deleted.' : 'Deletion request submitted for Admin approval.');
+            api.entriesForDate(date).then(setEntries);
+            setTimeout(() => setStatusMsg(''), 4000);
+          }}
+        />
       )}
 
       {/* End-to-End Traceability Lookup per Section 14 */}

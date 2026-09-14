@@ -688,4 +688,46 @@ table.data-table th {
   transition: width 0.4s ease;
 }
 
+/* Wide dashboard & report layout support */
+.app-shell:has(.reports-screen),
+.app-shell.wide-shell {
+  max-width: 1300px;
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .app-shell {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .app-header,
+  .bottom-nav,
+  .no-print,
+  .offline-banner {
+    display: none !important;
+  }
+  .app-main {
+    padding: 0 !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .panel {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  table th, table td {
+    color: #000 !important;
+    border-color: #ddd !important;
+  }
+}
+
 

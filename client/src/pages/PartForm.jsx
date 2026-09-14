@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, getToken } from '../api';
+import { useAuth } from '../AuthContext';
+import DeletionModal from '../components/DeletionModal';
 
 const emptyBasic = {
   part_code: '', shrp_part_code: '', customer_part_no: '', part_name: '', cavity_count: '1', standard_cycle_time_sec: '',
@@ -22,6 +24,7 @@ export default function PartForm() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [basic, setBasic] = useState(emptyBasic);
   const [customers, setCustomers] = useState([]);
@@ -34,6 +37,7 @@ export default function PartForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     api.customers().then(setCustomers);
@@ -292,9 +296,28 @@ export default function PartForm() {
           <textarea rows={2} value={basic.notes} onChange={(e) => updateBasic('notes', e.target.value)} />
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={saving}>
-          {saving ? 'Saving…' : isNew ? 'Create part' : 'Save basic info'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <button className="btn btn-primary" type="submit" disabled={saving} style={{ flex: 1 }}>
+            {saving ? 'Saving…' : isNew ? 'Create part' : 'Save basic info'}
+          </button>
+          {!isNew && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{
+                width: 'auto',
+                padding: '0 16px',
+                color: 'var(--red)',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.08)',
+              }}
+              onClick={() => setShowDeleteModal(true)}
+              title={user?.role === 'admin' ? 'Delete Part' : 'Request Deletion Approval'}
+            >
+              🗑️ Delete Part
+            </button>
+          )}
+        </div>
       </form>
 
       {!isNew && (
@@ -375,6 +398,24 @@ export default function PartForm() {
             <input type="file" onChange={(e) => handleFileUpload('ppap', e.target.files)} />
           </div>
         </>
+      )}
+
+      {showDeleteModal && (
+        <DeletionModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          entityType="part"
+          entityId={id}
+          entityTitle={`${basic.part_name} (${basic.shrp_part_code || basic.part_code})`}
+          isAdmin={user?.role === 'admin'}
+          onSuccess={() => {
+            if (user?.role === 'admin') {
+              navigate('/parts');
+            } else {
+              setSuccess('Part deletion approval request submitted to Administrator.');
+            }
+          }}
+        />
       )}
     </div>
   );

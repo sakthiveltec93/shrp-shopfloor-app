@@ -93,6 +93,10 @@ export const en = {
         "label": "Users",
         "hint": "Accounts & page access"
       },
+      "reports": {
+        "label": "Daily Reports",
+        "hint": "KPIs, charts & exports"
+      },
       "log": {
         "label": "Today's Log",
         "hint": "All entries today"

@@ -21,6 +21,7 @@ import UsersList from './pages/UsersList'
 import UserForm from './pages/UserForm'
 import PinChange from './pages/PinChange'
 import Attendance from './pages/Attendance'
+import Reports from './pages/Reports'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute page="reports"><Reports /></ProtectedRoute>} />
         <Route path="/mould-setup" element={<ProtectedRoute page="mould_setup"><MouldSetup /></ProtectedRoute>} />
         <Route
           path="/approvals"

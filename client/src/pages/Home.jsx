@@ -13,6 +13,7 @@ const TILES = [
   { key: 'approvals', to: '/approvals', icon: '✓' },
   { key: 'parts', to: '/parts', icon: '📋' },
   { key: 'users', to: '/users', icon: '👤' },
+  { key: 'reports', to: '/reports', icon: '📊' },
   { key: 'log', to: '/log', icon: '≣' },
 ];
 

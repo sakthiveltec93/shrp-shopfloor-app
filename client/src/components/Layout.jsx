@@ -27,6 +27,7 @@ export default function Layout({ children }) {
     ? NAV_ITEMS.filter((item) => !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key)))
     : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
+  const hasReportsAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('reports')));
 
   useEffect(() => {
     function handleOnline() {
@@ -138,6 +139,11 @@ export default function Layout({ children }) {
             {hasAttendanceAccess && (
               <button className="logout-btn" onClick={() => navigate('/attendance')}>
                 {t('layout.attendance')}
+              </button>
+            )}
+            {hasReportsAccess && (
+              <button className="logout-btn" onClick={() => navigate('/reports')}>
+                📊 Reports
               </button>
             )}
             <button
