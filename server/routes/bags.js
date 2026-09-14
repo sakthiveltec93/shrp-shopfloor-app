@@ -1534,4 +1534,100 @@ router.get('/audit/traceability/:bagCode', async (req, res) => {
   res.json(rows);
 });
 
+// Direct raw socket printing to WiFi / LAN thermal barcode printers (ZPL over TCP port 9100)
+router.post('/:id(\\d+)/lan-print', async (req, res) => {
+  const { id } = req.params;
+  const { printer_ip, printer_port = 9100 } = req.body;
+
+  if (!printer_ip || !printer_ip.trim()) {
+    return res.status(400).json({ error: 'Printer IP address is required for direct LAN printing' });
+  }
+
+  const { rows } = await pool.query(`
+    SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no
+    FROM bags b
+    JOIN machines m ON m.id = b.machine_id
+    JOIN parts p ON p.id = b.part_id
+    WHERE b.id = $1
+  `, [id]);
+
+  const bag = rows[0];
+  if (!bag) return res.status(404).json({ error: 'Bag not found' });
+
+  const shrpCode = bag.shrp_part_code || bag.part_code || 'PART';
+  const custPart = bag.customer_part_no || bag.part_code || '—';
+  const partName = (bag.part_name || '').slice(0, 30);
+  const bagCode = bag.bag_code;
+  const batchNo = bag.batch_no;
+  const qty = bag.qty > 0 ? `${bag.qty}` : '—';
+  const wt = Number(bag.base_weight_kg || 0).toFixed(3);
+  const prodDate = new Date(bag.entry_date).toLocaleDateString('en-GB');
+  const shift = bag.shift || 'A';
+  const machine = bag.machine_code || 'M/C';
+
+  const qrPayload = JSON.stringify({
+    shrp_code: shrpCode,
+    bag_code: bagCode,
+    batch_no: batchNo,
+    qty: bag.qty,
+    weight_kg: Number(bag.base_weight_kg),
+    date: bag.entry_date,
+    shift: bag.shift,
+    machine: bag.machine_code,
+  });
+
+  // Standard 3" x 2" (609 x 406 dots at 203 DPI) ZPL template
+  const zpl = `^XA
+^PW609
+^LL406
+^LH0,0
+^FO20,15^A0N,22,22^FDSRI HARI RUBBER PRODUCTS^FS
+^FO440,15^A0N,20,20^FD[PART BAG]^FS
+^FO20,38^GB570,2,2^FS
+^FO20,48^A0N,32,32^FD${shrpCode}^FS
+^FO20,84^A0N,20,20^FD${partName} | Cust: ${custPart}^FS
+^FO20,108^GB570,1,1^FS
+^FO20,118^A0N,24,24^FDBag No:  ${bagCode}^FS
+^FO20,148^A0N,22,22^FDBatch:   ${batchNo}^FS
+^FO20,178^A0N,24,24^FDQty:     ${qty} Nos  Wt: ${wt} Kg^FS
+^FO20,208^A0N,20,20^FDDate:    ${prodDate}  Shift: ${shift}^FS
+^FO20,232^A0N,20,20^FDMachine: ${machine}^FS
+^FO410,118^BQN,2,4^FDQA,${qrPayload}^FS
+^FO400,248^A0N,18,18^FD${bagCode}^FS
+^FO20,270^GB570,2,2^FS
+^FO20,282^A0N,18,18^FDSHRP MES - IATF 16949 TRACEABILITY LABEL^FS
+^XZ`;
+
+  const net = require('net');
+  const socket = new net.Socket();
+  const port = parseInt(printer_port, 10) || 9100;
+
+  socket.setTimeout(4000);
+
+  socket.connect(port, printer_ip.trim(), () => {
+    socket.write(zpl, 'utf8', () => {
+      socket.end();
+      res.json({
+        success: true,
+        message: `Label successfully sent to LAN Thermal Printer at ${printer_ip}:${port}`,
+        bag_code: bagCode,
+      });
+    });
+  });
+
+  socket.on('error', (err) => {
+    socket.destroy();
+    res.status(502).json({
+      error: `Could not connect to Thermal Printer at ${printer_ip}:${port} (${err.message}). Verify printer is turned on and connected to the same WiFi/LAN network.`,
+    });
+  });
+
+  socket.on('timeout', () => {
+    socket.destroy();
+    res.status(504).json({
+      error: `Connection timed out connecting to printer at ${printer_ip}:${port}. Check IP address.`,
+    });
+  });
+});
+
 module.exports = router;

@@ -241,7 +241,7 @@ table.data-table th {
   letter-spacing: 0.04em;
 }
 
-/* Bag label - 3" x 2" thermal printer format */
+/* Bag label - 3" x 2" (76.2mm x 50.8mm) thermal printer format */
 @page {
   size: 3in 2in;
   margin: 0;
@@ -249,90 +249,164 @@ table.data-table th {
 
 .label-print-area {
   width: 288px;
-  min-height: 192px;
+  height: 192px;
   margin: 0 auto;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: #fff;
   color: #000;
-  border: 1px solid var(--line);
+  border: 1.5px solid #000;
+  border-radius: 4px;
   box-sizing: border-box;
-  text-align: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
-.label-shrp-code {
-  font-size: 18px;
-  font-weight: 900;
+
+.label-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #000;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+}
+
+.label-company-name {
+  font-size: 8px;
+  font-weight: 800;
   letter-spacing: 0.04em;
   color: #000;
-  line-height: 1.1;
+  text-transform: uppercase;
 }
-.label-part-name {
-  font-weight: 600;
-  font-size: 10px;
-  margin-bottom: 6px;
-  color: #222;
+
+.label-badge-type {
+  font-size: 7.5px;
+  font-weight: 800;
+  background: #000;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.label-shrp-code {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #000;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.label-part-name {
+  font-weight: 700;
+  font-size: 9px;
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
 .label-content-grid {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  text-align: left;
   gap: 6px;
+  flex: 1;
 }
+
 .label-details {
   flex: 1;
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 8.5px;
+  line-height: 1.32;
   color: #000;
 }
-.label-details strong {
-  font-weight: 700;
+
+.label-details div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.label-details strong {
+  font-weight: 800;
+  color: #000;
+}
+
 .label-qr-container {
-  width: 80px;
-  height: 80px;
+  width: 74px;
+  height: 74px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
+
 .label-qr-canvas {
-  width: 80px !important;
-  height: 80px !important;
+  width: 68px !important;
+  height: 68px !important;
   display: block;
 }
+
+.label-qr-subtext {
+  font-size: 6.5px;
+  font-weight: 700;
+  color: #000;
+  text-align: center;
+  margin-top: 1px;
+}
+
 .label-footer {
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
-  margin-top: 4px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #000;
   border-top: 1px solid #000;
-  padding-top: 3px;
+  padding-top: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 @media print {
   html, body {
-    width: 3in;
-    height: 2in;
-    margin: 0;
-    padding: 0;
-    background: #fff;
+    width: 3in !important;
+    height: 2in !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  body * { visibility: hidden; }
-  .label-print-area, .label-print-area * { visibility: visible; }
+  body * {
+    visibility: hidden;
+  }
+  .label-print-area, .label-print-area * {
+    visibility: visible;
+  }
   .label-print-area {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 3in;
-    height: 2in;
-    border: none;
-    padding: 0.08in 0.12in;
+    width: 3in !important;
+    height: 2in !important;
+    max-width: 3in !important;
+    max-height: 2in !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    padding: 0.06in 0.08in !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 }
 

@@ -175,6 +175,7 @@ export const api = {
   reworkPending: () => request('/bags/rework/pending'),
   completeRework: (id, payload) => request(`/bags/rework/${id}/complete`, { method: 'POST', body: payload }),
   traceability: (bagCode) => request(`/bags/audit/traceability/${encodeURIComponent(bagCode)}`),
+  lanPrintBag: (id, payload) => request(`/bags/${id}/lan-print`, { method: 'POST', body: payload }),
 
   notifications: {
     list: () => request('/notifications'),
