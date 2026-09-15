@@ -35,8 +35,12 @@ export default function Layout({ children }) {
     }
   }, [user]);
 
+  const isSupervisorOrAdmin = user && (user.role === 'admin' || user.role === 'supervisor');
   const visibleNavItems = user
-    ? NAV_ITEMS.filter((item) => !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key)))
+    ? NAV_ITEMS.filter((item) => {
+        if (item.key === 'mould_setup' && !isSupervisorOrAdmin) return false;
+        return !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key));
+      })
     : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
   const hasReportsAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('reports')));
@@ -90,14 +94,25 @@ export default function Layout({ children }) {
   useEffect(() => {
     if (!user) return;
     const fetchNotifs = () => {
-      api.notifications?.unread?.()
-        .then((data) => {
-          if (Array.isArray(data)) {
-            setNotifications(data);
-            setUnreadCount(data.length);
-          }
-        })
-        .catch(() => {});
+      try {
+        const notifCall = (typeof api.notifications?.unread === 'function' ? api.notifications.unread() : null)
+          ?? (typeof api.notifications?.list === 'function' ? api.notifications.list() : null);
+        if (notifCall && typeof notifCall.then === 'function') {
+          notifCall
+            .then((data) => {
+              if (Array.isArray(data)) {
+                setNotifications(data);
+                setUnreadCount(data.length);
+              } else if (data && Array.isArray(data.notifications)) {
+                setNotifications(data.notifications);
+                setUnreadCount(typeof data.unread_count === 'number' ? data.unread_count : data.notifications.filter((n) => !n.read_at).length);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // Suppress any unexpected synchronous error
+      }
     };
     fetchNotifs();
     const interval = setInterval(fetchNotifs, 30000);
@@ -107,9 +122,17 @@ export default function Layout({ children }) {
   useEffect(() => {
     if (!user) return;
     const fetchTodayStatus = () => {
-      api.attendance?.today?.()
-        .then((data) => setTodayAttendance(data))
-        .catch(() => {});
+      try {
+        const attCall = (typeof api.attendance?.today === 'function' ? api.attendance.today() : null)
+          ?? (typeof api.todayAttendanceStatus === 'function' ? api.todayAttendanceStatus() : null);
+        if (attCall && typeof attCall.then === 'function') {
+          attCall
+            .then((data) => setTodayAttendance(data || null))
+            .catch(() => {});
+        }
+      } catch {
+        // Suppress any unexpected synchronous error
+      }
     };
     fetchTodayStatus();
 
@@ -309,6 +332,17 @@ export default function Layout({ children }) {
                       <span>👤</span>
                       <span style={{ fontWeight: 600, color: 'var(--amber)' }}>{t('layout.menu.profile')}</span>
                     </button>
+                    {isSupervisorOrAdmin && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                        onClick={() => { setShowSettings(false); navigate('/masters'); }}
+                      >
+                        <span>🗂️</span>
+                        <span>{t('layout.menu.masters') || 'Item & Masters Hub'}</span>
+                      </button>
+                    )}
                     {isAdmin && (
                       <button
                         type="button"

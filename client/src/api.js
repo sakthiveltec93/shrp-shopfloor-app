@@ -226,6 +226,7 @@ export const api = {
 
   notifications: {
     list: () => request('/notifications'),
+    unread: () => request('/notifications'),
     markRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
     markAllRead: () => request('/notifications/read-all', { method: 'POST' }),
   },
