@@ -54,14 +54,13 @@ const ERP_SECTIONS = [
     id: 'tooling_mgmt',
     sectionKey: 'tooling',
     title: 'Tooling, TPM & Management',
-    tagline: 'Fleet Status · Tool Life · Reports · Part Master',
+    tagline: 'Fleet Status · Tool Life · Reports · TPM Master',
     icon: '⚙️',
     accentColor: '#a855f7', // purple
     badgeBg: 'rgba(168, 85, 247, 0.15)',
     tiles: [
       { key: 'machines', to: '/machines', icon: '🖥️', supervisorOnly: true },
       { key: 'moulds', to: '/moulds', icon: '⚙️', supervisorOnly: true },
-      { key: 'parts', to: '/parts', icon: '📋', supervisorOnly: true },
       { key: 'reports', to: '/reports', icon: '📊', supervisorOnly: true },
       { key: 'masters_hub', to: '/masters', icon: '🗂️', supervisorOnly: true },
     ],

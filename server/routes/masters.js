@@ -11,29 +11,125 @@ router.get('/machines', async (req, res) => {
 });
 
 router.get('/customers', async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM customers ORDER BY name');
+  const { rows } = await pool.query(`
+    SELECT c.*,
+           c.name AS customer_name,
+           COUNT(p.id) FILTER (WHERE p.active = TRUE)::int AS active_parts_count
+    FROM customers c
+    LEFT JOIN parts p ON p.customer_id = c.id
+    GROUP BY c.id
+    ORDER BY c.active DESC, c.name ASC
+  `);
   res.json(rows);
 });
 
 router.post('/customers', requireRole('admin', 'supervisor'), async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'name is required' });
+  const {
+    customer_code, name, gstin, pan_no, contact_person, phone, email,
+    address, city, state, pincode, payment_terms, active,
+  } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Customer name is required' });
+  const code = (customer_code && customer_code.trim()) || ('CUST-' + name.trim().slice(0, 4).toUpperCase());
   const { rows } = await pool.query(
-    `INSERT INTO customers (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING *`,
-    [name]
+    `INSERT INTO customers (
+       customer_code, name, gstin, pan_no, contact_person, phone, email,
+       address, city, state, pincode, payment_terms, active
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13, TRUE))
+     ON CONFLICT (name) DO UPDATE SET
+       customer_code = COALESCE(EXCLUDED.customer_code, customers.customer_code),
+       gstin = COALESCE(EXCLUDED.gstin, customers.gstin),
+       pan_no = COALESCE(EXCLUDED.pan_no, customers.pan_no),
+       contact_person = COALESCE(EXCLUDED.contact_person, customers.contact_person),
+       phone = COALESCE(EXCLUDED.phone, customers.phone),
+       email = COALESCE(EXCLUDED.email, customers.email),
+       address = COALESCE(EXCLUDED.address, customers.address),
+       city = COALESCE(EXCLUDED.city, customers.city),
+       state = COALESCE(EXCLUDED.state, customers.state),
+       pincode = COALESCE(EXCLUDED.pincode, customers.pincode),
+       payment_terms = COALESCE(EXCLUDED.payment_terms, customers.payment_terms),
+       active = COALESCE(EXCLUDED.active, customers.active)
+     RETURNING *`,
+    [
+      code, name.trim(), gstin || null, pan_no || null, contact_person || null, phone || null,
+      email || null, address || null, city || null, state || 'Tamil Nadu', pincode || null,
+      payment_terms || '30 Days', active !== false
+    ]
   );
   res.status(201).json(rows[0]);
 });
 
-// Lightweight list for dropdowns and masters list, with photo_file_id for visual Poka-Yoke
+router.put('/customers/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const {
+    customer_code, name, gstin, pan_no, contact_person, phone, email,
+    address, city, state, pincode, payment_terms, active,
+  } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE customers SET
+       customer_code = COALESCE($1, customer_code),
+       name = COALESCE($2, name),
+       gstin = $3,
+       pan_no = $4,
+       contact_person = $5,
+       phone = $6,
+       email = $7,
+       address = $8,
+       city = $9,
+       state = COALESCE($10, state),
+       pincode = $11,
+       payment_terms = COALESCE($12, payment_terms),
+       active = COALESCE($13, active)
+     WHERE id = $14 RETURNING *`,
+    [
+      customer_code, name ? name.trim() : null, gstin || null, pan_no || null,
+      contact_person || null, phone || null, email || null, address || null,
+      city || null, state || null, pincode || null, payment_terms || null,
+      active, id
+    ]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
+  res.json(rows[0]);
+});
+
+router.delete('/customers/:id', requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query('SELECT id, name FROM customers WHERE id = $1', [id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
+    await pool.query('DELETE FROM customers WHERE id = $1', [id]);
+    res.json({ ok: true, message: `Customer "${rows[0].name}" deleted permanently.` });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'This customer has linked parts or dispatches and cannot be permanently deleted. Deactivate it instead.',
+      });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lightweight list for dropdowns and masters list, with photo_file_id, customer and mould details
 router.get('/parts', async (req, res) => {
+  const includeInactive = req.query.include_inactive === 'true' || req.query.all === 'true';
   const { rows } = await pool.query(`
     SELECT p.*,
+           c.name AS customer_name,
+           c.customer_code,
+           m.mould_code,
+           m.mould_name,
+           COALESCE(mp.cavities_for_part, p.cavity_count, 1) AS cavities_for_part,
+           p.standard_cycle_time_sec AS cycle_time_seconds,
+           COALESCE(p.unit_weight_g, p.part_weight_g) AS net_weight_grams,
+           COALESCE(p.part_weight_g, p.unit_weight_g) AS gross_weight_grams,
            (SELECT pf.id FROM part_files pf WHERE pf.part_id = p.id AND pf.file_type = 'photo' ORDER BY pf.uploaded_at DESC LIMIT 1) AS photo_file_id
     FROM parts p
-    WHERE p.active = TRUE
+    LEFT JOIN customers c ON c.id = p.customer_id
+    LEFT JOIN mould_parts mp ON mp.part_id = p.id
+    LEFT JOIN moulds m ON m.id = mp.mould_id
+    WHERE ($1::boolean IS TRUE OR p.active = TRUE)
     ORDER BY p.part_code
-  `);
+  `, [includeInactive]);
   res.json(rows);
 });
 

@@ -18,8 +18,9 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
   const {
-    supplier_code, supplier_name, contact_person, phone, email, address,
-    materials_supplied, payment_terms, lead_time_days,
+    supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
+    address, city, state, pincode, materials_supplied, payment_terms,
+    lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active,
   } = req.body;
 
   if (!supplier_code || !supplier_name) {
@@ -28,11 +29,31 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
 
   const { rows } = await pool.query(
     `INSERT INTO suppliers
-      (supplier_code, supplier_name, contact_person, phone, email, address,
-       materials_supplied, payment_terms, lead_time_days)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [supplier_code, supplier_name, contact_person || null, phone || null, email || null, address || null,
-      materials_supplied || null, payment_terms || null, lead_time_days != null ? Number(lead_time_days) : null]
+      (supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
+       address, city, state, pincode, materials_supplied, payment_terms,
+       lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18, TRUE))
+     RETURNING *`,
+    [
+      supplier_code.trim(),
+      supplier_name.trim(),
+      gstin || null,
+      pan_no || null,
+      contact_person || null,
+      phone || null,
+      email || null,
+      address || null,
+      city || null,
+      state || 'Tamil Nadu',
+      pincode || null,
+      materials_supplied || null,
+      payment_terms || '30 Days',
+      lead_time_days != null ? Number(lead_time_days) : 7,
+      vendor_rating != null ? Number(vendor_rating) : 100,
+      iso_iatf_certified !== false,
+      cert_valid_upto || null,
+      active !== false,
+    ]
   );
   res.status(201).json(rows[0]);
 });
@@ -40,26 +61,53 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
 router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
   const { id } = req.params;
   const {
-    supplier_code, supplier_name, contact_person, phone, email, address,
-    materials_supplied, payment_terms, lead_time_days, active,
+    supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
+    address, city, state, pincode, materials_supplied, payment_terms,
+    lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active,
   } = req.body;
 
   const { rows } = await pool.query(
     `UPDATE suppliers SET
        supplier_code = COALESCE($1, supplier_code),
        supplier_name = COALESCE($2, supplier_name),
-       contact_person = COALESCE($3, contact_person),
-       phone = COALESCE($4, phone),
-       email = COALESCE($5, email),
-       address = COALESCE($6, address),
-       materials_supplied = COALESCE($7, materials_supplied),
-       payment_terms = COALESCE($8, payment_terms),
-       lead_time_days = COALESCE($9, lead_time_days),
-       active = COALESCE($10, active)
-     WHERE id = $11 RETURNING *`,
-    [supplier_code, supplier_name, contact_person, phone, email, address,
-      materials_supplied, payment_terms, lead_time_days != null ? Number(lead_time_days) : null,
-      active, id]
+       gstin = $3,
+       pan_no = $4,
+       contact_person = $5,
+       phone = $6,
+       email = $7,
+       address = $8,
+       city = $9,
+       state = COALESCE($10, state),
+       pincode = $11,
+       materials_supplied = $12,
+       payment_terms = COALESCE($13, payment_terms),
+       lead_time_days = COALESCE($14, lead_time_days),
+       vendor_rating = COALESCE($15, vendor_rating),
+       iso_iatf_certified = COALESCE($16, iso_iatf_certified),
+       cert_valid_upto = $17,
+       active = COALESCE($18, active)
+     WHERE id = $19 RETURNING *`,
+    [
+      supplier_code ? supplier_code.trim() : null,
+      supplier_name ? supplier_name.trim() : null,
+      gstin || null,
+      pan_no || null,
+      contact_person || null,
+      phone || null,
+      email || null,
+      address || null,
+      city || null,
+      state || null,
+      pincode || null,
+      materials_supplied || null,
+      payment_terms || null,
+      lead_time_days != null ? Number(lead_time_days) : null,
+      vendor_rating != null ? Number(vendor_rating) : null,
+      iso_iatf_certified != null ? Boolean(iso_iatf_certified) : null,
+      cert_valid_upto || null,
+      active,
+      id,
+    ]
   );
   if (rows.length === 0) return res.status(404).json({ error: 'Supplier not found' });
   res.json(rows[0]);

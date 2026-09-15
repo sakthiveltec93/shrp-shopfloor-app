@@ -45,8 +45,24 @@ export default function MastersHub() {
   // 2. RAW MATERIALS STATE
   const [materials, setMaterials] = useState([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
-  const [recipes, setRecipes] = useState([]);
   const [rmSearch, setRmSearch] = useState('');
+  const [rmModal, setRmModal] = useState(null); // { isEdit: boolean, data?: obj }
+  const [rmForm, setRmForm] = useState({
+    material_code: '',
+    material_name: '',
+    category: 'VIRGIN_POLYMER',
+    supplier_name: '',
+    grade_code: '',
+    color: 'Natural',
+    density_g_cm3: '1.14',
+    mfi_g_10min: '',
+    standard_bag_wt_kg: 25.0,
+    min_stock_kg: 100.0,
+    drying_temp_c: 80,
+    drying_time_hrs: 4,
+    melt_temp_c: '',
+    active: true,
+  });
 
   // 3. GAUGES STATE
   const [gauges, setGauges] = useState([]);
@@ -54,25 +70,63 @@ export default function MastersHub() {
   const [gaugeSummary, setGaugeSummary] = useState(null);
   const [gaugeModal, setGaugeModal] = useState(null);
   const [gaugeForm, setGaugeForm] = useState({
-    gauge_code: '', gauge_name: '', gauge_type: 'Vernier', range_spec: '',
-    accuracy: '', location: '', calibration_interval_days: 365,
-    last_calibrated_at: '', calibration_cert_no: '', status: 'active',
+    gauge_code: '',
+    gauge_name: '',
+    gauge_type: 'Vernier',
+    range_spec: '',
+    accuracy: '',
+    location: 'QA Inspection Lab',
+    calibration_interval_days: 365,
+    last_calibrated_at: '',
+    calibration_cert_no: '',
+    status: 'active',
   });
 
   // 4. SUPPLIERS STATE
   const [suppliers, setSuppliers] = useState([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierModal, setSupplierModal] = useState(null);
   const [supplierForm, setSupplierForm] = useState({
-    supplier_code: '', supplier_name: '', contact_person: '', phone: '',
-    email: '', address: '', materials_supplied: '', payment_terms: '',
-    lead_time_days: 7, active: true,
+    supplier_code: '',
+    supplier_name: '',
+    gstin: '',
+    pan_no: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: 'Hosur',
+    state: 'Tamil Nadu',
+    pincode: '',
+    materials_supplied: '',
+    payment_terms: '30 Days',
+    lead_time_days: 7,
+    vendor_rating: 100,
+    iso_iatf_certified: true,
+    active: true,
   });
 
   // 5. CUSTOMERS STATE
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [customerModal, setCustomerModal] = useState(null);
+  const [customerForm, setCustomerForm] = useState({
+    customer_code: '',
+    name: '',
+    gstin: '',
+    pan_no: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: 'Hosur',
+    state: 'Tamil Nadu',
+    pincode: '',
+    payment_terms: '30 Days',
+    active: true,
+  });
 
   // 6. MACHINES STATE
   const [machines, setMachines] = useState([]);
@@ -82,7 +136,7 @@ export default function MastersHub() {
   const [moulds, setMoulds] = useState([]);
   const [mouldsLoading, setMouldsLoading] = useState(false);
   const [pmModal, setPmModal] = useState(null);
-  const [pmForm, setPmForm] = useState({ action_type: 'PM', technician_name: '', description: '' });
+  const [pmForm, setPmForm] = useState({ action_type: 'pm_service', technician_name: '', description: '' });
 
   // 8. DEFAULTS & CHECKSHEETS
   const [checkItems, setCheckItems] = useState([]);
@@ -112,11 +166,8 @@ export default function MastersHub() {
 
   const loadMaterials = () => {
     setMaterialsLoading(true);
-    Promise.all([
-      api.rawMaterials?.list ? api.rawMaterials.list() : Promise.resolve([]),
-      api.rawMaterials?.recipes ? api.rawMaterials.recipes() : Promise.resolve([])
-    ])
-      .then(([m, r]) => { setMaterials(m || []); setRecipes(r || []); })
+    api.rawMaterials.list()
+      .then((m) => setMaterials(m || []))
       .catch((e) => setError(e.message))
       .finally(() => setMaterialsLoading(false));
   };
@@ -124,29 +175,28 @@ export default function MastersHub() {
   const loadGauges = () => {
     setGaugesLoading(true);
     Promise.all([
-      api.gauges?.list ? api.gauges.list('all') : Promise.resolve([]),
-      api.gauges?.calibrationSummary ? api.gauges.calibrationSummary() : Promise.resolve(null)
+      api.gauges.list('all'),
+      api.gauges.calibrationSummary ? api.gauges.calibrationSummary() : Promise.resolve(null),
     ])
-      .then(([gList, gSum]) => { setGauges(gList || []); setGaugeSummary(gSum); })
+      .then(([gList, gSum]) => {
+        setGauges(gList || []);
+        setGaugeSummary(gSum);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setGaugesLoading(false));
   };
 
   const loadSuppliers = () => {
     setSuppliersLoading(true);
-    if (api.suppliers?.list) {
-      api.suppliers.list('all')
-        .then(setSuppliers)
-        .catch((e) => setError(e.message))
-        .finally(() => setSuppliersLoading(false));
-    } else {
-      setSuppliersLoading(false);
-    }
+    api.suppliers.list('all')
+      .then(setSuppliers)
+      .catch((e) => setError(e.message))
+      .finally(() => setSuppliersLoading(false));
   };
 
   const loadCustomers = () => {
     setCustomersLoading(true);
-    api.customers()
+    api.customers.list()
       .then(setCustomers)
       .catch((e) => setError(e.message))
       .finally(() => setCustomersLoading(false));
@@ -176,12 +226,17 @@ export default function MastersHub() {
     Promise.all([
       api.checkSheetItems ? api.checkSheetItems() : Promise.resolve([]),
       api.checkItems ? api.checkItems('reject_reason') : Promise.resolve([]),
-      api.checkItems ? api.checkItems('downtime_reason') : Promise.resolve([])
+      api.checkItems ? api.checkItems('downtime_reason') : Promise.resolve([]),
     ])
-      .then(([ci, rr, dr]) => { setCheckItems(ci || []); setRejectReasons(rr || []); setDowntimeReasons(dr || []); })
+      .then(([ci, rr, dr]) => {
+        setCheckItems(ci || []);
+        setRejectReasons(rr || []);
+        setDowntimeReasons(dr || []);
+      })
       .catch((e) => setError(e.message));
   };
 
+  // --- PART ACTIONS ---
   const handleDeletePart = async (part) => {
     if (!window.confirm(`Are you sure you want to delete part [${part.shrp_part_code || part.part_code}] ${part.part_name}?`)) return;
     try {
@@ -193,6 +248,37 @@ export default function MastersHub() {
     }
   };
 
+  // --- RAW MATERIAL ACTIONS ---
+  const handleSaveRM = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      if (rmModal?.isEdit) {
+        await api.rawMaterials.update(rmModal.data.id, rmForm);
+        setSuccess(`✅ Raw Material '${rmForm.material_name}' (${rmForm.material_code}) updated.`);
+      } else {
+        await api.rawMaterials.create(rmForm);
+        setSuccess(`✅ Raw Material '${rmForm.material_name}' (${rmForm.material_code}) registered.`);
+      }
+      setRmModal(null);
+      loadMaterials();
+    } catch (err) {
+      setError(err.message || 'Failed to save raw material');
+    }
+  };
+
+  const handleDeleteRM = async (rm) => {
+    if (!window.confirm(`Are you sure you want to permanently delete raw material [${rm.material_code}] ${rm.material_name}?`)) return;
+    try {
+      await api.rawMaterials.delete(rm.id);
+      setSuccess(`✅ Raw Material '${rm.material_name}' deleted.`);
+      loadMaterials();
+    } catch (err) {
+      setError(err.message || 'Cannot delete material linked to receipts or recipes. Deactivate it instead.');
+    }
+  };
+
+  // --- GAUGE ACTIONS ---
   const handleSaveGauge = async (e) => {
     e.preventDefault();
     setError('');
@@ -211,6 +297,18 @@ export default function MastersHub() {
     }
   };
 
+  const handleDeleteGauge = async (g) => {
+    if (!window.confirm(`Are you sure you want to delete instrument [${g.gauge_code}] ${g.gauge_name}?`)) return;
+    try {
+      await api.gauges.delete(g.id);
+      setSuccess(`✅ Instrument '${g.gauge_code}' deleted.`);
+      loadGauges();
+    } catch (err) {
+      setError(err.message || 'Failed to delete instrument');
+    }
+  };
+
+  // --- SUPPLIER ACTIONS ---
   const handleSaveSupplier = async (e) => {
     e.preventDefault();
     setError('');
@@ -229,13 +327,55 @@ export default function MastersHub() {
     }
   };
 
+  const handleDeleteSupplier = async (s) => {
+    if (!window.confirm(`Are you sure you want to delete supplier [${s.supplier_code}] ${s.supplier_name}?`)) return;
+    try {
+      await api.suppliers.delete(s.id);
+      setSuccess(`✅ Supplier '${s.supplier_name}' deleted.`);
+      loadSuppliers();
+    } catch (err) {
+      setError(err.message || 'Cannot delete supplier with linked records.');
+    }
+  };
+
+  // --- CUSTOMER ACTIONS ---
+  const handleSaveCustomer = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      if (customerModal?.isEdit) {
+        await api.customers.update(customerModal.data.id, customerForm);
+        setSuccess(`✅ Customer '${customerForm.name}' updated.`);
+      } else {
+        await api.customers.create(customerForm);
+        setSuccess(`✅ Customer '${customerForm.name}' registered.`);
+      }
+      setCustomerModal(null);
+      loadCustomers();
+    } catch (err) {
+      setError(err.message || 'Failed to save customer');
+    }
+  };
+
+  const handleDeleteCustomer = async (c) => {
+    if (!window.confirm(`Are you sure you want to delete customer [${c.customer_code || c.name}] ${c.name}?`)) return;
+    try {
+      await api.customers.delete(c.id);
+      setSuccess(`✅ Customer '${c.name}' deleted.`);
+      loadCustomers();
+    } catch (err) {
+      setError(err.message || 'Cannot delete customer with linked parts or dispatches.');
+    }
+  };
+
+  // --- MOULD PM ACTIONS ---
   const handleLogPm = async (e) => {
     e.preventDefault();
     if (!pmModal) return;
     setError('');
     try {
       await api.moulds.logMaintenance(pmModal.id, pmForm);
-      setSuccess(`✅ PM logged for mould '${pmModal.mould_code}'! Counter reset.`);
+      setSuccess(`✅ PM logged for mould '${pmModal.mould_code}'! Counter reset to 0.`);
       setPmModal(null);
       loadMoulds();
     } catch (err) {
@@ -251,7 +391,8 @@ export default function MastersHub() {
       (p.part_code || '').toLowerCase().includes(q) ||
       (p.part_name || '').toLowerCase().includes(q) ||
       (p.shrp_part_code || '').toLowerCase().includes(q) ||
-      (p.customer_name || '').toLowerCase().includes(q)
+      (p.customer_name || '').toLowerCase().includes(q) ||
+      (p.mould_code || '').toLowerCase().includes(q)
     );
   });
 
@@ -313,13 +454,13 @@ export default function MastersHub() {
           borderBottom: '1px solid var(--line)',
         }}
       >
-        {TABS.map((t) => {
-          const isActive = activeTab === t.key;
+        {TABS.map((tItem) => {
+          const isActive = activeTab === tItem.key;
           return (
             <button
-              key={t.key}
+              key={tItem.key}
               type="button"
-              onClick={() => handleTabChange(t.key)}
+              onClick={() => handleTabChange(tItem.key)}
               style={{
                 padding: '9px 14px',
                 fontSize: 13,
@@ -336,8 +477,8 @@ export default function MastersHub() {
                 gap: 6,
               }}
             >
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
+              <span>{tItem.icon}</span>
+              <span>{tItem.label}</span>
             </button>
           );
         })}
@@ -350,7 +491,7 @@ export default function MastersHub() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
               <input
                 type="text"
-                placeholder="🔍 Search part code, name, customer..."
+                placeholder="🔍 Search part code, name, customer, mould..."
                 value={partSearch}
                 onChange={(e) => setPartSearch(e.target.value)}
                 style={{ flex: 1, padding: '8px 12px', fontSize: 13, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
@@ -389,63 +530,81 @@ export default function MastersHub() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredParts.map((p) => (
-                    <tr key={p.id} style={{ opacity: p.active === false ? 0.6 : 1 }}>
-                      <td style={{ fontWeight: 700, color: 'var(--amber)' }}>
-                        {p.shrp_part_code || p.part_code}
-                      </td>
-                      <td>
-                        <strong>{p.part_name}</strong>
-                        {p.drawing_number && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Dwg: {p.drawing_number}</div>}
-                      </td>
-                      <td>{p.customer_name || '—'}</td>
-                      <td>
-                        {p.mould_code ? (
-                          <span style={{ color: '#38bdf8' }}>{p.mould_code} ({p.cavity_count || 1} cav)</span>
-                        ) : (
-                          <span className="muted">No mould linked</span>
-                        )}
-                      </td>
-                      <td>{p.cycle_time_seconds ? `${p.cycle_time_seconds}s` : '—'}</td>
-                      <td>
-                        {p.net_weight_grams ? `${p.net_weight_grams}g` : '—'} / {p.gross_weight_grams ? `${p.gross_weight_grams}g` : '—'}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '2px 8px',
-                            borderRadius: 10,
-                            fontSize: 10,
-                            fontWeight: 700,
-                            background: p.active !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                            color: p.active !== false ? '#34d399' : '#f87171',
-                            border: `1px solid ${p.active !== false ? '#10b981' : '#ef4444'}`,
-                          }}
-                        >
-                          {p.active !== false ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <Link
-                          to={`/parts/${p.id}/edit`}
-                          className="btn btn-secondary"
-                          style={{ padding: '4px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
-                        >
-                          ✏️ Edit
-                        </Link>
-                        {user.role === 'admin' && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePart(p)}
-                            style={{ padding: '4px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                  {filteredParts.map((p) => {
+                    const cycleTime = p.standard_cycle_time_sec || p.cycle_time_seconds;
+                    const netWt = p.unit_weight_g || p.net_weight_grams;
+                    const grossWt = p.part_weight_g || p.gross_weight_grams;
+                    const mouldInfo = p.mould_code
+                      ? `${p.mould_code} (${p.cavities_for_part || p.cavity_count || 1} cav)`
+                      : (p.cavity_count ? `${p.cavity_count} cav (Standard)` : '—');
+
+                    return (
+                      <tr key={p.id} style={{ opacity: p.active === false ? 0.6 : 1 }}>
+                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>
+                          <div>{p.shrp_part_code || p.part_code}</div>
+                          {p.customer_part_no && p.customer_part_no !== p.part_code && (
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Cust: {p.customer_part_no}</div>
+                          )}
+                        </td>
+                        <td>
+                          <strong>{p.part_name}</strong>
+                          {p.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.notes}</div>}
+                        </td>
+                        <td>
+                          {p.customer_name ? (
+                            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.customer_name}</span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {p.mould_code ? (
+                            <span style={{ color: '#38bdf8', fontWeight: 600 }}>{mouldInfo}</span>
+                          ) : (
+                            <span className="muted">{mouldInfo}</span>
+                          )}
+                        </td>
+                        <td>{cycleTime ? `${cycleTime}s` : '—'}</td>
+                        <td>
+                          {netWt ? `${netWt}g` : '—'} {grossWt ? `/ ${grossWt}g` : ''}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background: p.active !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                              color: p.active !== false ? '#34d399' : '#f87171',
+                              border: `1px solid ${p.active !== false ? '#10b981' : '#ef4444'}`,
+                            }}
                           >
-                            🗑️
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                            {p.active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <Link
+                            to={`/parts/${p.id}/edit`}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                          >
+                            ✏️ Edit
+                          </Link>
+                          {user.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePart(p)}
+                              style={{ padding: '4px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -459,13 +618,39 @@ export default function MastersHub() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
             <input
               type="text"
-              placeholder="🔍 Search materials..."
+              placeholder="🔍 Search materials, grade, supplier..."
               value={rmSearch}
               onChange={(e) => setRmSearch(e.target.value)}
               style={{ width: 280, padding: '8px 12px', fontSize: 13, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Link to="/rm-inward" className="btn btn-primary" style={{ width: 'auto', padding: '8px 14px', fontSize: 12 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: 'auto', padding: '8px 14px', fontSize: 12 }}
+                onClick={() => {
+                  setRmForm({
+                    material_code: '',
+                    material_name: '',
+                    category: 'VIRGIN_POLYMER',
+                    supplier_name: '',
+                    grade_code: '',
+                    color: 'Natural',
+                    density_g_cm3: '1.14',
+                    mfi_g_10min: '',
+                    standard_bag_wt_kg: 25.0,
+                    min_stock_kg: 100.0,
+                    drying_temp_c: 80,
+                    drying_time_hrs: 4,
+                    melt_temp_c: '',
+                    active: true,
+                  });
+                  setRmModal({ isEdit: false });
+                }}
+              >
+                + Add Raw Material
+              </button>
+              <Link to="/rm-inward" className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px', fontSize: 12 }}>
                 📥 RM Inward QA
               </Link>
               <Link to="/rm-stock" className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px', fontSize: 12 }}>
@@ -487,33 +672,289 @@ export default function MastersHub() {
                 <thead>
                   <tr>
                     <th>Material Code</th>
-                    <th>Grade / Spec</th>
+                    <th>Material Name &amp; Category</th>
+                    <th>Grade &amp; Color</th>
                     <th>Supplier</th>
-                    <th>Density (g/cm³)</th>
-                    <th>Drying Temp / Time</th>
-                    <th>Virgin / Regrind Stock</th>
+                    <th>Density / MFI</th>
+                    <th>Drying Specs</th>
+                    <th>Stock / Min Stock</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {materials
-                    .filter((m) => !rmSearch.trim() || (m.material_name || '').toLowerCase().includes(rmSearch.toLowerCase()) || (m.grade || '').toLowerCase().includes(rmSearch.toLowerCase()))
+                    .filter((m) => {
+                      if (!rmSearch.trim()) return true;
+                      const q = rmSearch.toLowerCase();
+                      return (
+                        (m.material_code || '').toLowerCase().includes(q) ||
+                        (m.material_name || '').toLowerCase().includes(q) ||
+                        (m.grade_code || '').toLowerCase().includes(q) ||
+                        (m.supplier_name || '').toLowerCase().includes(q)
+                      );
+                    })
                     .map((m) => (
-                      <tr key={m.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{m.material_code || m.code || `RM-${m.id}`}</td>
+                      <tr key={m.id} style={{ opacity: m.active === false ? 0.6 : 1 }}>
+                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{m.material_code}</td>
                         <td>
-                          <strong>{m.material_name || m.name}</strong>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.grade || 'Standard Grade'}</div>
+                          <strong>{m.material_name}</strong>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                            {m.category ? m.category.replace('_', ' ') : 'VIRGIN POLYMER'}
+                          </div>
+                        </td>
+                        <td>
+                          <div>{m.grade_code || '—'}</div>
+                          {m.color && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Color: {m.color}</div>}
                         </td>
                         <td>{m.supplier_name || 'Standard Vendor'}</td>
-                        <td>{m.density ? `${m.density} g/cm³` : '1.14 g/cm³'}</td>
-                        <td>{m.drying_temp ? `${m.drying_temp}°C for ${m.drying_time_hrs || 4}h` : '80°C for 4 hrs'}</td>
                         <td>
-                          <span style={{ color: '#34d399', fontWeight: 600 }}>{m.current_stock_kg || 0} kg</span>
+                          <div>{m.density_g_cm3 ? `${m.density_g_cm3} g/cm³` : '—'}</div>
+                          {m.mfi_g_10min && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>MFI: {m.mfi_g_10min}</div>}
+                        </td>
+                        <td>
+                          {m.drying_temp_c ? `${m.drying_temp_c}°C / ${m.drying_time_hrs || 4}h` : '80°C / 4h'}
+                        </td>
+                        <td>
+                          <span style={{ color: Number(m.total_stock_kg || 0) < Number(m.min_stock_kg || 100) ? '#f87171' : '#34d399', fontWeight: 700 }}>
+                            {Number(m.total_stock_kg || 0).toLocaleString()} kg
+                          </span>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Min: {m.min_stock_kg || 100} kg</div>
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background: m.active !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                              color: m.active !== false ? '#34d399' : '#f87171',
+                              border: `1px solid ${m.active !== false ? '#10b981' : '#ef4444'}`,
+                            }}
+                          >
+                            {m.active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            onClick={() => {
+                              setRmForm({
+                                material_code: m.material_code,
+                                material_name: m.material_name,
+                                category: m.category || 'VIRGIN_POLYMER',
+                                supplier_name: m.supplier_name || '',
+                                grade_code: m.grade_code || '',
+                                color: m.color || 'Natural',
+                                density_g_cm3: m.density_g_cm3 || '',
+                                mfi_g_10min: m.mfi_g_10min || '',
+                                standard_bag_wt_kg: m.standard_bag_wt_kg || 25.0,
+                                min_stock_kg: m.min_stock_kg || 100.0,
+                                drying_temp_c: m.drying_temp_c || 80,
+                                drying_time_hrs: m.drying_time_hrs || 4,
+                                melt_temp_c: m.melt_temp_c || '',
+                                active: m.active !== false,
+                              });
+                              setRmModal({ isEdit: true, data: m });
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          {user.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRM(m)}
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Add / Edit Raw Material Modal */}
+          {rmModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 540, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
+                  {rmModal.isEdit ? '✏️ Edit Raw Material' : '➕ Add Raw Material Master'}
+                </h3>
+                <form onSubmit={handleSaveRM} style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Material Code *</label>
+                      <input
+                        required
+                        value={rmForm.material_code}
+                        onChange={(e) => setRmForm({ ...rmForm, material_code: e.target.value })}
+                        placeholder="e.g. RM-PA66-01"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Material Name *</label>
+                      <input
+                        required
+                        value={rmForm.material_name}
+                        onChange={(e) => setRmForm({ ...rmForm, material_name: e.target.value })}
+                        placeholder="e.g. Polyamide 66 Natural (Nylon 66)"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Category *</label>
+                      <select
+                        value={rmForm.category}
+                        onChange={(e) => setRmForm({ ...rmForm, category: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      >
+                        <option value="VIRGIN_POLYMER">Virgin Polymer</option>
+                        <option value="MASTERBATCH">Masterbatch (Color/Additive)</option>
+                        <option value="RUBBER_COMPOUND">Rubber Compound</option>
+                        <option value="CHEMICAL_ADDITIVE">Chemical Additive</option>
+                        <option value="REGRIND">Regrind Material</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Supplier / Vendor</label>
+                      <input
+                        value={rmForm.supplier_name}
+                        onChange={(e) => setRmForm({ ...rmForm, supplier_name: e.target.value })}
+                        placeholder="e.g. Supreme Polymers / Dupont"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Grade Code</label>
+                      <input
+                        value={rmForm.grade_code}
+                        onChange={(e) => setRmForm({ ...rmForm, grade_code: e.target.value })}
+                        placeholder="e.g. Zytel 101L / Novamid"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Color</label>
+                      <input
+                        value={rmForm.color}
+                        onChange={(e) => setRmForm({ ...rmForm, color: e.target.value })}
+                        placeholder="e.g. Natural / Black / Red"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Density (g/cm³)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rmForm.density_g_cm3}
+                        onChange={(e) => setRmForm({ ...rmForm, density_g_cm3: e.target.value })}
+                        placeholder="1.14"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>MFI (g/10min)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={rmForm.mfi_g_10min}
+                        onChange={(e) => setRmForm({ ...rmForm, mfi_g_10min: e.target.value })}
+                        placeholder="12.0"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Melt Temp (°C)</label>
+                      <input
+                        type="number"
+                        value={rmForm.melt_temp_c}
+                        onChange={(e) => setRmForm({ ...rmForm, melt_temp_c: e.target.value })}
+                        placeholder="260"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Bag Wt (kg)</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={rmForm.standard_bag_wt_kg}
+                        onChange={(e) => setRmForm({ ...rmForm, standard_bag_wt_kg: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Safety Stock (kg)</label>
+                      <input
+                        type="number"
+                        value={rmForm.min_stock_kg}
+                        onChange={(e) => setRmForm({ ...rmForm, min_stock_kg: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Drying Temp (°C)</label>
+                      <input
+                        type="number"
+                        value={rmForm.drying_temp_c}
+                        onChange={(e) => setRmForm({ ...rmForm, drying_temp_c: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Drying Time (hrs)</label>
+                      <input
+                        type="number"
+                        value={rmForm.drying_time_hrs}
+                        onChange={(e) => setRmForm({ ...rmForm, drying_time_hrs: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={rmForm.active}
+                        onChange={(e) => setRmForm({ ...rmForm, active: e.target.checked })}
+                      />
+                      Active Material
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                    <button type="button" className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => setRmModal(null)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px' }}>
+                      Save Raw Material
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>
@@ -552,9 +993,16 @@ export default function MastersHub() {
               style={{ width: 'auto', padding: '7px 14px', fontSize: 12 }}
               onClick={() => {
                 setGaugeForm({
-                  gauge_code: '', gauge_name: '', gauge_type: 'Vernier', range_spec: '',
-                  accuracy: '', location: 'QA Inspection Lab', calibration_interval_days: 365,
-                  last_calibrated_at: new Date().toISOString().slice(0, 10), calibration_cert_no: '', status: 'active',
+                  gauge_code: '',
+                  gauge_name: '',
+                  gauge_type: 'Vernier',
+                  range_spec: '',
+                  accuracy: '',
+                  location: 'QA Inspection Lab',
+                  calibration_interval_days: 365,
+                  last_calibrated_at: new Date().toISOString().slice(0, 10),
+                  calibration_cert_no: '',
+                  status: 'active',
                 });
                 setGaugeModal({ isEdit: false });
               }}
@@ -619,7 +1067,7 @@ export default function MastersHub() {
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
                             onClick={() => {
                               setGaugeForm({
                                 gauge_code: g.gauge_code,
@@ -638,6 +1086,15 @@ export default function MastersHub() {
                           >
                             ✏️ Edit
                           </button>
+                          {user.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGauge(g)}
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -767,25 +1224,45 @@ export default function MastersHub() {
         </div>
       )}
 
-      {/* TAB 4: SUPPLIERS MASTER */}
+      {/* TAB 4: SUPPLIERS & VENDORS MASTER */}
       {activeTab === 'suppliers' && (
         <div className="panel" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Suppliers &amp; Raw Material Vendors</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            <input
+              type="text"
+              placeholder="🔍 Search supplier, GSTIN, materials..."
+              value={supplierSearch}
+              onChange={(e) => setSupplierSearch(e.target.value)}
+              style={{ width: 280, padding: '8px 12px', fontSize: 13, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+            />
             <button
               type="button"
               className="btn btn-primary"
               style={{ width: 'auto', padding: '7px 14px', fontSize: 12 }}
               onClick={() => {
                 setSupplierForm({
-                  supplier_code: '', supplier_name: '', contact_person: '', phone: '',
-                  email: '', address: '', materials_supplied: '', payment_terms: '30 Days',
-                  lead_time_days: 7, active: true,
+                  supplier_code: '',
+                  supplier_name: '',
+                  gstin: '',
+                  pan_no: '',
+                  contact_person: '',
+                  phone: '',
+                  email: '',
+                  address: '',
+                  city: 'Hosur',
+                  state: 'Tamil Nadu',
+                  pincode: '',
+                  materials_supplied: '',
+                  payment_terms: '30 Days',
+                  lead_time_days: 7,
+                  vendor_rating: 100,
+                  iso_iatf_certified: true,
+                  active: true,
                 });
                 setSupplierModal({ isEdit: false });
               }}
             >
-              + Add Supplier
+              + Add Supplier / Vendor
             </button>
           </div>
 
@@ -800,58 +1277,117 @@ export default function MastersHub() {
                   <tr>
                     <th>Code</th>
                     <th>Supplier / Company</th>
+                    <th>GSTIN &amp; PAN</th>
                     <th>Contact &amp; Phone</th>
                     <th>Materials Supplied</th>
                     <th>Terms &amp; Lead Time</th>
+                    <th>IATF Quality</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {suppliers.map((s) => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{s.supplier_code}</td>
-                      <td>
-                        <strong>{s.supplier_name}</strong>
-                        {s.address && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.address}</div>}
-                      </td>
-                      <td>
-                        <div>{s.contact_person || '—'}</div>
-                        {s.phone && <a href={`tel:${s.phone}`} style={{ fontSize: 11, color: '#38bdf8' }}>{s.phone}</a>}
-                      </td>
-                      <td>{s.materials_supplied || 'Polymer / Pigments'}</td>
-                      <td>{s.payment_terms || '30 Days'} ({s.lead_time_days || 7}d lead)</td>
-                      <td>
-                        <span style={{ color: s.active !== false ? '#34d399' : '#f87171', fontWeight: 700 }}>
-                          {s.active !== false ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
-                          onClick={() => {
-                            setSupplierForm({
-                              supplier_code: s.supplier_code,
-                              supplier_name: s.supplier_name,
-                              contact_person: s.contact_person || '',
-                              phone: s.phone || '',
-                              email: s.email || '',
-                              address: s.address || '',
-                              materials_supplied: s.materials_supplied || '',
-                              payment_terms: s.payment_terms || '',
-                              lead_time_days: s.lead_time_days || 7,
-                              active: s.active !== false,
-                            });
-                            setSupplierModal({ isEdit: true, data: s });
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {suppliers
+                    .filter((s) => {
+                      if (!supplierSearch.trim()) return true;
+                      const q = supplierSearch.toLowerCase();
+                      return (
+                        (s.supplier_code || '').toLowerCase().includes(q) ||
+                        (s.supplier_name || '').toLowerCase().includes(q) ||
+                        (s.gstin || '').toLowerCase().includes(q) ||
+                        (s.materials_supplied || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .map((s) => (
+                      <tr key={s.id} style={{ opacity: s.active === false ? 0.6 : 1 }}>
+                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{s.supplier_code}</td>
+                        <td>
+                          <strong>{s.supplier_name}</strong>
+                          {(s.city || s.state) && (
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              {[s.city, s.state, s.pincode].filter(Boolean).join(', ')}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div>{s.gstin ? <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>{s.gstin}</span> : '—'}</div>
+                          {s.pan_no && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>PAN: {s.pan_no}</div>}
+                        </td>
+                        <td>
+                          <div>{s.contact_person || '—'}</div>
+                          {s.phone && <a href={`tel:${s.phone}`} style={{ fontSize: 11, color: '#38bdf8' }}>{s.phone}</a>}
+                        </td>
+                        <td>{s.materials_supplied || 'Polymer / Pigments'}</td>
+                        <td>
+                          <div>{s.payment_terms || '30 Days'}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Lead: {s.lead_time_days || 7} days</div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 700, color: '#34d399' }}>
+                            Score: {s.vendor_rating || 100}%
+                          </div>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              background: s.iso_iatf_certified !== false ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                              color: s.iso_iatf_certified !== false ? '#34d399' : 'var(--text-muted)',
+                              border: `1px solid ${s.iso_iatf_certified !== false ? '#10b981' : 'var(--line)'}`,
+                            }}
+                          >
+                            {s.iso_iatf_certified !== false ? 'IATF/ISO Certified' : 'Uncertified'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: s.active !== false ? '#34d399' : '#f87171', fontWeight: 700 }}>
+                            {s.active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            onClick={() => {
+                              setSupplierForm({
+                                supplier_code: s.supplier_code,
+                                supplier_name: s.supplier_name,
+                                gstin: s.gstin || '',
+                                pan_no: s.pan_no || '',
+                                contact_person: s.contact_person || '',
+                                phone: s.phone || '',
+                                email: s.email || '',
+                                address: s.address || '',
+                                city: s.city || 'Hosur',
+                                state: s.state || 'Tamil Nadu',
+                                pincode: s.pincode || '',
+                                materials_supplied: s.materials_supplied || '',
+                                payment_terms: s.payment_terms || '30 Days',
+                                lead_time_days: s.lead_time_days || 7,
+                                vendor_rating: s.vendor_rating || 100,
+                                iso_iatf_certified: s.iso_iatf_certified !== false,
+                                active: s.active !== false,
+                              });
+                              setSupplierModal({ isEdit: true, data: s });
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          {user.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSupplier(s)}
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -860,14 +1396,14 @@ export default function MastersHub() {
           {/* Supplier Modal */}
           {supplierModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-              <div className="panel" style={{ width: '100%', maxWidth: 480, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20 }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 540, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
-                  {supplierModal.isEdit ? '✏️ Edit Supplier' : '➕ Add Supplier'}
+                  {supplierModal.isEdit ? '✏️ Edit Supplier / Vendor' : '➕ Register Supplier / Vendor Master'}
                 </h3>
                 <form onSubmit={handleSaveSupplier} style={{ display: 'grid', gap: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>Code *</label>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Vendor Code *</label>
                       <input
                         required
                         value={supplierForm.supplier_code}
@@ -890,16 +1426,39 @@ export default function MastersHub() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
+                      <input
+                        value={supplierForm.gstin}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, gstin: e.target.value.toUpperCase() })}
+                        placeholder="33AAAAA0000A1Z5"
+                        maxLength={15}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
+                      <input
+                        value={supplierForm.pan_no}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, pan_no: e.target.value.toUpperCase() })}
+                        placeholder="AAAAA0000A"
+                        maxLength={10}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div>
                       <label style={{ fontSize: 11, fontWeight: 700 }}>Contact Person</label>
                       <input
                         value={supplierForm.contact_person}
                         onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })}
-                        placeholder="Name"
+                        placeholder="Key contact"
                         style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>Phone</label>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Phone / Mobile</label>
                       <input
                         value={supplierForm.phone}
                         onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
@@ -907,16 +1466,105 @@ export default function MastersHub() {
                         style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                       />
                     </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Email</label>
+                      <input
+                        type="email"
+                        value={supplierForm.email}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
+                        placeholder="sales@vendor.com"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700 }}>Materials Supplied</label>
+                    <label style={{ fontSize: 11, fontWeight: 700 }}>Office / Plant Address</label>
                     <input
-                      value={supplierForm.materials_supplied}
-                      onChange={(e) => setSupplierForm({ ...supplierForm, materials_supplied: e.target.value })}
-                      placeholder="e.g. PA66 Natural, Black Masterbatch"
+                      value={supplierForm.address}
+                      onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
+                      placeholder="Plot No, Industrial Area, SIPCOT"
                       style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>City</label>
+                      <input
+                        value={supplierForm.city}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, city: e.target.value })}
+                        placeholder="e.g. Hosur"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>State</label>
+                      <input
+                        value={supplierForm.state}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, state: e.target.value })}
+                        placeholder="Tamil Nadu"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Pincode</label>
+                      <input
+                        value={supplierForm.pincode}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, pincode: e.target.value })}
+                        placeholder="635126"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Materials Supplied</label>
+                      <input
+                        value={supplierForm.materials_supplied}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, materials_supplied: e.target.value })}
+                        placeholder="e.g. PA66 Natural, Black MB"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Payment Terms</label>
+                      <input
+                        value={supplierForm.payment_terms}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, payment_terms: e.target.value })}
+                        placeholder="30 Days"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Lead Time (Days)</label>
+                      <input
+                        type="number"
+                        value={supplierForm.lead_time_days}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, lead_time_days: e.target.value })}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={supplierForm.iso_iatf_certified}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, iso_iatf_certified: e.target.checked })}
+                      />
+                      ISO / IATF 16949 Certified
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={supplierForm.active}
+                        onChange={(e) => setSupplierForm({ ...supplierForm, active: e.target.checked })}
+                      />
+                      Active Vendor
+                    </label>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
@@ -937,14 +1585,39 @@ export default function MastersHub() {
       {/* TAB 5: CUSTOMERS MASTER */}
       {activeTab === 'customers' && (
         <div className="panel" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
             <input
               type="text"
-              placeholder="🔍 Search customers..."
+              placeholder="🔍 Search customer name, GSTIN, code..."
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
               style={{ width: 280, padding: '8px 12px', fontSize: 13, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
             />
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: 'auto', padding: '7px 14px', fontSize: 12 }}
+              onClick={() => {
+                setCustomerForm({
+                  customer_code: '',
+                  name: '',
+                  gstin: '',
+                  pan_no: '',
+                  contact_person: '',
+                  phone: '',
+                  email: '',
+                  address: '',
+                  city: 'Hosur',
+                  state: 'Tamil Nadu',
+                  pincode: '',
+                  payment_terms: '30 Days',
+                  active: true,
+                });
+                setCustomerModal({ isEdit: false });
+              }}
+            >
+              + Add Customer Master
+            </button>
           </div>
 
           {customersLoading ? (
@@ -956,27 +1629,259 @@ export default function MastersHub() {
               <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th>Customer Name</th>
-                    <th>Code / Ref</th>
-                    <th>Active Parts Linked</th>
+                    <th>Customer Code</th>
+                    <th>Customer / Company</th>
+                    <th>GSTIN &amp; PAN</th>
+                    <th>Contact &amp; Phone</th>
+                    <th>Location &amp; State</th>
+                    <th>Payment Terms</th>
+                    <th>Active Parts</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {customers
-                    .filter((c) => !customerSearch.trim() || (c.customer_name || c.name || '').toLowerCase().includes(customerSearch.toLowerCase()))
+                    .filter((c) => {
+                      if (!customerSearch.trim()) return true;
+                      const q = customerSearch.toLowerCase();
+                      return (
+                        (c.customer_name || c.name || '').toLowerCase().includes(q) ||
+                        (c.customer_code || '').toLowerCase().includes(q) ||
+                        (c.gstin || '').toLowerCase().includes(q)
+                      );
+                    })
                     .map((c, i) => (
-                      <tr key={c.id || i}>
-                        <td style={{ fontWeight: 700, color: 'var(--text)' }}>{c.customer_name || c.name}</td>
-                        <td>{c.customer_code || `CUST-${c.id || i + 1}`}</td>
+                      <tr key={c.id || i} style={{ opacity: c.active === false ? 0.6 : 1 }}>
+                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>
+                          {c.customer_code || `CUST-${String(c.id || i + 1).padStart(3, '0')}`}
+                        </td>
                         <td>
-                          <span style={{ color: 'var(--amber)', fontWeight: 700 }}>
-                            {parts.filter((p) => (p.customer_name || '').toLowerCase() === (c.customer_name || c.name || '').toLowerCase()).length} parts
+                          <strong>{c.name || c.customer_name}</strong>
+                          {c.address && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{c.address}</div>}
+                        </td>
+                        <td>
+                          <div>{c.gstin ? <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>{c.gstin}</span> : '—'}</div>
+                          {c.pan_no && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>PAN: {c.pan_no}</div>}
+                        </td>
+                        <td>
+                          <div>{c.contact_person || '—'}</div>
+                          {c.phone && <a href={`tel:${c.phone}`} style={{ fontSize: 11, color: '#38bdf8' }}>{c.phone}</a>}
+                        </td>
+                        <td>
+                          {[c.city, c.state, c.pincode].filter(Boolean).join(', ') || 'Tamil Nadu'}
+                        </td>
+                        <td>{c.payment_terms || '30 Days'}</td>
+                        <td>
+                          <span style={{ color: 'var(--amber)', fontWeight: 700, background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(245,158,11,0.3)' }}>
+                            {c.active_parts_count != null ? c.active_parts_count : parts.filter((p) => (p.customer_name || '').toLowerCase() === (c.name || '').toLowerCase()).length} parts
                           </span>
+                        </td>
+                        <td>
+                          <span style={{ color: c.active !== false ? '#34d399' : '#f87171', fontWeight: 700 }}>
+                            {c.active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            onClick={() => {
+                              setCustomerForm({
+                                customer_code: c.customer_code || '',
+                                name: c.name || c.customer_name || '',
+                                gstin: c.gstin || '',
+                                pan_no: c.pan_no || '',
+                                contact_person: c.contact_person || '',
+                                phone: c.phone || '',
+                                email: c.email || '',
+                                address: c.address || '',
+                                city: c.city || 'Hosur',
+                                state: c.state || 'Tamil Nadu',
+                                pincode: c.pincode || '',
+                                payment_terms: c.payment_terms || '30 Days',
+                                active: c.active !== false,
+                              });
+                              setCustomerModal({ isEdit: true, data: c });
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          {user.role === 'admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomer(c)}
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Customer Modal */}
+          {customerModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 540, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
+                  {customerModal.isEdit ? '✏️ Edit Customer Master' : '➕ Register Customer Master'}
+                </h3>
+                <form onSubmit={handleSaveCustomer} style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Customer Code *</label>
+                      <input
+                        required
+                        value={customerForm.customer_code}
+                        onChange={(e) => setCustomerForm({ ...customerForm, customer_code: e.target.value })}
+                        placeholder="e.g. CUST-01"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Customer / Company Name *</label>
+                      <input
+                        required
+                        value={customerForm.name}
+                        onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                        placeholder="e.g. Motherson Automotive Ltd"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
+                      <input
+                        value={customerForm.gstin}
+                        onChange={(e) => setCustomerForm({ ...customerForm, gstin: e.target.value.toUpperCase() })}
+                        placeholder="33AAAAA0000A1Z5"
+                        maxLength={15}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
+                      <input
+                        value={customerForm.pan_no}
+                        onChange={(e) => setCustomerForm({ ...customerForm, pan_no: e.target.value.toUpperCase() })}
+                        placeholder="AAAAA0000A"
+                        maxLength={10}
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Contact Person</label>
+                      <input
+                        value={customerForm.contact_person}
+                        onChange={(e) => setCustomerForm({ ...customerForm, contact_person: e.target.value })}
+                        placeholder="Buyer / Manager"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Phone / Mobile</label>
+                      <input
+                        value={customerForm.phone}
+                        onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                        placeholder="+91..."
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Email</label>
+                      <input
+                        type="email"
+                        value={customerForm.email}
+                        onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                        placeholder="purchase@client.com"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700 }}>Factory / Office Address</label>
+                    <input
+                      value={customerForm.address}
+                      onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                      placeholder="Plot No, SIPCOT Industrial Park"
+                      style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>City</label>
+                      <input
+                        value={customerForm.city}
+                        onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
+                        placeholder="Hosur"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>State</label>
+                      <input
+                        value={customerForm.state}
+                        onChange={(e) => setCustomerForm({ ...customerForm, state: e.target.value })}
+                        placeholder="Tamil Nadu"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Pincode</label>
+                      <input
+                        value={customerForm.pincode}
+                        onChange={(e) => setCustomerForm({ ...customerForm, pincode: e.target.value })}
+                        placeholder="635126"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Payment Terms</label>
+                      <input
+                        value={customerForm.payment_terms}
+                        onChange={(e) => setCustomerForm({ ...customerForm, payment_terms: e.target.value })}
+                        placeholder="e.g. 30 Days / 45 Days / Advance"
+                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', paddingTop: 16 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={customerForm.active}
+                          onChange={(e) => setCustomerForm({ ...customerForm, active: e.target.checked })}
+                        />
+                        Active Customer
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                    <button type="button" className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => setCustomerModal(null)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px' }}>
+                      Save Customer
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>
@@ -1049,7 +1954,7 @@ export default function MastersHub() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
               {moulds.map((m) => {
-                const target = m.pm_shot_target || 50000;
+                const target = m.pm_interval_shots || m.pm_shot_target || 20000;
                 const sincePm = m.shots_since_pm || 0;
                 const pct = Math.min(100, Math.round((sincePm / target) * 100));
                 const isOverdue = sincePm >= target;
@@ -1108,7 +2013,7 @@ export default function MastersHub() {
                       className="btn btn-primary"
                       style={{ width: '100%', padding: '7px 0', fontSize: 12, fontWeight: 700 }}
                       onClick={() => {
-                        setPmForm({ action_type: 'PM', technician_name: user.full_name || '', description: 'Periodic Preventive Maintenance completed.' });
+                        setPmForm({ action_type: 'pm_service', technician_name: user.full_name || '', description: 'Periodic Preventive Maintenance completed.' });
                         setPmModal(m);
                       }}
                     >
@@ -1138,10 +2043,11 @@ export default function MastersHub() {
                       onChange={(e) => setPmForm({ ...pmForm, action_type: e.target.value })}
                       style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                     >
-                      <option value="PM">Preventive Maintenance (PM)</option>
-                      <option value="BREAKDOWN">Breakdown Repair</option>
-                      <option value="INSPECTION">Tooling Inspection</option>
-                      <option value="POLISHING">Cavity Polishing</option>
+                      <option value="pm_service">Preventive Maintenance (PM)</option>
+                      <option value="repair">Breakdown Repair</option>
+                      <option value="inspection">Tooling Inspection</option>
+                      <option value="polishing">Cavity Polishing</option>
+                      <option value="overhaul">Complete Overhaul</option>
                     </select>
                   </div>
 

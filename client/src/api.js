@@ -143,12 +143,33 @@ export const api = {
   setPartMachines: (id, machine_ids) => request(`/masters/parts/${id}/machines`, { method: 'PUT', body: { machine_ids } }),
   uploadPartFile: (id, payload) => request(`/masters/parts/${id}/files`, { method: 'POST', body: payload }),
   deletePartFile: (partId, fileId) => request(`/masters/parts/${partId}/files/${fileId}`, { method: 'DELETE' }),
-  customers: () => request('/masters/customers'),
-  createCustomer: (name) => request('/masters/customers', { method: 'POST', body: { name } }),
+  customers: Object.assign(
+    () => request('/masters/customers'),
+    {
+      list: () => request('/masters/customers'),
+      create: (payload) => request('/masters/customers', { method: 'POST', body: typeof payload === 'string' ? { name: payload } : payload }),
+      update: (id, payload) => request(`/masters/customers/${id}`, { method: 'PUT', body: payload }),
+      remove: (id) => request(`/masters/customers/${id}`, { method: 'DELETE' }),
+      delete: (id) => request(`/masters/customers/${id}`, { method: 'DELETE' }),
+    }
+  ),
+  createCustomer: (name) => request('/masters/customers', { method: 'POST', body: typeof name === 'string' ? { name } : name }),
   checkItems: (category) => request(`/masters/check-items${category ? `?category=${category}` : ''}`),
 
   // Gauges & Instruments master
-  gauges: () => request('/gauges'),
+  gauges: Object.assign(
+    (status) => request(`/gauges${status ? `?status=${status}` : ''}`),
+    {
+      list: (status) => request(`/gauges${status && status !== 'all' ? `?status=${status}` : ''}`),
+      detail: (id) => request(`/gauges/${id}`),
+      calibrationSummary: () => request('/gauges/calibration-summary'),
+      create: (payload) => request('/gauges', { method: 'POST', body: payload }),
+      update: (id, payload) => request(`/gauges/${id}`, { method: 'PUT', body: payload }),
+      calibrate: (id, payload) => request(`/gauges/${id}/calibrate`, { method: 'POST', body: payload }),
+      remove: (id) => request(`/gauges/${id}`, { method: 'DELETE' }),
+      delete: (id) => request(`/gauges/${id}`, { method: 'DELETE' }),
+    }
+  ),
   gaugeDetail: (id) => request(`/gauges/${id}`),
   gaugeCalibrationSummary: () => request('/gauges/calibration-summary'),
   createGauge: (payload) => request('/gauges', { method: 'POST', body: payload }),
@@ -157,7 +178,17 @@ export const api = {
   deleteGauge: (id) => request(`/gauges/${id}`, { method: 'DELETE' }),
 
   // Supplier master
-  suppliers: () => request('/suppliers'),
+  suppliers: Object.assign(
+    (active) => request(`/suppliers${active ? `?active=${active}` : ''}`),
+    {
+      list: (active) => request(`/suppliers${active && active !== 'all' ? `?active=${active}` : ''}`),
+      detail: (id) => request(`/suppliers/${id}`),
+      create: (payload) => request('/suppliers', { method: 'POST', body: payload }),
+      update: (id, payload) => request(`/suppliers/${id}`, { method: 'PUT', body: payload }),
+      remove: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
+      delete: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
+    }
+  ),
   supplierDetail: (id) => request(`/suppliers/${id}`),
   createSupplier: (payload) => request('/suppliers', { method: 'POST', body: payload }),
   updateSupplier: (id, payload) => request(`/suppliers/${id}`, { method: 'PUT', body: payload }),
@@ -285,13 +316,17 @@ export const api = {
 
   rawMaterials: {
     list: () => request('/raw-materials'),
+    create: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
+    update: (id, payload) => request(`/raw-materials/${id}`, { method: 'PUT', body: payload }),
+    save: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
+    delete: (id) => request(`/raw-materials/${id}`, { method: 'DELETE' }),
+    remove: (id) => request(`/raw-materials/${id}`, { method: 'DELETE' }),
     recipes: () => request('/raw-materials/recipes'),
     saveRecipe: (partId, payload) => request(`/raw-materials/recipes/${partId}`, { method: 'PUT', body: payload }),
     bulkSaveRecipes: (recipes) => request('/raw-materials/recipes/bulk', { method: 'POST', body: { recipes } }),
     stockRegister: () => request('/raw-materials/stock'),
     wipPool: () => request('/raw-materials/wip'),
     issue: (payload) => request('/raw-materials/issue', { method: 'POST', body: payload }),
-    save: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
     inwardList: () => request('/raw-materials/inward'),
     createInward: (payload) => request('/raw-materials/inward', { method: 'POST', body: payload }),
     inwardDetail: (id) => request(`/raw-materials/inward/${id}`),

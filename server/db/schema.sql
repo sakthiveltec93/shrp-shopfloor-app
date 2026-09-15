@@ -963,3 +963,36 @@ CREATE TABLE IF NOT EXISTS suppliers (
 
 CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(active);
 
+-- ============================================================
+-- Customer & Supplier Master IATF 16949 & GST Compliance
+-- ============================================================
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_code TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS gstin TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS pan_no TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS contact_person TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'Tamil Nadu';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS pincode TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT '30 Days';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- Auto-populate customer_code if missing
+UPDATE customers SET customer_code = 'CUST-' || lpad(id::text, 3, '0') WHERE customer_code IS NULL;
+
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS gstin TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS pan_no TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'Tamil Nadu';
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS pincode TEXT;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS vendor_rating NUMERIC DEFAULT 100;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS iso_iatf_certified BOOLEAN DEFAULT TRUE;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS cert_valid_upto DATE;
+
+-- Raw Materials drying parameters
+ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS drying_temp_c NUMERIC DEFAULT 80;
+ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS drying_time_hrs NUMERIC DEFAULT 4;
+ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS melt_temp_c NUMERIC;

@@ -78,6 +78,10 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
     mfi_g_10min,
     standard_bag_wt_kg = 25.0,
     min_stock_kg = 100.0,
+    drying_temp_c = 80,
+    drying_time_hrs = 4,
+    melt_temp_c,
+    active = true,
   } = req.body;
 
   if (!material_code || !material_name || !category) {
@@ -91,20 +95,25 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
          SET material_code = $1, material_name = $2, category = $3,
              supplier_name = $4, grade_code = $5, color = $6,
              density_g_cm3 = $7, mfi_g_10min = $8, standard_bag_wt_kg = $9,
-             min_stock_kg = $10
-         WHERE id = $11
+             min_stock_kg = $10, drying_temp_c = $11, drying_time_hrs = $12,
+             melt_temp_c = $13, active = $14
+         WHERE id = $15
          RETURNING *`,
         [
           material_code.trim(),
           material_name.trim(),
           category,
-          supplier_name,
-          grade_code,
-          color,
-          density_g_cm3 || null,
-          mfi_g_10min || null,
-          standard_bag_wt_kg,
-          min_stock_kg,
+          supplier_name || null,
+          grade_code || null,
+          color || null,
+          density_g_cm3 != null ? Number(density_g_cm3) : null,
+          mfi_g_10min != null ? Number(mfi_g_10min) : null,
+          standard_bag_wt_kg != null ? Number(standard_bag_wt_kg) : 25.0,
+          min_stock_kg != null ? Number(min_stock_kg) : 100.0,
+          drying_temp_c != null ? Number(drying_temp_c) : 80,
+          drying_time_hrs != null ? Number(drying_time_hrs) : 4,
+          melt_temp_c != null ? Number(melt_temp_c) : null,
+          active !== false,
           id,
         ]
       );
@@ -114,27 +123,116 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
         `INSERT INTO raw_materials (
            material_code, material_name, category, supplier_name,
            grade_code, color, density_g_cm3, mfi_g_10min,
-           standard_bag_wt_kg, min_stock_kg
+           standard_bag_wt_kg, min_stock_kg, drying_temp_c, drying_time_hrs, melt_temp_c, active
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           material_code.trim(),
           material_name.trim(),
           category,
-          supplier_name,
-          grade_code,
-          color,
-          density_g_cm3 || null,
-          mfi_g_10min || null,
-          standard_bag_wt_kg,
-          min_stock_kg,
+          supplier_name || null,
+          grade_code || null,
+          color || null,
+          density_g_cm3 != null ? Number(density_g_cm3) : null,
+          mfi_g_10min != null ? Number(mfi_g_10min) : null,
+          standard_bag_wt_kg != null ? Number(standard_bag_wt_kg) : 25.0,
+          min_stock_kg != null ? Number(min_stock_kg) : 100.0,
+          drying_temp_c != null ? Number(drying_temp_c) : 80,
+          drying_time_hrs != null ? Number(drying_time_hrs) : 4,
+          melt_temp_c != null ? Number(melt_temp_c) : null,
+          active !== false,
         ]
       );
       return res.status(201).json(rows[0]);
     }
   } catch (err) {
     console.error('Error saving raw material:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/raw-materials/:id
+router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const {
+    material_code,
+    material_name,
+    category,
+    supplier_name,
+    grade_code,
+    color,
+    density_g_cm3,
+    mfi_g_10min,
+    standard_bag_wt_kg,
+    min_stock_kg,
+    drying_temp_c,
+    drying_time_hrs,
+    melt_temp_c,
+    active,
+  } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE raw_materials
+       SET material_code = COALESCE($1, material_code),
+           material_name = COALESCE($2, material_name),
+           category = COALESCE($3, category),
+           supplier_name = COALESCE($4, supplier_name),
+           grade_code = COALESCE($5, grade_code),
+           color = COALESCE($6, color),
+           density_g_cm3 = COALESCE($7, density_g_cm3),
+           mfi_g_10min = COALESCE($8, mfi_g_10min),
+           standard_bag_wt_kg = COALESCE($9, standard_bag_wt_kg),
+           min_stock_kg = COALESCE($10, min_stock_kg),
+           drying_temp_c = COALESCE($11, drying_temp_c),
+           drying_time_hrs = COALESCE($12, drying_time_hrs),
+           melt_temp_c = COALESCE($13, melt_temp_c),
+           active = COALESCE($14, active)
+       WHERE id = $15
+       RETURNING *`,
+      [
+        material_code ? material_code.trim() : null,
+        material_name ? material_name.trim() : null,
+        category || null,
+        supplier_name || null,
+        grade_code || null,
+        color || null,
+        density_g_cm3 != null ? Number(density_g_cm3) : null,
+        mfi_g_10min != null ? Number(mfi_g_10min) : null,
+        standard_bag_wt_kg != null ? Number(standard_bag_wt_kg) : null,
+        min_stock_kg != null ? Number(min_stock_kg) : null,
+        drying_temp_c != null ? Number(drying_temp_c) : null,
+        drying_time_hrs != null ? Number(drying_time_hrs) : null,
+        melt_temp_c != null ? Number(melt_temp_c) : null,
+        active,
+        id,
+      ]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Raw material not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error updating raw material:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/raw-materials/:id
+router.delete('/:id', requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query('SELECT id, material_code, material_name FROM raw_materials WHERE id = $1', [id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Raw material not found' });
+
+    await pool.query('DELETE FROM raw_materials WHERE id = $1', [id]);
+    res.json({ ok: true, message: `Raw material "${rows[0].material_name}" (${rows[0].material_code}) deleted.` });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'This material is referenced in inward receipts, recipes, or stock registers. Deactivate it instead.',
+      });
+    }
+    console.error('Error deleting raw material:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -436,10 +534,10 @@ router.get('/recipes', async (req, res) => {
              p.shrp_part_code,
              p.customer_part_no,
              p.part_name,
-             p.gross_weight_g,
-             p.net_weight_g,
-             p.runner_weight_g,
-             p.target_cycle_time_s,
+             p.part_weight_g AS gross_weight_g,
+             COALESCE(p.unit_weight_g, p.part_weight_g) AS net_weight_g,
+             COALESCE(p.unit_weight_g, 0) AS runner_weight_g,
+             p.standard_cycle_time_sec AS target_cycle_time_s,
              rm_pri.material_code AS primary_material_code,
              rm_pri.material_name AS primary_material_name,
              rm_pri.grade_code AS primary_grade_code,
