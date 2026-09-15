@@ -97,23 +97,35 @@ async function executeDelete(entityType, entityId, deletedByUserId, reason, clie
       [deletedByUserId, reason, entityId]
     );
   } else if (entityType === 'production_entry') {
-    // Check if reject logs or downtime logs exist
     await db.query(`DELETE FROM reject_log WHERE production_entry_id = $1`, [entityId]);
     await db.query(`DELETE FROM downtime_log WHERE production_entry_id = $1`, [entityId]);
     await db.query(`DELETE FROM production_entries WHERE id = $1`, [entityId]);
   } else if (entityType === 'bag') {
-    // Check if bag has downstream logs
-    const downstream = await db.query(
-      `SELECT (SELECT COUNT(*) FROM trim_entries WHERE bag_id = $1) +
-              (SELECT COUNT(*) FROM inspection_entries WHERE bag_id = $1) +
-              (SELECT COUNT(*) FROM packing_entries WHERE bag_id = $1) AS total`,
-      [entityId]
-    );
-    if (Number(downstream.rows[0]?.total || 0) > 0) {
-      await db.query(`UPDATE bags SET status = 'CANCELLED' WHERE id = $1`, [entityId]);
-    } else {
-      await db.query(`DELETE FROM bags WHERE id = $1`, [entityId]);
+    // Clean up dependent child logs
+    try { await db.query(`DELETE FROM bag_status_history WHERE bag_id = $1`, [entityId]); } catch (e) {}
+    try { await db.query(`DELETE FROM bag_hold_log WHERE bag_id = $1`, [entityId]); } catch (e) {}
+    try { await db.query(`DELETE FROM trim_entries WHERE bag_id = $1`, [entityId]); } catch (e) {}
+    try { await db.query(`DELETE FROM inspection_entries WHERE bag_id = $1`, [entityId]); } catch (e) {}
+    try { await db.query(`DELETE FROM packing_entries WHERE bag_id = $1`, [entityId]); } catch (e) {}
+    await db.query(`DELETE FROM bags WHERE id = $1`, [entityId]);
+  } else if (entityType === 'trim_entry') {
+    const trRes = await db.query(`SELECT bag_id FROM trim_entries WHERE id = $1`, [entityId]);
+    if (trRes.rows[0]?.bag_id) {
+      await db.query(`UPDATE bags SET status = 'OPEN' WHERE id = $1`, [trRes.rows[0].bag_id]);
     }
+    await db.query(`DELETE FROM trim_entries WHERE id = $1`, [entityId]);
+  } else if (entityType === 'inspection_entry') {
+    const inRes = await db.query(`SELECT bag_id FROM inspection_entries WHERE id = $1`, [entityId]);
+    if (inRes.rows[0]?.bag_id) {
+      await db.query(`UPDATE bags SET status = 'TRIMMING' WHERE id = $1`, [inRes.rows[0].bag_id]);
+    }
+    await db.query(`DELETE FROM inspection_entries WHERE id = $1`, [entityId]);
+  } else if (entityType === 'packing_entry') {
+    const pkRes = await db.query(`SELECT bag_id FROM packing_entries WHERE id = $1`, [entityId]);
+    if (pkRes.rows[0]?.bag_id) {
+      await db.query(`UPDATE bags SET status = 'INSPECTION' WHERE id = $1`, [pkRes.rows[0].bag_id]);
+    }
+    await db.query(`DELETE FROM packing_entries WHERE id = $1`, [entityId]);
   }
 
   await logAudit(pool, {
@@ -168,21 +180,26 @@ router.post('/:id/reject', requireRole('admin', 'supervisor'), async (req, res) 
   res.json({ ok: true, message: 'Deletion request rejected.' });
 });
 
-// 5. Direct delete by Admin
-router.delete('/direct/:entity_type/:entity_id', requireRole('admin'), async (req, res) => {
+// 5. Direct delete with mandatory remarks
+router.delete('/direct/:entity_type/:entity_id', async (req, res) => {
   const { entity_type, entity_id } = req.params;
-  const { reason } = req.body;
-  const why = reason || 'Direct deletion by Administrator';
+  const { reason } = req.body || {};
+  const why = (reason && reason.trim()) || (req.query.reason && req.query.reason.trim());
+
+  if (!why) {
+    return res.status(400).json({ error: 'A mandatory reason/remarks is required to delete this entry.' });
+  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await executeDelete(entity_type, Number(entity_id), req.user.id, why, client);
     await client.query('COMMIT');
-    res.json({ ok: true, message: `${entity_type} deleted successfully.` });
+    res.json({ ok: true, message: `${entity_type} #${entity_id} deleted successfully.` });
   } catch (err) {
     await client.query('ROLLBACK');
-    throw err;
+    console.error('Direct delete error:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete record' });
   } finally {
     client.release();
   }

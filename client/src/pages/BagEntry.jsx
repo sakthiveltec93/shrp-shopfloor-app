@@ -6,6 +6,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import CameraScanner from '../components/CameraScanner';
 
 export default function BagEntry() {
+  const [bagToDelete, setBagToDelete] = useState(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deletingBag, setDeletingBag] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const { t } = useLanguage();
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -164,6 +168,33 @@ export default function BagEntry() {
       }
     }
   }
+
+    const handleConfirmDeleteBag = async (e) => {
+    e.preventDefault();
+    if (!bagToDelete) return;
+    if (!deleteReason.trim()) {
+      setDeleteError('Please enter a mandatory reason / remarks for deletion.');
+      return;
+    }
+    setDeletingBag(true);
+    setDeleteError('');
+    try {
+      await api.deleteBag(bagToDelete.id, deleteReason.trim());
+      setSuccess('Bag ' + bagToDelete.bag_code + ' deleted successfully.');
+      setTimeout(() => setSuccess(''), 5000);
+      setBagToDelete(null);
+      setDeleteReason('');
+      // Reload bags and visibility stats
+      if (batchInfo) {
+        api.bagsForBatch(batchInfo.batch_no).then(setBags).catch(() => {});
+        api.bagSummary(batchInfo.batch_no).then(setSummary).catch(() => {});
+      }
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete bag entry');
+    } finally {
+      setDeletingBag(false);
+    }
+  };
 
   async function handleSubmit(e) {
     if (e) e.preventDefault();
@@ -595,21 +626,53 @@ export default function BagEntry() {
                   <th>{t('bagEntry.colWt')}</th>
                   <th>{t('bagEntry.colQty')}</th>
                   <th>{t('bagEntry.colStatus')}</th>
-                  <th></th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {bags.map((b) => (
                   <tr key={b.id}>
-                    <td>{b.bag_code}</td>
-                    <td>{b.bag_type}</td>
-                    <td>{b.base_weight_kg}</td>
-                    <td>{b.qty}</td>
-                    <td>{b.status}</td>
+                    <td><div style={{ fontWeight: 700 }}>{b.bag_code}</div></td>
+                    <td><span className="shrp-code-pill" style={{ fontSize: 11 }}>{b.bag_type}</span></td>
+                    <td><strong>{b.base_weight_kg}</strong> kg</td>
+                    <td><strong>{b.qty}</strong></td>
                     <td>
-                      <Link to={`/bags/${b.id}/label`} style={{ color: 'var(--amber)', fontSize: 12 }}>
-                        {t('bagEntry.colLabel')}
-                      </Link>
+                      <span style={{
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: b.status === 'OPEN' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
+                        color: b.status === 'OPEN' ? '#38bdf8' : '#10b981'
+                      }}>
+                        {b.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Link to={`/bags/${b.id}/label`} style={{ color: 'var(--amber)', fontSize: 12, textDecoration: 'none', fontWeight: 600 }}>
+                          🏷️ {t('bagEntry.colLabel')}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setBagToDelete(b)}
+                          style={{
+                            background: 'rgba(239,68,68,0.1)',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            color: '#f87171',
+                            borderRadius: 6,
+                            padding: '3px 8px',
+                            fontSize: 12,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                          title="Delete bag entry"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -617,6 +680,99 @@ export default function BagEntry() {
             </table>
           </div>
         </>
+      )}
+
+      {bagToDelete && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: 16
+        }}>
+          <div style={{
+            background: '#131b2e', border: '1px solid #ef4444',
+            borderRadius: 12, width: '100%', maxWidth: 460, padding: 20,
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, color: '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 16 }}>
+                🗑️ Delete Bag Entry
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setBagToDelete(null); setDeleteReason(''); setDeleteError(''); }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, color: '#fbbf24' }}>{bagToDelete.bag_code}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
+                {bagToDelete.bag_type} · {bagToDelete.base_weight_kg} kg · {bagToDelete.qty} Pieces · Status: {bagToDelete.status}
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmDeleteBag}>
+              <div className="field" style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', display: 'block', marginBottom: 6 }}>
+                  Reason / Remarks for Deletion (Mandatory) *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Incorrect weight entered by mistake / duplicate entry..."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#fff',
+                    fontSize: 13,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {deleteError && (
+                <div style={{ color: '#f87171', fontSize: 12, marginBottom: 10 }}>
+                  ⚠ {deleteError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => { setBagToDelete(null); setDeleteReason(''); setDeleteError(''); }}
+                  className="btn btn-secondary"
+                  style={{ width: 'auto', padding: '8px 14px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deletingBag || !deleteReason.trim()}
+                  style={{
+                    width: 'auto',
+                    padding: '8px 16px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: (deletingBag || !deleteReason.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {deletingBag ? 'Deleting…' : 'Confirm Delete'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {showCamera && (

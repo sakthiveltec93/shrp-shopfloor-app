@@ -13,6 +13,10 @@ const OFF_REASONS = [
 ];
 
 export default function ProductionEntry() {
+  const [entryToDelete, setEntryToDelete] = useState(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deletingEntry, setDeletingEntry] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const { user } = useAuth();
   const { t } = useLanguage();
   const [machines, setMachines] = useState([]);
@@ -547,10 +551,31 @@ export default function ProductionEntry() {
           )}
 
           {lastEntry && (
-            <div className="readout" style={{ marginTop: 14 }}>
-              <div className="readout-label">{t('entry.lastEntry', { hour: lastEntry.hour_slot })}</div>
-              {t('entry.lastEntryDetail', { good: lastEntry.good_qty, reject: lastEntry.reject_qty, downtime: lastEntry.downtime_minutes })}
-              {lastEntry.efficiency_pct != null && t('entry.efficiencySuffix', { pct: lastEntry.efficiency_pct })}
+            <div className="readout" style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div className="readout-label">{t('entry.lastEntry', { hour: lastEntry.hour_slot })}</div>
+                {t('entry.lastEntryDetail', { good: lastEntry.good_qty, reject: lastEntry.reject_qty, downtime: lastEntry.downtime_minutes })}
+                {lastEntry.efficiency_pct != null && t('entry.efficiencySuffix', { pct: lastEntry.efficiency_pct })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setEntryToDelete(lastEntry)}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#f87171',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+                title="Delete this hour entry if entered by mistake"
+              >
+                🗑️ Delete Entry
+              </button>
             </div>
           )}
 
@@ -721,6 +746,99 @@ export default function ProductionEntry() {
           )}
         </div>
       )}
+{entryToDelete && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: 16
+        }}>
+          <div style={{
+            background: '#131b2e', border: '1px solid #ef4444',
+            borderRadius: 12, width: '100%', maxWidth: 460, padding: 20,
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, color: '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 16 }}>
+                🗑️ Delete Hourly Production Entry
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setEntryToDelete(null); setDeleteReason(''); setDeleteError(''); }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, color: '#fbbf24' }}>
+                Hour Slot: {entryToDelete.hour_slot} · Good: {entryToDelete.good_qty} · Rej: {entryToDelete.reject_qty}
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
+                Counts: {entryToDelete.start_count} → {entryToDelete.end_count} ({entryToDelete.entry_date} Shift {entryToDelete.shift})
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmDeleteEntry}>
+              <div className="field" style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', display: 'block', marginBottom: 6 }}>
+                  Reason / Remarks for Deletion (Mandatory) *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Wrong counter value typed / wrong hour selected..."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#fff',
+                    fontSize: 13,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {deleteError && (
+                <div style={{ color: '#f87171', fontSize: 12, marginBottom: 10 }}>
+                  ⚠ {deleteError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => { setEntryToDelete(null); setDeleteReason(''); setDeleteError(''); }}
+                  className="btn btn-secondary"
+                  style={{ width: 'auto', padding: '8px 14px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deletingEntry || !deleteReason.trim()}
+                  style={{
+                    width: 'auto',
+                    padding: '8px 16px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: (deletingEntry || !deleteReason.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {deletingEntry ? 'Deleting…' : 'Confirm Delete'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
-}

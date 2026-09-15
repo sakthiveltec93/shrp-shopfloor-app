@@ -135,6 +135,8 @@ export const api = {
   partDetail: (id) => request(`/masters/parts/${id}/detail`),
   createPart: (payload) => request('/masters/parts', { method: 'POST', body: payload }),
   deletePart: (id) => request('/masters/parts/' + id, { method: 'DELETE' }),
+  deleteBag: (id, reason) => request('/deletions/direct/bag/' + id, { method: 'DELETE', body: { reason } }),
+  deleteEntry: (id, reason) => request('/deletions/direct/production_entry/' + id, { method: 'DELETE', body: { reason } }),
   updatePart: (id, payload) => request(`/masters/parts/${id}`, { method: 'PUT', body: payload }),
   setPartParameters: (id, parameters) => request(`/masters/parts/${id}/parameters`, { method: 'PUT', body: { parameters } }),
   setPartDimensions: (id, dimensions) => request(`/masters/parts/${id}/dimensions`, { method: 'PUT', body: { dimensions } }),
@@ -254,6 +256,21 @@ export const api = {
     uploadFile: (id, payload) => request(`/moulds/${id}/files`, { method: 'POST', body: payload }),
     deleteFile: (mouldId, fileId) => request(`/moulds/${mouldId}/files/${fileId}`, { method: 'DELETE' }),
     updateParts: (id, parts) => request(`/moulds/${id}/parts`, { method: 'PUT', body: { parts } }),
+  },
+
+  rawMaterials: {
+    list: () => request('/raw-materials'),
+    recipes: () => request('/raw-materials/recipes'),
+    saveRecipe: (partId, payload) => request(`/raw-materials/recipes/${partId}`, { method: 'PUT', body: payload }),
+    bulkSaveRecipes: (recipes) => request('/raw-materials/recipes/bulk', { method: 'POST', body: { recipes } }),
+    stockRegister: () => request('/raw-materials/stock'),
+    wipPool: () => request('/raw-materials/wip'),
+    issue: (payload) => request('/raw-materials/issue', { method: 'POST', body: payload }),
+    save: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
+    inwardList: () => request('/raw-materials/inward'),
+    createInward: (payload) => request('/raw-materials/inward', { method: 'POST', body: payload }),
+    inwardDetail: (id) => request(`/raw-materials/inward/${id}`),
+    inspectInward: (id, payload) => request(`/raw-materials/inward/${id}/inspect`, { method: 'POST', body: payload }),
   },
 
   linkPartMould: (partId, mouldId, cavities) =>
