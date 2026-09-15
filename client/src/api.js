@@ -119,6 +119,7 @@ export const api = {
   parts: () => request('/masters/parts'),
   partDetail: (id) => request(`/masters/parts/${id}/detail`),
   createPart: (payload) => request('/masters/parts', { method: 'POST', body: payload }),
+  deletePart: (id) => request('/masters/parts/' + id, { method: 'DELETE' }),
   updatePart: (id, payload) => request(`/masters/parts/${id}`, { method: 'PUT', body: payload }),
   setPartParameters: (id, parameters) => request(`/masters/parts/${id}/parameters`, { method: 'PUT', body: { parameters } }),
   setPartDimensions: (id, dimensions) => request(`/masters/parts/${id}/dimensions`, { method: 'PUT', body: { dimensions } }),

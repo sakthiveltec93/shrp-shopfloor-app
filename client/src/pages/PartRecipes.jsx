@@ -152,7 +152,7 @@ export default function PartRecipes() {
       'mixing_instructions',
     ];
 
-    const rows = (parts || []).map((p) => {
+    const rows = (parts || []).filter((p) => p.active !== false).map((p) => {
       const r = (recipes || []).find((rec) => rec.part_id === p.id);
       const priMat = (materials || []).find((m) => m.id === r?.primary_material_id);
       const secMat = (materials || []).find((m) => m.id === r?.secondary_material_id);
@@ -160,7 +160,7 @@ export default function PartRecipes() {
       const mbMat = (materials || []).find((m) => m.id === r?.masterbatch_material_id);
 
       const shrpCode = p.shrp_part_code || p.part_code || '';
-      const partName = p.part_name || p.part_code || '';
+      const partName = p.part_code || p.part_name || '';
       const custNo = p.customer_part_no || '';
 
       return [

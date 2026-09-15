@@ -279,4 +279,37 @@ router.put('/parts/:id/mould', requireRole('admin', 'supervisor'), async (req, r
   res.json({ ok: true, link: rows[0] });
 });
 
+
+// Permanently delete a part. Only safe for parts with zero production history -
+// the foreign keys on production_entries/bags/machine_assignments/rework_log/
+// packing_balance_pool/part_recipes are NOT ON DELETE CASCADE, so Postgres itself
+// blocks deletion of any part that has real IATF traceability records.
+router.delete('/parts/:id', requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query('SELECT id, part_code, part_name FROM parts WHERE id = $1', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Part not found' });
+
+    // Clean up dependent metadata tables that shouldn't block deleting an unused duplicate part
+    await pool.query('DELETE FROM part_process_parameters WHERE part_id = $1', [id]);
+    await pool.query('DELETE FROM part_critical_dimensions WHERE part_id = $1', [id]);
+    await pool.query('DELETE FROM part_machines WHERE part_id = $1', [id]);
+    await pool.query('DELETE FROM mould_parts WHERE part_id = $1', [id]);
+    await pool.query('DELETE FROM part_files WHERE part_id = $1', [id]);
+    await pool.query('DELETE FROM part_recipes WHERE part_id = $1', [id]);
+
+    await pool.query('DELETE FROM parts WHERE id = $1', [id]);
+    res.json({ ok: true, message: `Part "${rows[0].part_name}" (${rows[0].part_code}) deleted permanently.` });
+  } catch (err) {
+    if (err.code === '23503') {
+      // foreign_key_violation - part has production/bag/rework/etc history
+      return res.status(409).json({
+        error: 'This part has production history (entries, bags, rework, or assignments) and cannot be permanently deleted. Deactivate it instead to keep the audit trail intact.',
+      });
+    }
+    console.error('Error deleting part:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

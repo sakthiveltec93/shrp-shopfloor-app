@@ -75,10 +75,11 @@ router.get('/', async (req, res) => {
              COALESCE(ual.actions_count, 0) AS today_actions_count,
              ual.first_login_at AS today_first_login,
              ual.last_page AS last_viewed_page,
-             ms.machine_code AS running_machine_code
+             m.machine_code AS running_machine_code
       FROM users u
       LEFT JOIN user_activity_log ual ON ual.user_id = u.id AND ual.activity_date = CURRENT_DATE
       LEFT JOIN machine_sessions ms ON ms.operator_user_id = u.id AND ms.status = 'RUNNING'
+      LEFT JOIN machines m ON m.id = ms.machine_id
       WHERE u.deleted_at IS NULL
       ORDER BY u.active DESC, u.last_active_at DESC NULLS LAST, u.full_name
     `);
@@ -123,7 +124,7 @@ router.get('/activity-report', async (req, res) => {
              (SELECT COUNT(*) FROM production_entries pe WHERE pe.operator_user_id = u.id AND pe.entry_date = $1::date) AS production_entries_count,
              (SELECT COUNT(*) FROM bags b WHERE b.operator_user_id = u.id AND b.created_at::date = $1::date) AS bags_created_count,
              (SELECT COUNT(*) FROM trim_entries te WHERE te.operator_user_id = u.id AND te.created_at::date = $1::date) AS trim_entries_count,
-             (SELECT COUNT(*) FROM inspection_entries ie WHERE ie.inspector_user_id = u.id AND ie.created_at::date = $1::date) AS inspection_entries_count
+             (SELECT COUNT(*) FROM inspection_entries ie WHERE ie.operator_user_id = u.id AND ie.created_at::date = $1::date) AS inspection_entries_count
       FROM users u
       LEFT JOIN user_activity_log ual ON ual.user_id = u.id AND ual.activity_date = $1::date
       WHERE u.deleted_at IS NULL
@@ -260,81 +261,104 @@ router.post('/:id/toggle-active', async (req, res) => {
 });
 
 // ============================================================
+// ============================================================
 // 7. Delete User (Guaranteed Safe Delete / Purge for any account)
 // ============================================================
 router.delete('/:id', async (req, res) => {
   const targetParam = req.params.id;
   const numId = Number(targetParam);
 
-  const client = await pool.connect();
+  // 1. Fetch user info by id OR username
   try {
-    await client.query('BEGIN');
-
-    // 1. Fetch user info by id OR username
-    const { rows: userRows } = await client.query(
+    const { rows: userRows } = await pool.query(
       `SELECT * FROM users WHERE id = $1 OR username = $2`,
       [isNaN(numId) ? -1 : numId, targetParam]
     );
     if (userRows.length === 0) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
     const targetUser = userRows[0];
 
     // Prevent deleting your own logged-in admin account
     if (targetUser.id === req.user.id || targetUser.username === req.user.username) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'You cannot delete your own logged-in admin account. Please log in with a different admin account to delete this user.' });
+      return res.status(400).json({
+        error: 'You cannot delete your own logged-in admin account. Please log in with a different admin account to delete this user.',
+      });
     }
 
     const userId = targetUser.id;
 
-    // Ensure foreign key columns allow nulls for safe purging
-    try {
-      await client.query(`
-        ALTER TABLE production_entries ALTER COLUMN operator_user_id DROP NOT NULL;
-        ALTER TABLE machine_assignments ALTER COLUMN set_by_user_id DROP NOT NULL;
-        ALTER TABLE machine_assignments ALTER COLUMN approved_by_user_id DROP NOT NULL;
-        ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
-        ALTER TABLE trim_entries ALTER COLUMN operator_user_id DROP NOT NULL;
-        ALTER TABLE inspection_entries ALTER COLUMN inspector_user_id DROP NOT NULL;
-        ALTER TABLE packing_entries ALTER COLUMN packer_user_id DROP NOT NULL;
-      `);
-    } catch (e) {
-      // Ignore if columns already nullable
+    // Run column alterations safely outside the transaction block
+    const alterQueries = [
+      'ALTER TABLE production_entries ALTER COLUMN operator_user_id DROP NOT NULL',
+      'ALTER TABLE machine_assignments ALTER COLUMN set_by_user_id DROP NOT NULL',
+      'ALTER TABLE machine_assignments ALTER COLUMN approved_by_user_id DROP NOT NULL',
+      'ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL',
+      'ALTER TABLE trim_entries ALTER COLUMN operator_user_id DROP NOT NULL',
+      'ALTER TABLE inspection_entries ALTER COLUMN operator_user_id DROP NOT NULL',
+      'ALTER TABLE packing_entries ALTER COLUMN operator_user_id DROP NOT NULL',
+      'ALTER TABLE packing_balance_pool ALTER COLUMN operator_user_id DROP NOT NULL',
+    ];
+    for (const q of alterQueries) {
+      try { await pool.query(q); } catch (e) { /* ignore if already nullable or not exists */ }
     }
 
-    // Safely unlink transaction logs so IATF audit trail is preserved
-    await client.query(`UPDATE production_entries SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
-    await client.query(`UPDATE machine_assignments SET set_by_user_id = NULL WHERE set_by_user_id = $1`, [userId]);
-    await client.query(`UPDATE machine_assignments SET approved_by_user_id = NULL WHERE approved_by_user_id = $1`, [userId]);
-    await client.query(`UPDATE bags SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
-    await client.query(`UPDATE trim_entries SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
-    await client.query(`UPDATE inspection_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1`, [userId]);
-    await client.query(`UPDATE packing_entries SET packer_user_id = NULL WHERE packer_user_id = $1`, [userId]);
-    await client.query(`UPDATE machine_sessions SET operator_user_id = NULL WHERE operator_user_id = $1`, [userId]);
+    // Now perform the unlinking and purging inside a clean transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    // Delete user-specific configurations and records
-    await client.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM user_activity_log WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM attendance WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM leave_requests WHERE user_id = $1`, [userId]);
+      // Unlink transactional FK references so IATF history is preserved
+      await client.query('UPDATE production_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE machine_assignments SET set_by_user_id = NULL WHERE set_by_user_id = $1', [userId]);
+      await client.query('UPDATE machine_assignments SET approved_by_user_id = NULL WHERE approved_by_user_id = $1', [userId]);
+      await client.query('UPDATE bags SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE trim_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE inspection_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE packing_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE packing_balance_pool SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
+      await client.query('UPDATE machine_sessions SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
 
-    // Completely purge the user record
-    await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+      // Try unlinking optional extra tables if they exist
+      const optionalUnlinks = [
+        ['UPDATE bag_hold_log SET hold_by_user_id = NULL WHERE hold_by_user_id = $1', [userId]],
+        ['UPDATE bag_hold_log SET released_by_user_id = NULL WHERE released_by_user_id = $1', [userId]],
+        ['UPDATE rework_log SET created_by_user_id = NULL WHERE created_by_user_id = $1', [userId]],
+        ['UPDATE rework_log SET worked_by_user_id = NULL WHERE worked_by_user_id = $1', [userId]],
+        ['UPDATE rm_inward_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1', [userId]],
+        ['UPDATE rm_inward_entries SET approved_by_user_id = NULL WHERE approved_by_user_id = $1', [userId]],
+        ['UPDATE rm_stock_movements SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]],
+        ['UPDATE leave_requests SET reviewed_by = NULL WHERE reviewed_by = $1', [userId]],
+      ];
+      for (const [q, params] of optionalUnlinks) {
+        try { await client.query(q, params); } catch (e) { /* optional table */ }
+      }
 
-    await client.query('COMMIT');
-    return res.json({
-      ok: true,
-      message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently and username freed for registration.`,
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error deleting user:', err);
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
+      // Delete user-owned child records
+      await client.query('DELETE FROM user_page_access WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM attendance WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM leave_requests WHERE user_id = $1', [userId]);
+
+      // Purge the user account record
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      await client.query('COMMIT');
+      return res.json({
+        ok: true,
+        message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently and username freed for registration.`,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Error in user deletion transaction:', err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  } catch (outerErr) {
+    console.error('Error fetching user for deletion:', outerErr);
+    res.status(500).json({ error: outerErr.message });
   }
 });
 
