@@ -120,9 +120,24 @@ export default function Layout({ children }) {
     <div className="app-layout">
       <header className="app-header">
         <NavLink to="/" className="app-brand">
-          <div className="brand-logo-wrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 20 }}>🏭</span>
-            <span className="brand-badge">SHRP MES</span>
+          <div className="brand-logo-wrap" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img
+              src="/shrp-logo.png"
+              alt="SHRP Logo"
+              style={{
+                height: 28,
+                width: 'auto',
+                background: '#ffffff',
+                padding: '2px 6px',
+                borderRadius: 4,
+                display: 'inline-block',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                e.currentTarget.src = '/logo.png';
+              }}
+            />
+            <span className="brand-badge">MES</span>
           </div>
           {user && (
             <div className="brand-user-meta" style={{ minWidth: 0 }}>
