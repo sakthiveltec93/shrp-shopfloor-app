@@ -972,25 +972,25 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23290826B-001', '29-08-2026'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 6.82, 11000, 'PACKED', TRUE, '29-08-2026 09:30:00'::TIMESTAMPTZ
+SELECT '23290826B-001', '2026-08-29'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 6.82, 11000, 'PACKED', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23290826B-002', '29-08-2026'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 2.1, 3387, 'PACKED', TRUE, '29-08-2026 09:30:00'::TIMESTAMPTZ
+SELECT '23290826B-002', '2026-08-29'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 2.1, 3387, 'PACKED', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23290826B-REJ-143005', '29-08-2026'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 0.012, 0, 'N/A', TRUE, '29-08-2026 09:30:00'::TIMESTAMPTZ
+SELECT '23290826B-REJ-143005', '2026-08-29'::DATE, 'B', m.id, p.id, '23290826B', 'REJECTION', 0.012, 0, 'SCRAPPED', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23290826B-LUMP-143005', '29-08-2026'::DATE, 'B', m.id, p.id, '23290826B', 'PART', 0.039, 0, 'N/A', TRUE, '29-08-2026 09:30:00'::TIMESTAMPTZ
+SELECT '23290826B-LUMP-143005', '2026-08-29'::DATE, 'B', m.id, p.id, '23290826B', 'LUMP', 0.039, 0, 'SCRAPPED', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1014,7 +1014,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28290826A-REJ-194609', '2026-08-29'::DATE, 'A', m.id, p.id, '28290826A', 'PART', 0.047, 0, 'N/A', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
+SELECT '28290826A-REJ-194609', '2026-08-29'::DATE, 'A', m.id, p.id, '28290826A', 'REJECTION', 0.047, 0, 'SCRAPPED', TRUE, '2026-08-29 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -1050,7 +1050,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'QVEAC' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '39310826A-REJ-200921', '2026-08-31'::DATE, 'A', m.id, p.id, '39310826A', 'PART', 0.0012, 0, 'N/A', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT '39310826A-REJ-200921', '2026-08-31'::DATE, 'A', m.id, p.id, '39310826A', 'REJECTION', 0.0012, 0, 'SCRAPPED', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'QVEAC' OR p.shrp_part_code = 'QVEAC' OR p.customer_part_no = 'QVEAC')
 LIMIT 1
@@ -1086,7 +1086,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P1310826A-REJ-115342', '2026-08-31'::DATE, 'A', m.id, p.id, 'P1310826A', 'PART', 0.016, 0, 'N/A', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT 'P1310826A-REJ-115342', '2026-08-31'::DATE, 'A', m.id, p.id, 'P1310826A', 'REJECTION', 0.016, 0, 'SCRAPPED', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_code = 'PUNE B' OR p.customer_part_no = 'PUNE B')
 LIMIT 1
@@ -1122,7 +1122,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P1310826B-REJ-123654', '2026-08-31'::DATE, 'B', m.id, p.id, 'P1310826B', 'PART', 0.063, 0, 'N/A', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT 'P1310826B-REJ-123654', '2026-08-31'::DATE, 'B', m.id, p.id, 'P1310826B', 'REJECTION', 0.063, 0, 'SCRAPPED', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_code = 'PUNE B' OR p.customer_part_no = 'PUNE B')
 LIMIT 1
@@ -1134,13 +1134,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23310826A-REJ-123827', '2026-08-31'::DATE, 'A', m.id, p.id, '23310826A', 'PART', 0.046, 0, 'N/A', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT '23310826A-REJ-123827', '2026-08-31'::DATE, 'A', m.id, p.id, '23310826A', 'REJECTION', 0.046, 0, 'SCRAPPED', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23310826A-LUMP-123827', '2026-08-31'::DATE, 'A', m.id, p.id, '23310826A', 'PART', 0.06, 0, 'N/A', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT '23310826A-LUMP-123827', '2026-08-31'::DATE, 'A', m.id, p.id, '23310826A', 'LUMP', 0.06, 0, 'SCRAPPED', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1158,7 +1158,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23310826B-REJ-124003', '2026-08-31'::DATE, 'B', m.id, p.id, '23310826B', 'PART', 0.013, 0, 'N/A', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT '23310826B-REJ-124003', '2026-08-31'::DATE, 'B', m.id, p.id, '23310826B', 'REJECTION', 0.013, 0, 'SCRAPPED', TRUE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1194,7 +1194,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10010926A-REJ-162204', '2026-09-01'::DATE, 'A', m.id, p.id, '10010926A', 'PART', 0.025, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '10010926A-REJ-162204', '2026-09-01'::DATE, 'A', m.id, p.id, '10010926A', 'REJECTION', 0.025, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -1248,7 +1248,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2010926A-REJ-165338', '2026-09-01'::DATE, 'A', m.id, p.id, 'P2010926A', 'PART', 0.1, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT 'P2010926A-REJ-165338', '2026-09-01'::DATE, 'A', m.id, p.id, 'P2010926A', 'REJECTION', 0.1, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -1302,7 +1302,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '20010926A-REJ-170629', '2026-09-01'::DATE, 'A', m.id, p.id, '20010926A', 'PART', 0.096, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '20010926A-REJ-170629', '2026-09-01'::DATE, 'A', m.id, p.id, '20010926A', 'REJECTION', 0.096, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_code = 'PDPKA' OR p.customer_part_no = 'PDPKA')
 LIMIT 1
@@ -1320,13 +1320,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23010926A-REJ-171315', '2026-09-01'::DATE, 'A', m.id, p.id, '23010926A', 'PART', 0.017, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '23010926A-REJ-171315', '2026-09-01'::DATE, 'A', m.id, p.id, '23010926A', 'REJECTION', 0.017, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23010926A-LUMP-171315', '2026-09-01'::DATE, 'A', m.id, p.id, '23010926A', 'PART', 0.025, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '23010926A-LUMP-171315', '2026-09-01'::DATE, 'A', m.id, p.id, '23010926A', 'LUMP', 0.025, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1344,7 +1344,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23010926B-REJ-171426', '2026-09-01'::DATE, 'B', m.id, p.id, '23010926B', 'PART', 0.021, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '23010926B-REJ-171426', '2026-09-01'::DATE, 'B', m.id, p.id, '23010926B', 'REJECTION', 0.021, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1362,13 +1362,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28010926A-REJ-171818', '2026-09-01'::DATE, 'A', m.id, p.id, '28010926A', 'PART', 0.057, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '28010926A-REJ-171818', '2026-09-01'::DATE, 'A', m.id, p.id, '28010926A', 'REJECTION', 0.057, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28010926A-LUMP-171819', '2026-09-01'::DATE, 'A', m.id, p.id, '28010926A', 'PART', 0.008, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '28010926A-LUMP-171819', '2026-09-01'::DATE, 'A', m.id, p.id, '28010926A', 'LUMP', 0.008, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -1416,7 +1416,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_p
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1A010926A-REJ-172540', '2026-09-01'::DATE, 'A', m.id, p.id, '1A010926A', 'PART', 0.122, 0, 'N/A', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
+SELECT '1A010926A-REJ-172540', '2026-09-01'::DATE, 'A', m.id, p.id, '1A010926A', 'REJECTION', 0.122, 0, 'SCRAPPED', FALSE, '2026-09-01 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_part_code = 'CEEAA-ORANGE' OR p.customer_part_no = 'CEEAA-ORANGE')
 LIMIT 1
@@ -1464,7 +1464,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '20020926A-REJ-091746', '2026-09-02'::DATE, 'A', m.id, p.id, '20020926A', 'PART', 0.118, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '20020926A-REJ-091746', '2026-09-02'::DATE, 'A', m.id, p.id, '20020926A', 'REJECTION', 0.118, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_code = 'PDPKA' OR p.customer_part_no = 'PDPKA')
 LIMIT 1
@@ -1500,7 +1500,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_p
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1A020926A-REJ-092002', '2026-09-02'::DATE, 'A', m.id, p.id, '1A020926A', 'PART', 0.555, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '1A020926A-REJ-092002', '2026-09-02'::DATE, 'A', m.id, p.id, '1A020926A', 'REJECTION', 0.555, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_part_code = 'CEEAA-ORANGE' OR p.customer_part_no = 'CEEAA-ORANGE')
 LIMIT 1
@@ -1518,7 +1518,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1020926A-REJ-092645', '2026-09-02'::DATE, 'A', m.id, p.id, '1020926A', 'PART', 0.462, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '1020926A-REJ-092645', '2026-09-02'::DATE, 'A', m.id, p.id, '1020926A', 'REJECTION', 0.462, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
@@ -1530,7 +1530,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.s
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '23020926A-REJ-092906', '2026-09-02'::DATE, 'A', m.id, p.id, '23020926A', 'PART', 0.039, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '23020926A-REJ-092906', '2026-09-02'::DATE, 'A', m.id, p.id, '23020926A', 'REJECTION', 0.039, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'VW DIA 8 - HW773B' OR p.shrp_part_code = 'VW DIA 8 - HW773B' OR p.customer_part_no = 'VW DIA 8 - HW773B')
 LIMIT 1
@@ -1554,7 +1554,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2020926A-REJ-111815', '2026-09-02'::DATE, 'A', m.id, p.id, 'P2020926A', 'PART', 0.296, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT 'P2020926A-REJ-111815', '2026-09-02'::DATE, 'A', m.id, p.id, 'P2020926A', 'REJECTION', 0.296, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -1572,7 +1572,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2020926B-REJ-111907', '2026-09-02'::DATE, 'B', m.id, p.id, 'P2020926B', 'PART', 0.18, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT 'P2020926B-REJ-111907', '2026-09-02'::DATE, 'B', m.id, p.id, 'P2020926B', 'REJECTION', 0.18, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -1602,13 +1602,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28020926A-REJ-112158', '2026-09-02'::DATE, 'A', m.id, p.id, '28020926A', 'PART', 0.087, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '28020926A-REJ-112158', '2026-09-02'::DATE, 'A', m.id, p.id, '28020926A', 'REJECTION', 0.087, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28020926A-LUMP-112158', '2026-09-02'::DATE, 'A', m.id, p.id, '28020926A', 'PART', 0.038, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '28020926A-LUMP-112158', '2026-09-02'::DATE, 'A', m.id, p.id, '28020926A', 'LUMP', 0.038, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -1626,7 +1626,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28020926B-REJ-112253', '2026-09-02'::DATE, 'B', m.id, p.id, '28020926B', 'PART', 0.136, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '28020926B-REJ-112253', '2026-09-02'::DATE, 'B', m.id, p.id, '28020926B', 'REJECTION', 0.136, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -1638,13 +1638,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'F442 QQ' OR p.shrp_part_c
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '3020926A-REJ-113253', '2026-09-02'::DATE, 'A', m.id, p.id, '3020926A', 'PART', 0.384, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '3020926A-REJ-113253', '2026-09-02'::DATE, 'A', m.id, p.id, '3020926A', 'REJECTION', 0.384, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'F442 QQ' OR p.shrp_part_code = 'F442 QQ' OR p.customer_part_no = 'F442 QQ')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '3020926A-LUMP-113253', '2026-09-02'::DATE, 'A', m.id, p.id, '3020926A', 'PART', 0.238, 0, 'N/A', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
+SELECT '3020926A-LUMP-113253', '2026-09-02'::DATE, 'A', m.id, p.id, '3020926A', 'LUMP', 0.238, 0, 'SCRAPPED', FALSE, '2026-09-02 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'F442 QQ' OR p.shrp_part_code = 'F442 QQ' OR p.customer_part_no = 'F442 QQ')
 LIMIT 1
@@ -1674,7 +1674,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_p
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1A310826A-REJ-163721', '2026-08-31'::DATE, 'A', m.id, p.id, '1A310826A', 'PART', 0.133, 0, 'N/A', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
+SELECT '1A310826A-REJ-163721', '2026-08-31'::DATE, 'A', m.id, p.id, '1A310826A', 'REJECTION', 0.133, 0, 'SCRAPPED', FALSE, '2026-08-31 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'CEEAA-ORANGE' OR p.shrp_part_code = 'CEEAA-ORANGE' OR p.customer_part_no = 'CEEAA-ORANGE')
 LIMIT 1
@@ -1746,7 +1746,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '8250826A-REJ-171006', '2026-08-25'::DATE, 'A', m.id, p.id, '8250826A', 'PART', 0.199, 0, 'N/A', FALSE, '2026-08-25 09:30:00'::TIMESTAMPTZ
+SELECT '8250826A-REJ-171006', '2026-08-25'::DATE, 'A', m.id, p.id, '8250826A', 'REJECTION', 0.199, 0, 'SCRAPPED', FALSE, '2026-08-25 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_code = 'F885 Y' OR p.customer_part_no = 'F885 Y')
 LIMIT 1
@@ -1764,7 +1764,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '20030926A-REJ-174215', '2026-09-03'::DATE, 'A', m.id, p.id, '20030926A', 'PART', 0.178, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '20030926A-REJ-174215', '2026-09-03'::DATE, 'A', m.id, p.id, '20030926A', 'REJECTION', 0.178, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'PDPKA' OR p.shrp_part_code = 'PDPKA' OR p.customer_part_no = 'PDPKA')
 LIMIT 1
@@ -1830,7 +1830,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'F442 QQ' OR p.shrp_part_c
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '3030926A-REJ-110858', '2026-09-03'::DATE, 'A', m.id, p.id, '3030926A', 'PART', 0.322, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '3030926A-REJ-110858', '2026-09-03'::DATE, 'A', m.id, p.id, '3030926A', 'REJECTION', 0.322, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'F442 QQ' OR p.shrp_part_code = 'F442 QQ' OR p.customer_part_no = 'F442 QQ')
 LIMIT 1
@@ -1848,13 +1848,13 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10030926A-REJ-111105', '2026-09-03'::DATE, 'A', m.id, p.id, '10030926A', 'PART', 0.051, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '10030926A-REJ-111105', '2026-09-03'::DATE, 'A', m.id, p.id, '10030926A', 'REJECTION', 0.051, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10030926A-LUMP-111105', '2026-09-03'::DATE, 'A', m.id, p.id, '10030926A', 'PART', 0.018, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '10030926A-LUMP-111105', '2026-09-03'::DATE, 'A', m.id, p.id, '10030926A', 'LUMP', 0.018, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -1872,7 +1872,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9030926A-REJ-111239', '2026-09-03'::DATE, 'A', m.id, p.id, '9030926A', 'PART', 0.086, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '9030926A-REJ-111239', '2026-09-03'::DATE, 'A', m.id, p.id, '9030926A', 'REJECTION', 0.086, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -1890,13 +1890,13 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2030926A-REJ-111358', '2026-09-03'::DATE, 'A', m.id, p.id, 'P2030926A', 'PART', 0.097, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT 'P2030926A-REJ-111358', '2026-09-03'::DATE, 'A', m.id, p.id, 'P2030926A', 'REJECTION', 0.097, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2030926A-LUMP-111358', '2026-09-03'::DATE, 'A', m.id, p.id, 'P2030926A', 'PART', 0.078, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT 'P2030926A-LUMP-111358', '2026-09-03'::DATE, 'A', m.id, p.id, 'P2030926A', 'LUMP', 0.078, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -1914,13 +1914,13 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1030926A-REJ-112309', '2026-09-03'::DATE, 'A', m.id, p.id, '1030926A', 'PART', 0.081, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '1030926A-REJ-112309', '2026-09-03'::DATE, 'A', m.id, p.id, '1030926A', 'REJECTION', 0.081, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1030926A-LUMP-112309', '2026-09-03'::DATE, 'A', m.id, p.id, '1030926A', 'PART', 0.018, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '1030926A-LUMP-112309', '2026-09-03'::DATE, 'A', m.id, p.id, '1030926A', 'LUMP', 0.018, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
@@ -1962,7 +1962,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shr
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B1030926A-REJ-114039', '2026-09-03'::DATE, 'A', m.id, p.id, 'B1030926A', 'PART', 0.054, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT 'B1030926A-REJ-114039', '2026-09-03'::DATE, 'A', m.id, p.id, 'B1030926A', 'REJECTION', 0.054, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shrp_part_code = 'BH-DIA 16 - MAA' OR p.customer_part_no = 'BH-DIA 16 - MAA')
 LIMIT 1
@@ -1974,7 +1974,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28030926A-REJ-115713', '2026-09-03'::DATE, 'A', m.id, p.id, '28030926A', 'PART', 0.36, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT '28030926A-REJ-115713', '2026-09-03'::DATE, 'A', m.id, p.id, '28030926A', 'REJECTION', 0.36, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -2004,7 +2004,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shr
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B1030926B-REJ-115930', '2026-09-03'::DATE, 'B', m.id, p.id, 'B1030926B', 'PART', 0.004, 0, 'N/A', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
+SELECT 'B1030926B-REJ-115930', '2026-09-03'::DATE, 'B', m.id, p.id, 'B1030926B', 'REJECTION', 0.004, 0, 'SCRAPPED', FALSE, '2026-09-03 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shrp_part_code = 'BH-DIA 16 - MAA' OR p.customer_part_no = 'BH-DIA 16 - MAA')
 LIMIT 1
@@ -2028,7 +2028,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10040926A-REJ-112228', '2026-09-04'::DATE, 'A', m.id, p.id, '10040926A', 'PART', 0.087, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '10040926A-REJ-112228', '2026-09-04'::DATE, 'A', m.id, p.id, '10040926A', 'REJECTION', 0.087, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -2040,13 +2040,13 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2040926A-R01', '2026-09-04'::DATE, 'A', m.id, p.id, 'P2040926A', 'PART', 4.07, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT 'P2040926A-R01', '2026-09-04'::DATE, 'A', m.id, p.id, 'P2040926A', 'PART', 4.07, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2040926A-REJ-112703', '2026-09-04'::DATE, 'A', m.id, p.id, 'P2040926A', 'PART', 0.176, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT 'P2040926A-REJ-112703', '2026-09-04'::DATE, 'A', m.id, p.id, 'P2040926A', 'REJECTION', 0.176, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -2088,7 +2088,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shr
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B1040926A-REJ-113235', '2026-09-04'::DATE, 'A', m.id, p.id, 'B1040926A', 'PART', 0.002, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT 'B1040926A-REJ-113235', '2026-09-04'::DATE, 'A', m.id, p.id, 'B1040926A', 'REJECTION', 0.002, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'BH-DIA 16 - MAA' OR p.shrp_part_code = 'BH-DIA 16 - MAA' OR p.customer_part_no = 'BH-DIA 16 - MAA')
 LIMIT 1
@@ -2154,13 +2154,13 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1040926A-REJ-121140', '2026-09-04'::DATE, 'A', m.id, p.id, '1040926A', 'PART', 0.046, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '1040926A-REJ-121140', '2026-09-04'::DATE, 'A', m.id, p.id, '1040926A', 'REJECTION', 0.046, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1040926A-LUMP-121140', '2026-09-04'::DATE, 'A', m.id, p.id, '1040926A', 'PART', 0.036, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '1040926A-LUMP-121140', '2026-09-04'::DATE, 'A', m.id, p.id, '1040926A', 'LUMP', 0.036, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
@@ -2196,7 +2196,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1040926B-REJ-121302', '2026-09-04'::DATE, 'B', m.id, p.id, '1040926B', 'PART', 0.379, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '1040926B-REJ-121302', '2026-09-04'::DATE, 'B', m.id, p.id, '1040926B', 'REJECTION', 0.379, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
@@ -2220,7 +2220,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16040926A-REJ-121744', '2026-09-04'::DATE, 'A', m.id, p.id, '16040926A', 'PART', 0.065, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '16040926A-REJ-121744', '2026-09-04'::DATE, 'A', m.id, p.id, '16040926A', 'REJECTION', 0.065, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -2244,7 +2244,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28040926A-REJ-122219', '2026-09-04'::DATE, 'A', m.id, p.id, '28040926A', 'PART', 0.179, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '28040926A-REJ-122219', '2026-09-04'::DATE, 'A', m.id, p.id, '28040926A', 'REJECTION', 0.179, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -2262,7 +2262,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9040926B-REJ-123133', '2026-09-04'::DATE, 'B', m.id, p.id, '9040926B', 'PART', 0.176, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '9040926B-REJ-123133', '2026-09-04'::DATE, 'B', m.id, p.id, '9040926B', 'REJECTION', 0.176, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -2286,7 +2286,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9040926A-REJ-125639', '2026-09-04'::DATE, 'A', m.id, p.id, '9040926A', 'PART', 0.288, 0, 'N/A', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
+SELECT '9040926A-REJ-125639', '2026-09-04'::DATE, 'A', m.id, p.id, '9040926A', 'REJECTION', 0.288, 0, 'SCRAPPED', FALSE, '2026-09-04 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -2316,13 +2316,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16050926A-REJ-114901', '2026-09-05'::DATE, 'A', m.id, p.id, '16050926A', 'PART', 0.04, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '16050926A-REJ-114901', '2026-09-05'::DATE, 'A', m.id, p.id, '16050926A', 'REJECTION', 0.04, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16050926A-LUMP-114903', '2026-09-05'::DATE, 'A', m.id, p.id, '16050926A', 'PART', 0.004, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '16050926A-LUMP-114903', '2026-09-05'::DATE, 'A', m.id, p.id, '16050926A', 'LUMP', 0.004, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -2346,7 +2346,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10050926A-REJ-115923', '2026-09-05'::DATE, 'A', m.id, p.id, '10050926A', 'PART', 0.012, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '10050926A-REJ-115923', '2026-09-05'::DATE, 'A', m.id, p.id, '10050926A', 'REJECTION', 0.012, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -2382,7 +2382,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9050926A-REJ-120342', '2026-09-05'::DATE, 'A', m.id, p.id, '9050926A', 'PART', 0.004, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '9050926A-REJ-120342', '2026-09-05'::DATE, 'A', m.id, p.id, '9050926A', 'REJECTION', 0.004, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -2400,7 +2400,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UGKCA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '12050926A-REJ-120451', '2026-09-05'::DATE, 'A', m.id, p.id, '12050926A', 'PART', 0.025, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '12050926A-REJ-120451', '2026-09-05'::DATE, 'A', m.id, p.id, '12050926A', 'REJECTION', 0.025, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UGKCA' OR p.shrp_part_code = 'UGKCA' OR p.customer_part_no = 'UGKCA')
 LIMIT 1
@@ -2454,7 +2454,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '25050926A-REJ-120819', '2026-09-05'::DATE, 'A', m.id, p.id, '25050926A', 'PART', 0.015, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '25050926A-REJ-120819', '2026-09-05'::DATE, 'A', m.id, p.id, '25050926A', 'REJECTION', 0.015, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code = 'NCBB' OR p.customer_part_no = 'NCBB')
 LIMIT 1
@@ -2538,7 +2538,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28050926A-REJ-124226', '2026-09-05'::DATE, 'A', m.id, p.id, '28050926A', 'PART', 0.197, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '28050926A-REJ-124226', '2026-09-05'::DATE, 'A', m.id, p.id, '28050926A', 'REJECTION', 0.197, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -2568,7 +2568,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10070926A-REJ-095920', '2026-09-07'::DATE, 'A', m.id, p.id, '10070926A', 'PART', 0.07, 0, 'N/A', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
+SELECT '10070926A-REJ-095920', '2026-09-07'::DATE, 'A', m.id, p.id, '10070926A', 'REJECTION', 0.07, 0, 'SCRAPPED', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -2586,13 +2586,13 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1050926A-REJ-125429', '2026-09-05'::DATE, 'A', m.id, p.id, '1050926A', 'PART', 0.0167, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '1050926A-REJ-125429', '2026-09-05'::DATE, 'A', m.id, p.id, '1050926A', 'REJECTION', 0.0167, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '1050926A-LUMP-125429', '2026-09-05'::DATE, 'A', m.id, p.id, '1050926A', 'PART', 0.091, 0, 'N/A', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
+SELECT '1050926A-LUMP-125429', '2026-09-05'::DATE, 'A', m.id, p.id, '1050926A', 'LUMP', 0.091, 0, 'SCRAPPED', FALSE, '2026-09-05 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'A710' OR p.shrp_part_code = 'A710' OR p.customer_part_no = 'A710')
 LIMIT 1
@@ -2754,7 +2754,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '25070926B-REJ-122415', '2026-09-07'::DATE, 'B', m.id, p.id, '25070926B', 'PART', 0.074, 0, 'N/A', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
+SELECT '25070926B-REJ-122415', '2026-09-07'::DATE, 'B', m.id, p.id, '25070926B', 'REJECTION', 0.074, 0, 'SCRAPPED', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code = 'NCBB' OR p.customer_part_no = 'NCBB')
 LIMIT 1
@@ -2814,7 +2814,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2070926A-REJ-141745', '2026-09-07'::DATE, 'A', m.id, p.id, '2070926A', 'PART', 0.036, 0, 'N/A', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
+SELECT '2070926A-REJ-141745', '2026-09-07'::DATE, 'A', m.id, p.id, '2070926A', 'REJECTION', 0.036, 0, 'SCRAPPED', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -2844,7 +2844,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16070926A-REJ-142511', '2026-09-07'::DATE, 'A', m.id, p.id, '16070926A', 'PART', 0.119, 0, 'N/A', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
+SELECT '16070926A-REJ-142511', '2026-09-07'::DATE, 'A', m.id, p.id, '16070926A', 'REJECTION', 0.119, 0, 'SCRAPPED', FALSE, '2026-09-07 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -2862,13 +2862,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18080926A-REJ-111104', '2026-09-08'::DATE, 'A', m.id, p.id, 'W18080926A', 'PART', 0.202, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT 'W18080926A-REJ-111104', '2026-09-08'::DATE, 'A', m.id, p.id, 'W18080926A', 'REJECTION', 0.202, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18080926A-LUMP-111104', '2026-09-08'::DATE, 'A', m.id, p.id, 'W18080926A', 'PART', 0.013, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT 'W18080926A-LUMP-111104', '2026-09-08'::DATE, 'A', m.id, p.id, 'W18080926A', 'LUMP', 0.013, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
@@ -2886,7 +2886,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '28080926A-REJ-113245', '2026-09-08'::DATE, 'A', m.id, p.id, '28080926A', 'PART', 0.077, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '28080926A-REJ-113245', '2026-09-08'::DATE, 'A', m.id, p.id, '28080926A', 'REJECTION', 0.077, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '2200' OR p.shrp_part_code = '2200' OR p.customer_part_no = '2200')
 LIMIT 1
@@ -2904,7 +2904,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '10080926A-REJ-113750', '2026-09-08'::DATE, 'A', m.id, p.id, '10080926A', 'PART', 0.145, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '10080926A-REJ-113750', '2026-09-08'::DATE, 'A', m.id, p.id, '10080926A', 'REJECTION', 0.145, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AA02 Y' OR p.shrp_part_code = 'AA02 Y' OR p.customer_part_no = 'AA02 Y')
 LIMIT 1
@@ -2934,7 +2934,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16080926A-REJ-114401', '2026-09-08'::DATE, 'A', m.id, p.id, '16080926A', 'PART', 0.185, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '16080926A-REJ-114401', '2026-09-08'::DATE, 'A', m.id, p.id, '16080926A', 'REJECTION', 0.185, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -2952,13 +2952,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16080926B-REJ-114535', '2026-09-08'::DATE, 'B', m.id, p.id, '16080926B', 'PART', 0.027, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '16080926B-REJ-114535', '2026-09-08'::DATE, 'B', m.id, p.id, '16080926B', 'REJECTION', 0.027, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16080926B-LUMP-114535', '2026-09-08'::DATE, 'B', m.id, p.id, '16080926B', 'PART', 0.032, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '16080926B-LUMP-114535', '2026-09-08'::DATE, 'B', m.id, p.id, '16080926B', 'LUMP', 0.032, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -2976,13 +2976,13 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9080926A-REJ-132229', '2026-09-08'::DATE, 'A', m.id, p.id, '9080926A', 'PART', 0.397, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '9080926A-REJ-132229', '2026-09-08'::DATE, 'A', m.id, p.id, '9080926A', 'REJECTION', 0.397, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9080926A-LUMP-132229', '2026-09-08'::DATE, 'A', m.id, p.id, '9080926A', 'PART', 0.107, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '9080926A-LUMP-132229', '2026-09-08'::DATE, 'A', m.id, p.id, '9080926A', 'LUMP', 0.107, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -3006,7 +3006,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9080926B-REJ-132739', '2026-09-08'::DATE, 'B', m.id, p.id, '9080926B', 'PART', 0.124, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '9080926B-REJ-132739', '2026-09-08'::DATE, 'B', m.id, p.id, '9080926B', 'REJECTION', 0.124, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -3054,13 +3054,13 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '25080926A-REJ-141633', '2026-09-08'::DATE, 'A', m.id, p.id, '25080926A', 'PART', 0.298, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '25080926A-REJ-141633', '2026-09-08'::DATE, 'A', m.id, p.id, '25080926A', 'REJECTION', 0.298, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code = 'NCBB' OR p.customer_part_no = 'NCBB')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '25080926A-LUMP-141633', '2026-09-08'::DATE, 'A', m.id, p.id, '25080926A', 'PART', 0.065, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '25080926A-LUMP-141633', '2026-09-08'::DATE, 'A', m.id, p.id, '25080926A', 'LUMP', 0.065, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'NCBB' OR p.shrp_part_code = 'NCBB' OR p.customer_part_no = 'NCBB')
 LIMIT 1
@@ -3090,13 +3090,13 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2080926A-005', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'PART', 7.44, 2480, 'ON_HOLD', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '2080926A-005', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'PART', 7.44, 2480, 'HOLD', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2080926A-006', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'PART', 7.11, 2370, 'ON_HOLD', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '2080926A-006', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'PART', 7.11, 2370, 'HOLD', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -3120,7 +3120,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2080926A-REJ-160415', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'PART', 0.717, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '2080926A-REJ-160415', '2026-09-08'::DATE, 'A', m.id, p.id, '2080926A', 'REJECTION', 0.717, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -3162,7 +3162,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2080926B-REJ-162708', '2026-09-08'::DATE, 'B', m.id, p.id, '2080926B', 'PART', 0.297, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '2080926B-REJ-162708', '2026-09-08'::DATE, 'B', m.id, p.id, '2080926B', 'REJECTION', 0.297, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -3186,7 +3186,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMNAA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '45080926A-REJ-162821', '2026-09-08'::DATE, 'A', m.id, p.id, '45080926A', 'PART', 0.893, 0, 'N/A', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
+SELECT '45080926A-REJ-162821', '2026-09-08'::DATE, 'A', m.id, p.id, '45080926A', 'REJECTION', 0.893, 0, 'SCRAPPED', FALSE, '2026-09-08 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMNAA' OR p.shrp_part_code = 'UMNAA' OR p.customer_part_no = 'UMNAA')
 LIMIT 1
@@ -3216,7 +3216,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24090926A-REJ-102128', '2026-09-09'::DATE, 'A', m.id, p.id, '24090926A', 'PART', 0.213, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '24090926A-REJ-102128', '2026-09-09'::DATE, 'A', m.id, p.id, '24090926A', 'REJECTION', 0.213, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -3240,13 +3240,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18090926A-REJ-110637', '2026-09-09'::DATE, 'A', m.id, p.id, 'W18090926A', 'PART', 0.138, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT 'W18090926A-REJ-110637', '2026-09-09'::DATE, 'A', m.id, p.id, 'W18090926A', 'REJECTION', 0.138, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18090926A-LUMP-110637', '2026-09-09'::DATE, 'A', m.id, p.id, 'W18090926A', 'PART', 0.167, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT 'W18090926A-LUMP-110637', '2026-09-09'::DATE, 'A', m.id, p.id, 'W18090926A', 'LUMP', 0.167, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
@@ -3270,7 +3270,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9090926A-REJ-110826', '2026-09-09'::DATE, 'A', m.id, p.id, '9090926A', 'PART', 0.179, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '9090926A-REJ-110826', '2026-09-09'::DATE, 'A', m.id, p.id, '9090926A', 'REJECTION', 0.179, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -3294,7 +3294,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMNAA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '45090926A-REJ-110935', '2026-09-09'::DATE, 'A', m.id, p.id, '45090926A', 'PART', 0.134, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '45090926A-REJ-110935', '2026-09-09'::DATE, 'A', m.id, p.id, '45090926A', 'REJECTION', 0.134, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMNAA' OR p.shrp_part_code = 'UMNAA' OR p.customer_part_no = 'UMNAA')
 LIMIT 1
@@ -3312,7 +3312,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2090926A-REJ-111122', '2026-09-09'::DATE, 'A', m.id, p.id, 'P2090926A', 'PART', 0.041, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT 'P2090926A-REJ-111122', '2026-09-09'::DATE, 'A', m.id, p.id, 'P2090926A', 'REJECTION', 0.041, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -3342,7 +3342,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '33090926A-REJ-111945', '2026-09-09'::DATE, 'A', m.id, p.id, '33090926A', 'PART', 0.112, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '33090926A-REJ-111945', '2026-09-09'::DATE, 'A', m.id, p.id, '33090926A', 'REJECTION', 0.112, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code = 'LBB' OR p.customer_part_no = 'LBB')
 LIMIT 1
@@ -3384,7 +3384,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '33090926B-REJ-112158', '2026-09-09'::DATE, 'B', m.id, p.id, '33090926B', 'PART', 0.062, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '33090926B-REJ-112158', '2026-09-09'::DATE, 'B', m.id, p.id, '33090926B', 'REJECTION', 0.062, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code = 'LBB' OR p.customer_part_no = 'LBB')
 LIMIT 1
@@ -3432,7 +3432,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24090926B-REJ-112843', '2026-09-09'::DATE, 'B', m.id, p.id, '24090926B', 'PART', 0.079, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '24090926B-REJ-112843', '2026-09-09'::DATE, 'B', m.id, p.id, '24090926B', 'REJECTION', 0.079, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -3456,13 +3456,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16090926A-REJ-113027', '2026-09-09'::DATE, 'A', m.id, p.id, '16090926A', 'PART', 0.09, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '16090926A-REJ-113027', '2026-09-09'::DATE, 'A', m.id, p.id, '16090926A', 'REJECTION', 0.09, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16090926A-LUMP-113027', '2026-09-09'::DATE, 'A', m.id, p.id, '16090926A', 'PART', 0.167, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '16090926A-LUMP-113027', '2026-09-09'::DATE, 'A', m.id, p.id, '16090926A', 'LUMP', 0.167, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -3480,7 +3480,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '16100926A-REJ-121136', '2026-09-10'::DATE, 'A', m.id, p.id, '16100926A', 'PART', 0.116, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '16100926A-REJ-121136', '2026-09-10'::DATE, 'A', m.id, p.id, '16100926A', 'REJECTION', 0.116, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'AA03' OR p.shrp_part_code = 'AA03' OR p.customer_part_no = 'AA03')
 LIMIT 1
@@ -3498,7 +3498,7 @@ WHERE m.machine_code = 'VIM - 03' AND (p.part_code = 'F442 WB' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '5090926A-REJ-123959', '2026-09-09'::DATE, 'A', m.id, p.id, '5090926A', 'PART', 0.059, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '5090926A-REJ-123959', '2026-09-09'::DATE, 'A', m.id, p.id, '5090926A', 'REJECTION', 0.059, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 03' AND (p.part_code = 'F442 WB' OR p.shrp_part_code = 'F442 WB' OR p.customer_part_no = 'F442 WB')
 LIMIT 1
@@ -3516,7 +3516,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2090926A-REJ-153421', '2026-09-09'::DATE, 'A', m.id, p.id, '2090926A', 'PART', 0.061, 0, 'N/A', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
+SELECT '2090926A-REJ-153421', '2026-09-09'::DATE, 'A', m.id, p.id, '2090926A', 'REJECTION', 0.061, 0, 'SCRAPPED', FALSE, '2026-09-09 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -3540,19 +3540,19 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9100926A-REJ-105504', '2026-09-10'::DATE, 'A', m.id, p.id, '9100926A', 'PART', 0.113, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '9100926A-REJ-105504', '2026-09-10'::DATE, 'A', m.id, p.id, '9100926A', 'REJECTION', 0.113, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '47100926A-001', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'PART', 6.7, 3350, 'REWORK_INSPECTION', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '47100926A-001', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'PART', 6.7, 3350, 'PARTIAL_INSPECT', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'NDGAA' OR p.shrp_part_code = 'NDGAA' OR p.customer_part_no = 'NDGAA')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '47100926A-002', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'PART', 3.84, 1920, 'REWORK_INSPECTION', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '47100926A-002', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'PART', 3.84, 1920, 'PARTIAL_INSPECT', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'NDGAA' OR p.shrp_part_code = 'NDGAA' OR p.customer_part_no = 'NDGAA')
 LIMIT 1
@@ -3564,7 +3564,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'NDGAA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '47100926A-REJ-105744', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'PART', 0.179, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '47100926A-REJ-105744', '2026-09-10'::DATE, 'A', m.id, p.id, '47100926A', 'REJECTION', 0.179, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'NDGAA' OR p.shrp_part_code = 'NDGAA' OR p.customer_part_no = 'NDGAA')
 LIMIT 1
@@ -3582,7 +3582,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P2100926A-REJ-105858', '2026-09-10'::DATE, 'A', m.id, p.id, 'P2100926A', 'PART', 0.038, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT 'P2100926A-REJ-105858', '2026-09-10'::DATE, 'A', m.id, p.id, 'P2100926A', 'REJECTION', 0.038, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE S' OR p.shrp_part_code = 'PUNE S' OR p.customer_part_no = 'PUNE S')
 LIMIT 1
@@ -3624,7 +3624,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '33100926A-REJ-110103', '2026-09-10'::DATE, 'A', m.id, p.id, '33100926A', 'PART', 0.038, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '33100926A-REJ-110103', '2026-09-10'::DATE, 'A', m.id, p.id, '33100926A', 'REJECTION', 0.038, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code = 'LBB' OR p.customer_part_no = 'LBB')
 LIMIT 1
@@ -3672,7 +3672,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24100926A-REJ-110307', '2026-09-10'::DATE, 'A', m.id, p.id, '24100926A', 'PART', 0.046, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '24100926A-REJ-110307', '2026-09-10'::DATE, 'A', m.id, p.id, '24100926A', 'REJECTION', 0.046, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -3720,7 +3720,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24100926B-REJ-111224', '2026-09-10'::DATE, 'B', m.id, p.id, '24100926B', 'PART', 0.006, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '24100926B-REJ-111224', '2026-09-10'::DATE, 'B', m.id, p.id, '24100926B', 'REJECTION', 0.006, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -3738,13 +3738,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18100926A-REJ-111852', '2026-09-10'::DATE, 'A', m.id, p.id, 'W18100926A', 'PART', 0.056, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT 'W18100926A-REJ-111852', '2026-09-10'::DATE, 'A', m.id, p.id, 'W18100926A', 'REJECTION', 0.056, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W18100926A-LUMP-111852', '2026-09-10'::DATE, 'A', m.id, p.id, 'W18100926A', 'PART', 0.034, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT 'W18100926A-LUMP-111852', '2026-09-10'::DATE, 'A', m.id, p.id, 'W18100926A', 'LUMP', 0.034, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = 'ATBAB' OR p.shrp_part_code = 'ATBAB' OR p.customer_part_no = 'ATBAB')
 LIMIT 1
@@ -3768,13 +3768,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '27100926A-REJ-115916', '2026-09-10'::DATE, 'A', m.id, p.id, '27100926A', 'PART', 0.545, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '27100926A-REJ-115916', '2026-09-10'::DATE, 'A', m.id, p.id, '27100926A', 'REJECTION', 0.545, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code = '2100' OR p.customer_part_no = '2100')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '27100926A-LUMP-115916', '2026-09-10'::DATE, 'A', m.id, p.id, '27100926A', 'PART', 0.089, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '27100926A-LUMP-115916', '2026-09-10'::DATE, 'A', m.id, p.id, '27100926A', 'LUMP', 0.089, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code = '2100' OR p.customer_part_no = '2100')
 LIMIT 1
@@ -3804,7 +3804,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '27100926B-REJ-120050', '2026-09-10'::DATE, 'B', m.id, p.id, '27100926B', 'PART', 0.119, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT '27100926B-REJ-120050', '2026-09-10'::DATE, 'B', m.id, p.id, '27100926B', 'REJECTION', 0.119, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code = '2100' OR p.customer_part_no = '2100')
 LIMIT 1
@@ -3828,7 +3828,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code 
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '33110926A-REJ-174254', '2026-09-11'::DATE, 'A', m.id, p.id, '33110926A', 'PART', 0.047, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '33110926A-REJ-174254', '2026-09-11'::DATE, 'A', m.id, p.id, '33110926A', 'REJECTION', 0.047, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'LBB' OR p.shrp_part_code = 'LBB' OR p.customer_part_no = 'LBB')
 LIMIT 1
@@ -3858,13 +3858,13 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code =
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B9100926A-REJ-093423', '2026-09-10'::DATE, 'A', m.id, p.id, 'B9100926A', 'PART', 0.056, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT 'B9100926A-REJ-093423', '2026-09-10'::DATE, 'A', m.id, p.id, 'B9100926A', 'REJECTION', 0.056, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code = '9AB' OR p.customer_part_no = '9AB')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B9100926A-LUMP-093423', '2026-09-10'::DATE, 'A', m.id, p.id, 'B9100926A', 'PART', 0.034, 0, 'N/A', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
+SELECT 'B9100926A-LUMP-093423', '2026-09-10'::DATE, 'A', m.id, p.id, 'B9100926A', 'LUMP', 0.034, 0, 'SCRAPPED', FALSE, '2026-09-10 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code = '9AB' OR p.customer_part_no = '9AB')
 LIMIT 1
@@ -3888,7 +3888,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMEAA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '46110926A-REJ-112323', '2026-09-11'::DATE, 'A', m.id, p.id, '46110926A', 'PART', 0.105, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '46110926A-REJ-112323', '2026-09-11'::DATE, 'A', m.id, p.id, '46110926A', 'REJECTION', 0.105, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMEAA' OR p.shrp_part_code = 'UMEAA' OR p.customer_part_no = 'UMEAA')
 LIMIT 1
@@ -3918,7 +3918,7 @@ WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'P1110926A-REJ-112531', '2026-09-11'::DATE, 'A', m.id, p.id, 'P1110926A', 'PART', 0.092, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT 'P1110926A-REJ-112531', '2026-09-11'::DATE, 'A', m.id, p.id, 'P1110926A', 'REJECTION', 0.092, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 03' AND (p.part_code = 'PUNE B' OR p.shrp_part_code = 'PUNE B' OR p.customer_part_no = 'PUNE B')
 LIMIT 1
@@ -3942,7 +3942,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '21110926A-REJ-114622', '2026-09-11'::DATE, 'A', m.id, p.id, '21110926A', 'PART', 0.865, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '21110926A-REJ-114622', '2026-09-11'::DATE, 'A', m.id, p.id, '21110926A', 'REJECTION', 0.865, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_code = 'DH7AA' OR p.customer_part_no = 'DH7AA')
 LIMIT 1
@@ -3984,7 +3984,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '21110926B-REJ-114733', '2026-09-11'::DATE, 'B', m.id, p.id, '21110926B', 'PART', 0.221, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '21110926B-REJ-114733', '2026-09-11'::DATE, 'B', m.id, p.id, '21110926B', 'REJECTION', 0.221, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_code = 'DH7AA' OR p.customer_part_no = 'DH7AA')
 LIMIT 1
@@ -4038,7 +4038,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24110926A-REJ-114957', '2026-09-11'::DATE, 'A', m.id, p.id, '24110926A', 'PART', 0.029, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '24110926A-REJ-114957', '2026-09-11'::DATE, 'A', m.id, p.id, '24110926A', 'REJECTION', 0.029, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -4086,7 +4086,7 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '24110926B-REJ-115115', '2026-09-11'::DATE, 'B', m.id, p.id, '24110926B', 'PART', 0.064, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '24110926B-REJ-115115', '2026-09-11'::DATE, 'B', m.id, p.id, '24110926B', 'REJECTION', 0.064, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'NCBA' OR p.shrp_part_code = 'NCBA' OR p.customer_part_no = 'NCBA')
 LIMIT 1
@@ -4110,7 +4110,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '27110926A-REJ-115347', '2026-09-11'::DATE, 'A', m.id, p.id, '27110926A', 'PART', 0.036, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '27110926A-REJ-115347', '2026-09-11'::DATE, 'A', m.id, p.id, '27110926A', 'REJECTION', 0.036, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = '2100' OR p.shrp_part_code = '2100' OR p.customer_part_no = '2100')
 LIMIT 1
@@ -4140,7 +4140,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code =
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B9110926A-REJ-160007', '2026-09-11'::DATE, 'A', m.id, p.id, 'B9110926A', 'PART', 0.354, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT 'B9110926A-REJ-160007', '2026-09-11'::DATE, 'A', m.id, p.id, 'B9110926A', 'REJECTION', 0.354, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code = '9AB' OR p.customer_part_no = '9AB')
 LIMIT 1
@@ -4164,7 +4164,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9110926A-REJ-160156', '2026-09-11'::DATE, 'A', m.id, p.id, '9110926A', 'PART', 0.083, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '9110926A-REJ-160156', '2026-09-11'::DATE, 'A', m.id, p.id, '9110926A', 'REJECTION', 0.083, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -4182,7 +4182,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9110926B-REJ-160235', '2026-09-11'::DATE, 'B', m.id, p.id, '9110926B', 'PART', 0.054, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '9110926B-REJ-160235', '2026-09-11'::DATE, 'B', m.id, p.id, '9110926B', 'REJECTION', 0.054, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -4206,7 +4206,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-DB' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '110926A-REJ-161143', '2026-09-11'::DATE, 'A', m.id, p.id, '110926A', 'PART', 0.315, 0, 'N/A', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
+SELECT '110926A-REJ-161143', '2026-09-11'::DATE, 'A', m.id, p.id, '110926A', 'REJECTION', 0.315, 0, 'SCRAPPED', FALSE, '2026-09-11 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-DB' OR p.shrp_part_code = 'NA-DB' OR p.customer_part_no = 'NA-DB')
 LIMIT 1
@@ -4224,7 +4224,7 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-DB' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W14120926A-REJ-170640', '2026-09-12'::DATE, 'A', m.id, p.id, 'W14120926A', 'PART', 0.096, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT 'W14120926A-REJ-170640', '2026-09-12'::DATE, 'A', m.id, p.id, 'W14120926A', 'REJECTION', 0.096, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-DB' OR p.shrp_part_code = 'NA-DB' OR p.customer_part_no = 'NA-DB')
 LIMIT 1
@@ -4260,7 +4260,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '9120926A-REJ-105427', '2026-09-12'::DATE, 'A', m.id, p.id, '9120926A', 'PART', 0.031, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '9120926A-REJ-105427', '2026-09-12'::DATE, 'A', m.id, p.id, '9120926A', 'REJECTION', 0.031, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'AN6B' OR p.shrp_part_code = 'AN6B' OR p.customer_part_no = 'AN6B')
 LIMIT 1
@@ -4278,7 +4278,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'F364 16C' OR p.shrp_part_
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '2120926A-REJ-105629', '2026-09-12'::DATE, 'A', m.id, p.id, '2120926A', 'PART', 0.164, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '2120926A-REJ-105629', '2026-09-12'::DATE, 'A', m.id, p.id, '2120926A', 'REJECTION', 0.164, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'F364 16C' OR p.shrp_part_code = 'F364 16C' OR p.customer_part_no = 'F364 16C')
 LIMIT 1
@@ -4362,7 +4362,7 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '8120926A-REJ-110326', '2026-09-12'::DATE, 'A', m.id, p.id, '8120926A', 'PART', 0.003, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '8120926A-REJ-110326', '2026-09-12'::DATE, 'A', m.id, p.id, '8120926A', 'REJECTION', 0.003, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_code = 'F885 Y' OR p.customer_part_no = 'F885 Y')
 LIMIT 1
@@ -4416,13 +4416,13 @@ WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_co
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '8120926B-REJ-110947', '2026-09-12'::DATE, 'B', m.id, p.id, '8120926B', 'PART', 0.235, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '8120926B-REJ-110947', '2026-09-12'::DATE, 'B', m.id, p.id, '8120926B', 'REJECTION', 0.235, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_code = 'F885 Y' OR p.customer_part_no = 'F885 Y')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '8120926B-LUMP-110947', '2026-09-12'::DATE, 'B', m.id, p.id, '8120926B', 'PART', 0.097, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '8120926B-LUMP-110947', '2026-09-12'::DATE, 'B', m.id, p.id, '8120926B', 'LUMP', 0.097, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 01' AND (p.part_code = 'F885 Y' OR p.shrp_part_code = 'F885 Y' OR p.customer_part_no = 'F885 Y')
 LIMIT 1
@@ -4440,7 +4440,7 @@ WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMEAA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '46120926A-REJ-111500', '2026-09-12'::DATE, 'A', m.id, p.id, '46120926A', 'PART', 0.054, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '46120926A-REJ-111500', '2026-09-12'::DATE, 'A', m.id, p.id, '46120926A', 'REJECTION', 0.054, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 02' AND (p.part_code = 'UMEAA' OR p.shrp_part_code = 'UMEAA' OR p.customer_part_no = 'UMEAA')
 LIMIT 1
@@ -4488,7 +4488,7 @@ WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '21120926A-REJ-112612', '2026-09-12'::DATE, 'A', m.id, p.id, '21120926A', 'PART', 0.14, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '21120926A-REJ-112612', '2026-09-12'::DATE, 'A', m.id, p.id, '21120926A', 'REJECTION', 0.14, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 04' AND (p.part_code = 'DH7AA' OR p.shrp_part_code = 'DH7AA' OR p.customer_part_no = 'DH7AA')
 LIMIT 1
@@ -4530,13 +4530,13 @@ WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'HA715 - W501' OR p.shrp_p
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '14120926A-REJ-112741', '2026-09-12'::DATE, 'A', m.id, p.id, '14120926A', 'PART', 0.022, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '14120926A-REJ-112741', '2026-09-12'::DATE, 'A', m.id, p.id, '14120926A', 'REJECTION', 0.022, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'HA715 - W501' OR p.shrp_part_code = 'HA715 - W501' OR p.customer_part_no = 'HA715 - W501')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT '14120926A-LUMP-112741', '2026-09-12'::DATE, 'A', m.id, p.id, '14120926A', 'PART', 0.043, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT '14120926A-LUMP-112741', '2026-09-12'::DATE, 'A', m.id, p.id, '14120926A', 'LUMP', 0.043, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'HSIM - 05' AND (p.part_code = 'HA715 - W501' OR p.shrp_part_code = 'HA715 - W501' OR p.customer_part_no = 'HA715 - W501')
 LIMIT 1
@@ -4566,7 +4566,7 @@ WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code =
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'B9120926A-REJ-112859', '2026-09-12'::DATE, 'A', m.id, p.id, 'B9120926A', 'PART', 0.136, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT 'B9120926A-REJ-112859', '2026-09-12'::DATE, 'A', m.id, p.id, 'B9120926A', 'REJECTION', 0.136, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VIM - 02' AND (p.part_code = '9AB' OR p.shrp_part_code = '9AB' OR p.customer_part_no = '9AB')
 LIMIT 1
@@ -4584,13 +4584,13 @@ WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-LC' OR p.shrp_part_cod
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W15120926A-REJ-113216', '2026-09-12'::DATE, 'A', m.id, p.id, 'W15120926A', 'PART', 0.031, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT 'W15120926A-REJ-113216', '2026-09-12'::DATE, 'A', m.id, p.id, 'W15120926A', 'REJECTION', 0.031, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-LC' OR p.shrp_part_code = 'NA-LC' OR p.customer_part_no = 'NA-LC')
 LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;
 INSERT INTO bags (bag_code, entry_date, shift, machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, status, weighed_with_runner, created_at)
-SELECT 'W15120926A-LUMP-113216', '2026-09-12'::DATE, 'A', m.id, p.id, 'W15120926A', 'PART', 0.025, 0, 'N/A', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
+SELECT 'W15120926A-LUMP-113216', '2026-09-12'::DATE, 'A', m.id, p.id, 'W15120926A', 'LUMP', 0.025, 0, 'SCRAPPED', FALSE, '2026-09-12 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = 'VSIM - 01' AND (p.part_code = 'NA-LC' OR p.shrp_part_code = 'NA-LC' OR p.customer_part_no = 'NA-LC')
 LIMIT 1
