@@ -122,15 +122,27 @@ CREATE TABLE IF NOT EXISTS bags (
   bag_type TEXT NOT NULL DEFAULT 'PART' CHECK (bag_type IN ('PART', 'RUNNER')),
   base_weight_kg NUMERIC NOT NULL,
   qty INTEGER NOT NULL,
-  operator_user_id INTEGER NOT NULL REFERENCES users(id),
-  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'HOLD', 'SCRAPPED')),
+  operator_user_id INTEGER REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  weighed_with_runner BOOLEAN DEFAULT FALSE,
   remarks TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- In case bags table was already created with older check constraint
+-- In case bags table was already created in earlier versions, ensure all columns and constraints exist
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS weighed_with_runner BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS is_over_tolerance BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approved_by INTEGER REFERENCES users(id);
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approved_at TIMESTAMPTZ;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS tolerance_approval_remarks TEXT;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS is_fifo_override BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_by INTEGER REFERENCES users(id);
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_at TIMESTAMPTZ;
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_reason TEXT;
+ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
+
 ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
-ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'HOLD', 'SCRAPPED'));
+ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'DISPATCHED', 'HOLD', 'SCRAPPED', 'REWORK_DONE'));
 
 ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_bag_type_check;
 ALTER TABLE bags ADD CONSTRAINT bags_bag_type_check CHECK (bag_type IN ('PART', 'RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP'));
@@ -540,7 +552,7 @@ WHERE shrp_part_code IS NULL OR length(shrp_part_code) > 8;
 DO $$
 BEGIN
   ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
-  ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'TRIMMED', 'INSPECTED', 'PACKED', 'DISPATCHED'));
+  ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'DISPATCHED', 'HOLD', 'SCRAPPED', 'REWORK_DONE'));
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 

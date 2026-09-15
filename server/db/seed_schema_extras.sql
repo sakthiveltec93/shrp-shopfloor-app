@@ -38,3 +38,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_user_date ON attendance(user_id, attendance_date);
+
+-- Ensure bags table has weighed_with_runner and nullable operator_user_id for incremental seed imports
+ALTER TABLE bags ADD COLUMN IF NOT EXISTS weighed_with_runner BOOLEAN DEFAULT FALSE;
+ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
