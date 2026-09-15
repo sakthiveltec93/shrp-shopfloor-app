@@ -236,20 +236,39 @@ export default function TodayLog() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
-        <div className="field" style={{ flex: 2, margin: 0 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: activeTab === 'bags' ? 'repeat(auto-fit, minmax(130px, 1fr))' : '1fr',
+        gap: 8,
+        alignItems: 'flex-end',
+        marginBottom: 14
+      }}>
+        <div className="field" style={{ margin: 0 }}>
           <label htmlFor="date">Date</label>
           <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         {activeTab === 'bags' && (
-          <div className="field" style={{ flex: 1, margin: 0 }}>
-            <label htmlFor="shift_sel">Shift</label>
-            <select id="shift_sel" value={shiftFilter} onChange={(e) => setShiftFilter(e.target.value)}>
-              <option value="ALL">All Shifts</option>
-              <option value="A">Shift A</option>
-              <option value="B">Shift B</option>
-            </select>
-          </div>
+          <>
+            <div className="field" style={{ margin: 0 }}>
+              <label htmlFor="shift_sel">Shift</label>
+              <select id="shift_sel" value={shiftFilter} onChange={(e) => setShiftFilter(e.target.value)}>
+                <option value="ALL">All Shifts</option>
+                <option value="A">Shift A</option>
+                <option value="B">Shift B</option>
+              </select>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label htmlFor="stage_sel">Stage Filter</label>
+              <select id="stage_sel" value={bagStageFilter} onChange={(e) => setBagStageFilter(e.target.value)}>
+                <option value="ALL">📦 All Bags ({bagLogs.length})</option>
+                <option value="OPEN">🔵 Bagged (Open)</option>
+                <option value="TRIMMING">🟡 Trimming</option>
+                <option value="INSPECTION">🟠 Inspection</option>
+                <option value="PACKING">🟢 Packed</option>
+                <option value="HOLD">🛑 On HOLD</option>
+              </select>
+            </div>
+          </>
         )}
       </div>
 
@@ -449,57 +468,28 @@ export default function TodayLog() {
       {/* TAB 2: BAG & STAGE HISTORY LOG */}
       {activeTab === 'bags' && (
         <div>
-          {/* Action Bar: Search, Stage Filter, and Download CSV */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          {/* Action Bar: Search input and Download CSV */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
             <input
               type="text"
-              placeholder="Search bag code, batch, part..."
+              placeholder="🔍 Search bag code, batch, part, customer no..."
               value={bagSearch}
               onChange={(e) => setBagSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 180 }}
+              style={{ flex: 1, minWidth: 160 }}
             />
             <button
               type="button"
               className="btn btn-secondary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', width: 'auto', padding: '8px 14px' }}
               onClick={downloadCsv}
               disabled={filteredBags.length === 0}
             >
-              📥 Download Log (CSV)
+              📥 CSV
             </button>
           </div>
 
-          {/* Stage Filter Chips */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-            {[
-              { id: 'ALL', label: 'All Bags' },
-              { id: 'OPEN', label: 'Bagged (Open)' },
-              { id: 'TRIMMING', label: 'Trimming' },
-              { id: 'INSPECTION', label: 'Inspection' },
-              { id: 'PACKING', label: 'Packed' },
-              { id: 'HOLD', label: '🛑 On HOLD' },
-            ].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className="btn"
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 12,
-                  borderRadius: 16,
-                  background: bagStageFilter === f.id ? 'var(--amber)' : 'rgba(255,255,255,0.08)',
-                  color: bagStageFilter === f.id ? '#000' : 'var(--text)',
-                  border: 'none',
-                }}
-                onClick={() => setBagStageFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
           {/* Bag Counts Summary Banner */}
-          <div className="readout" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, padding: '10px 14px', marginBottom: 16 }}>
+          <div className="readout" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: '8px 14px', marginBottom: 14, alignItems: 'center' }}>
             <div>Total Bags: <strong>{filteredBags.length}</strong></div>
             <div>Total Weight: <strong>{filteredBags.reduce((sum, b) => sum + Number(b.base_weight_kg || 0), 0).toFixed(3)} kg</strong></div>
             <div>Total Qty: <strong>{filteredBags.reduce((sum, b) => sum + Number(b.qty || 0), 0)} Nos</strong></div>
