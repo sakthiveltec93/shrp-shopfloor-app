@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SHRP MES - Operator Training Video & Interactive Simulator</title>
+  <style>
+    :root {
+      --primary: #1e40af;
+      --accent: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo-badge { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; font-weight: 800; font-size: 1.2rem; padding: 6px 14px; border-radius: 8px; letter-spacing: 1px; }
+    .lang-switcher { display: flex; gap: 8px; background: #0f172a; padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+    .lang-btn { background: transparent; border: none; color: var(--text-muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+    .lang-btn.active { background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4); }
+    .main-container { display: flex; flex: 1; max-width: 1500px; width: 100%; margin: 0 auto; padding: 20px; gap: 24px; }
+    @media (max-width: 1024px) { .main-container { flex-direction: column; } }
+    .simulator-pane { flex: 1.3; display: flex; flex-direction: column; gap: 16px; }
+    .video-viewport { background: #020617; border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; position: relative; overflow: hidden; min-height: 560px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .phone-frame { width: 340px; height: 500px; background: #1e293b; border: 6px solid #334155; border-radius: 36px; position: relative; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+    .phone-screen { flex: 1; background: #0f172a; overflow-y: auto; padding: 24px 14px 14px 14px; display: flex; flex-direction: column; font-size: 0.85rem; position: relative; }
+    .tap-indicator { position: absolute; width: 32px; height: 32px; border-radius: 50%; background: rgba(59, 130, 246, 0.6); border: 2px solid #60a5fa; pointer-events: none; transform: translate(-50%, -50%) scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; box-shadow: 0 0 15px #3b82f6; }
+    .tap-indicator.pulse { animation: tapPulse 1.2s infinite; }
+    @keyframes tapPulse { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.7; } 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; } }
+    .video-controls { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .progress-container { display: flex; align-items: center; gap: 12px; }
+    .progress-bar { flex: 1; height: 8px; background: #334155; border-radius: 4px; position: relative; cursor: pointer; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); width: 0%; transition: width 0.2s linear; }
+    .control-buttons { display: flex; justify-content: space-between; align-items: center; }
+    .btn { background: #334155; border: 1px solid var(--border); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn:hover { background: #475569; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); }
+    .btn-primary:hover { background: #2563eb; }
+    .subtitles-box { background: rgba(15, 23, 42, 0.95); border: 1px solid #3b82f6; border-radius: 12px; padding: 16px 20px; min-height: 105px; display: flex; flex-direction: column; justify-content: center; }
+    .subtitle-native { font-size: 1.15rem; font-weight: 700; color: #60a5fa; margin-bottom: 6px; line-height: 1.4; }
+    .subtitle-secondary { font-size: 0.9rem; color: #cbd5e1; line-height: 1.3; }
+    .content-pane { flex: 1.1; display: flex; flex-direction: column; gap: 16px; }
+    .section-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .scene-list { display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+    .scene-item { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.2s; display: flex; gap: 12px; align-items: flex-start; }
+    .scene-item:hover { border-color: var(--accent); transform: translateX(3px); }
+    .scene-item.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.12); box-shadow: 0 0 0 1px #3b82f6; }
+    .scene-number { background: #1e293b; color: #60a5fa; font-weight: 800; font-size: 0.8rem; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; }
+    .scene-item.active .scene-number { background: #3b82f6; color: #fff; }
+    .scene-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-top: 6px; }
+    .badge-prod { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+    .badge-qc { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid #10b981; }
+    .mock-header { background: #1e3a8a; padding: 10px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.8rem; }
+    .mock-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .mock-card.highlight { border: 2px solid #3b82f6; background: #172554; }
+    .mock-input { width: 100%; background: #0f172a; border: 1px solid #475569; color: #fff; padding: 8px 10px; border-radius: 6px; margin-top: 4px; font-size: 0.85rem; font-weight: 600; }
+    .mock-btn { width: 100%; background: #2563eb; color: white; border: none; padding: 9px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; margin-top: 8px; cursor: pointer; text-align: center; }
+    .mock-btn-danger { background: #dc2626; }
+    .mock-btn-amber { background: #d97706; }
+    .mock-btn-success { background: #16a34a; }
+    .status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; }
+    .pill-green { background: #065f46; color: #a7f3d0; }
+    .pill-amber { background: #78350f; color: #fde68a; }
+    .pill-red { background: #7f1d1d; color: #fecaca; }
+    .action-overlay { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(15, 23, 42, 0.9); border: 1px solid #60a5fa; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo-badge">SHRP</div>
+      <div>
+        <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">SHRP MES Operator Video Guide (தமிழ் / ଓଡ଼ିଆ)</div>
+        <div style="font-size: 0.75rem; color: #94a3b8;">Production Entry · Machine ON/OFF · Operator Changeover · Inspection · Final Stages</div>
+      </div>
+    </div>
+    <div class="lang-switcher">
+      <button class="lang-btn active" id="btn-ta" onclick="setLanguage('ta')">🇮🇳 தமிழ்</button>
+      <button class="lang-btn" id="btn-or" onclick="setLanguage('or')">🇮🇳 ଓଡ଼ିଆ</button>
+      <button class="lang-btn" id="btn-en" onclick="setLanguage('en')">🇬🇧 English</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="simulator-pane">
+      <div class="video-viewport">
+        <div class="phone-frame">
+          <div style="width: 120px; height: 16px; background: #334155; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 30;"></div>
+          <div class="phone-screen" id="app-screen"></div>
+          <div class="tap-indicator pulse" id="tap-pointer" style="top: 50%; left: 50%;"></div>
+        </div>
+        <div class="action-overlay" id="action-tip">
+          <span style="font-size: 1.2rem;">👉</span>
+          <span id="action-tip-text">Loading operator guide...</span>
+        </div>
+      </div>
+
+      <div class="subtitles-box">
+        <div class="subtitle-native" id="sub-native">வணக்கம்! SHRP ஆப் பயிற்சிக்கு வரவேற்கிறோம்.</div>
+        <div class="subtitle-secondary" id="sub-secondary">Welcome to SHRP MES Operator Training Guide.</div>
+      </div>
+
+      <div class="video-controls">
+        <div class="progress-container">
+          <span id="curr-time" style="font-size: 0.8rem; color: var(--text-muted);">0:00</span>
+          <div class="progress-bar" onclick="seekVideo(event)">
+            <div class="progress-fill" id="progress-bar-fill"></div>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">04:30</span>
+        </div>
+        <div class="control-buttons">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" onclick="prevScene()">⏮ Prev</button>
+            <button class="btn btn-primary" id="play-btn" onclick="togglePlay()">▶ Play Video / வீடியோ</button>
+            <button class="btn" onclick="nextScene()">Next ⏭</button>
+            <button class="btn" onclick="speakCurrentScene()">🔊 Read Aloud / ஒலி</button>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Speed:</span>
+            <button class="btn" id="speed-btn" onclick="toggleSpeed()" style="padding: 4px 8px;">1.0x</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-pane">
+      <div class="section-card">
+        <div style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; justify-content: space-between;">
+          <span>🎬 Training Scenes & Chapters</span>
+          <span style="font-size: 0.8rem; color: #94a3b8; font-weight: normal;">Part 1 & 2 Complete</span>
+        </div>
+        <div class="scene-list" id="scene-list-container"></div>
+      </div>
+
+      <div class="section-card" style="background: #172554; border-color: #1e40af;">
+        <div style="font-weight: 700; color: #93c5fd; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>💡</span> <span>Operator SOP Golden Rules / முக்கிய விதிகள்</span>
+        </div>
+        <ul style="font-size: 0.82rem; color: #bfdbfe; line-height: 1.6; padding-left: 18px;">
+          <li><b>Pre-start Check</b>: மெஷின் தொடங்கும் முன் Pre-start Check Sheet கட்டாயம் முடிக்கவும்.</li>
+          <li><b>Hourly Count</b>: ஒவ்வொரு மணி நேர முடிவிலும் கவுன்ட் மற்றும் ரீஜெக்ஷன் பதிவு செய்யவும்.</li>
+          <li><b>Handover</b>: ஷிப்ட் மாறும்போது 'Change Operator' மூலம் ஒப்படைக்கவும்.</li>
+          <li><b>FIFO Inspection</b>: ட்ரிம்மிங் மற்றும் இன்ஸ்பெக்ஷனில் எப்போதும் முதல் வந்த பேக்கை (FIFO) மட்டுமே எடுக்கவும்.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentLang = 'ta';
+    let currentSceneIndex = 0;
+    let isPlaying = false;
+    let timer = null;
+    let playbackSpeed = 1.0;
+    let synth = window.speechSynthesis;
+
+    const scenes = [
+      {
+        id: 1,
+        part: 1,
+        badge: "PART 1: PRODUCTION",
+        badgeType: "badge-prod",
+        title: {
+          ta: "1. லாகின் & அட்டெண்டன்ஸ் பதிவு",
+          or: "୧. ଲଗଇନ୍ ଏବଂ ଉପସ୍ଥିତି ଏଣ୍ଟ୍ରି",
+          en: "1. Operator Login & Attendance"
+        },
+        desc: {
+          ta: "யூசர்நேம் மற்றும் 4 இலக்க PIN உள்ளிட்டு உள்ளே வரவும்.",
+          or: "ୟୁଜରନେମ୍ ଏବଂ ୪-ଅଙ୍କ ବିଶିଷ୍ଟ PIN ଦେଇ ଲଗଇନ୍ କରନ୍ତୁ।",
+          en: "Enter Operator Username and 4-digit PIN to sign in."
+        },
+        speech: {
+          ta: "வணக்கம் ஆபரேட்டர் தோழர்களே. முதலில் உங்கள் யூசர்நேம் மற்றும் நான்கு இலக்க பின் நம்பரை கொடுத்து லாகின் செய்யவும். பின் வருகைப்பதிவு உள்ளிட்டு ஷிப்ட் தொடங்குங்கள்.",
+          or: "ନମସ୍କାର ଅପରେଟର ଭାଇମାନେ। ପ୍ରଥମେ ଆପଣଙ୍କ ୟୁଜରନେମ୍ ଏବଂ ଚାରି ଅଙ୍କ ବିଶିଷ୍ଟ ପିନ୍ ନମ୍ବର ଦେଇ ଲଗଇନ୍ କରନ୍ତୁ। ତାପରେ ଆଟେଣ୍ଡାନ୍ସ ଚେକ୍-ଇନ୍ କରନ୍ତୁ।",
+          en: "Welcome operators. First, sign in with your Username and 4-digit PIN. Verify your shift and mark check-in."
+        },
+        actionTip: {
+          ta: "யூசர்நேம் & PIN கொடுத்த பின் 'உள்நுழை' பட்டனை அழுத்தவும்",
+          or: "ୟୁଜରନେମ୍ ଏବଂ PIN ଦେବା ପରେ 'ଲଗଇନ୍' ବଟନ୍ ଦବାନ୍ତୁ",
+          en: "Enter credentials and tap 'Sign In'"
+        },
+        pointerPos: { top: "68%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header">
+            <span>SHRP MES 🏭</span>
+            <span class="status-pill pill-green">Online 🟢</span>
+          </div>
+          <div style="text-align: center; margin: 15px 0;">
+            <div style="font-weight: 800; font-size: 1.1rem; color: #60a5fa;">SHRP MOULDING</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Operator Shift Terminal</div>
+          </div>
+          <div class="mock-card highlight">
+            <label style="font-size: 0.75rem; color: #94a3b8;">Operator Username / யூசர்நேம்</label>
+            <input class="mock-input" value="OP_SAKTHI_01" readonly />
+            <label style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px; display: block;">PIN / ரகசிய குறியீடு</label>
+            <input class="mock-input" type="password" value="••••" readonly />
+            <button class="mock-btn" style="margin-top: 15px;">🔐 Sign In / உள்நுழை / ଲଗଇନ୍</button>
+          </div>
+        `
+      },
+      {
+        id: 2,
+        part: 1,
+        badge: "PART 1: PRODUCTION",
+        badgeType: "badge-prod",
+        title: {
+          ta: "2. மெஷின் தேர்வு & ஸ்டார்ட் (Machine ON)",
+          or: "୨. ମେସିନ୍ ଚୟନ ଏବଂ ଅନ୍ (Machine ON)",
+          en: "2. Select Machine & Machine ON"
+        },
+        desc: {
+          ta: "மெஷினைத் தேர்வு செய்து, ஆரம்ப கவுன்ட்டர் ரீடிங் கொடுத்து தொடங்குங்கள்.",
+          or: "ମେସିନ୍ ଚୟନ କରି ପ୍ରାରମ୍ଭିକ କାଉଣ୍ଟର୍ ରିଡିଂ ଦେଇ ଆରମ୍ଭ କରନ୍ତୁ।",
+          en: "Select assigned machine, complete pre-check sheet, enter start count."
+        },
+        speech: {
+          ta: "இரண்டாவது படி, உங்கள் மெஷினை தேர்வு செய்யவும். ஒதுக்கப்பட்ட பார்ட் சரியாக உள்ளதா என சரிபார்த்து, ஆரம்ப கவுன்ட்டர் ரீடிங்கை உள்ளிட்டு மெஷின் ஸ்டார்ட் பட்டனை அழுத்தவும்.",
+          or: "ଦ୍ୱିତୀୟ ସୋପାନ, ଆପଣଙ୍କ ମେସିନ୍ ଚୟନ କରନ୍ତୁ। ପାର୍ଟ ଠିକ୍ ଅଛି କି ନାହିଁ ଦେଖନ୍ତୁ। ଆରମ୍ଭ କାଉଣ୍ଟର ରିଡିଂ ଦେଇ ମେସିନ୍ ଷ୍ଟାର୍ଟ କରନ୍ତୁ।",
+          en: "Step two: Select your assigned machine. Confirm the approved mould/part, check pre-start parameters, enter Start Count and click Start Session."
+        },
+        actionTip: {
+          ta: "மெஷின் நம்பர் & ஆரம்ப ரீடிங் உள்ளிட்டு 'Start Session' அழுத்தவும்",
+          or: "ମେସିନ୍ ଏବଂ ଆରମ୍ଭ କାଉଣ୍ଟର୍ ଦେଇ 'Start Session' କ୍ଲିକ୍ କରନ୍ତୁ",
+          en: "Enter Start Counter reading and tap 'Start Session'"
+        },
+        pointerPos: { top: "72%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header">
+            <span>⚙️ Production Entry</span>
+            <span class="status-pill pill-amber">Idle / தயார்</span>
+          </div>
+          <div class="mock-card">
+            <div style="font-size: 0.75rem; color: #94a3b8;">Select Machine / மெஷின்</div>
+            <div style="font-weight: 700; color: #60a5fa; font-size: 0.95rem;">M-04 (LWB 250T Rubber Press)</div>
+            <div style="font-size: 0.75rem; color: #34d399; margin-top: 4px;">Part: DM1C4UBHIB01 (Grommet)</div>
+          </div>
+          <div class="mock-card highlight">
+            <label style="font-size: 0.75rem; color: #94a3b8;">Initial Counter Reading / ஆரம்ப கவுன்ட்</label>
+            <input class="mock-input" value="10450" readonly style="font-size: 1.1rem; color: #38bdf8;" />
+            <div style="display: flex; gap: 4px; margin-top: 6px; font-size: 0.7rem; color: #94a3b8;">
+              <span>✅ 5S Checked</span> · <span>✅ Temp OK</span> · <span>✅ Safety OK</span>
+            </div>
+            <button class="mock-btn mock-btn-success" style="margin-top: 10px;">🟢 START SESSION / மெஷின் தொடங்கு</button>
+          </div>
+        `
+      },
+      {
+        id: 3,
+        part: 1,
+        badge: "PART 1: PRODUCTION",
+        badgeType: "badge-prod",
+        title: {
+          ta: "3. மணிநேர புரொடக்ஷன் & ரீஜெக்ஷன் பதிவு",
+          or: "୩. ପ୍ରତି ଘଣ୍ଟାର ଉତ୍ପାଦନ ଏବଂ ରିଜେକ୍ସନ୍ ଏଣ୍ଟ୍ରି",
+          en: "3. Hourly Production & Rejection Entry"
+        },
+        desc: {
+          ta: "ஒவ்வொரு மணி நேர இறுதியிலும் எண்ட் கவுன்ட், ரீஜெக்ஷன், டவுன்டைம் பதிவு செய்யவும்.",
+          or: "ପ୍ରତି ଘଣ୍ଟା ଶେଷରେ ଏଣ୍ଡ୍ କାଉଣ୍ଟ୍, ରିଜେକ୍ଟ କାରଣ ଏବଂ ଡାଉନଟାଇମ୍ ଏଣ୍ଟ୍ରି କରନ୍ତୁ।",
+          en: "Log End Counter reading every hour with rejection reasons and downtime."
+        },
+        speech: {
+          ta: "மூன்றாவது படி மிக முக்கியமானது. ஒவ்வொரு மணி நேர முடிவிலும் மெஷின் எண்ட் கவுன்ட் ரீடிங்கை உள்ளிடுங்கள். ரீஜெக்ஷன் இருந்தால் காரணம் மற்றும் எண்ணிக்கையை சேர்த்து சேமிக்கவும்.",
+          or: "ତୃତୀୟ ସୋପାନ ଅତ୍ୟନ୍ତ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ। ପ୍ରତି ଘଣ୍ଟା ଶେଷରେ ଶେଷ କାଉଣ୍ଟର୍ ରିଡିଂ ଦିଅନ୍ତୁ। ଯଦି କୌଣସି ରିଜେକ୍ଟ ଥାଏ, ତେବେ ତାର କାରଣ ଏବଂ ପରିମାଣ ଦେଇ ସେଭ୍ କରନ୍ତୁ।",
+          en: "Step 3: Hourly entry. Enter the End Count reading. Log any rejections with exact reason (flash, short mould, etc.) and downtime minutes if target is missed."
+        },
+        actionTip: {
+          ta: "எண்ட் கவுன்ட் & ரீஜெக்ஷன் சேர்த்த பின் 'Save Reading' அழுத்தவும்",
+          or: "ଏଣ୍ଡ୍ କାଉଣ୍ଟର୍ ଏବଂ ରିଜେକ୍ସନ୍ ଦେଇ 'Save Reading' କ୍ଲିକ୍ କରନ୍ତୁ",
+          en: "Verify calculated gross/net and tap 'Save Reading'"
+        },
+        pointerPos: { top: "82%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header">
+            <span>⚡ M-04 · RUNNING</span>
+            <span class="status-pill pill-green">Shift A</span>
+          </div>
+          <div class="mock-card">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+              <span>Start: <b>10450</b></span>
+              <span>Target/Hr: <b style="color: #60a5fa;">50 Shots</b></span>
+            </div>
+          </div>
+          <div class="mock-card highlight">
+            <label style="font-size: 0.75rem; color: #94a3b8;">End Counter Reading / எண்ட் கவுன்ட்</label>
+            <input class="mock-input" value="10502" readonly style="font-size: 1.1rem; color: #4ade80;" />
+            
+            <div style="background: #0f172a; padding: 6px; border-radius: 4px; margin-top: 6px; font-size: 0.75rem;">
+              <div style="color: #f87171; font-weight: 600;">Rejection: 2 pcs (Short Mould)</div>
+              <div style="color: #38bdf8;">Gross: 52 · Net OK: 50 pcs</div>
+            </div>
+
+            <button class="mock-btn" style="margin-top: 8px;">💾 SAVE READING / ரீடிங்கை சேமி</button>
+          </div>
+        `
+      },
+      {
+        id: 4,
+        part: 1,
+        badge: "PART 1: PRODUCTION",
+        badgeType: "badge-prod",
+        title: {
+          ta: "4. ஆபரேட்டர் மாற்றம் (Operator Changeover)",
+          or: "୪. ଅପରେଟର ପରିବର୍ତ୍ତନ (Operator Handover)",
+          en: "4. Shift Handover / Operator Changeover"
+        },
+        desc: {
+          ta: "ஷிப்ட் மாறும் போது அடுத்த ஆபரேட்டரிடம் மெஷினை ஒப்படைக்கவும்.",
+          or: "ଶିଫ୍ଟ ପରିବର୍ତ୍ତନ ସମୟରେ ପରବର୍ତ୍ତୀ ଅପରେଟରଙ୍କୁ ମେସିନ୍ ହସ୍ତାନ୍ତର କରନ୍ତୁ।",
+          en: "Seamlessly handover running machine to the incoming shift operator."
+        },
+        speech: {
+          ta: "ஷிப்ட் மாறும் போது அல்லது உணவு இடைவேளையின் போது 'சேஞ்ச் ஆபரேட்டர்' கிளிக் செய்து, உங்கள் இறுதி ரீடிங்கை பதிவு செய்து அடுத்த ஆபரேட்டர் பெயரை தேர்வு செய்து ஒப்படைக்கவும்.",
+          or: "ଶିଫ୍ଟ ବଦଳିବା ବେଳେ 'Change Operator' କ୍ଲିକ୍ କରନ୍ତୁ। ଆପଣଙ୍କ ଶେଷ ରିଡିଂ ଦିଅନ୍ତୁ ଏବଂ ପରବର୍ତ୍ତୀ ଅପରେଟରଙ୍କୁ ଚୟନ କରି ଦାୟିତ୍ୱ ହସ୍ତାନ୍ତର କରନ୍ତୁ।",
+          en: "When changing shifts or taking relief, click Change Operator. Enter your current counter and assign to the incoming operator without resetting setup."
+        },
+        actionTip: {
+          ta: "'Change Operator' அழுத்தி புதிய ஆபரேட்டரை தேர்வு செய்யவும்",
+          or: "'Change Operator' ଦବାଇ ନୂଆ ଅପରେଟର ଚୟନ କରନ୍ତୁ",
+          en: "Select Incoming Operator and confirm handover"
+        },
+        pointerPos: { top: "78%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header">
+            <span>🔄 Handover / ஆபரேட்டர் மாற்றம்</span>
+            <span class="status-pill pill-amber">Shift Change</span>
+          </div>
+          <div class="mock-card highlight">
+            <div style="font-weight: 700; color: #fbbf24; font-size: 0.85rem; margin-bottom: 6px;">
+              🔄 Operator Changeover Handover
+            </div>
+            <label style="font-size: 0.72rem; color: #94a3b8;">Handover Counter Reading</label>
+            <input class="mock-input" value="10850" readonly />
+            
+            <label style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px; display: block;">Next Operator / புதிய ஆபரேட்டர்</label>
+            <div class="mock-input" style="color: #60a5fa;">OP_RAMESH_02 (Shift B)</div>
+
+            <button class="mock-btn mock-btn-amber" style="margin-top: 10px;">🤝 HANDOVER SESSION / ஒப்படை</button>
+          </div>
+        `
+      },
+      {
+        id: 5,
+        part: 1,
+        badge: "PART 1: PRODUCTION",
+        badgeType: "badge-prod",
+        title: {
+          ta: "5. மெஷின் நிறுத்தம் & ஷிப்ட் முடிவு (Machine OFF)",
+          or: "୫. ମେସିନ୍ ବନ୍ଦ ଏବଂ ଶିଫ୍ଟ ସମାପ୍ତ (Machine OFF)",
+          en: "5. Machine OFF & Shift Close"
+        },
+        desc: {
+          ta: "ஷிப்ட் முடியும் போது சரியான காரணம் குறிப்பிட்டு மெஷினை ஆஃப் செய்யவும்.",
+          or: "ଶିଫ୍ଟ ସରିବା ପରେ ସଠିକ୍ କାରଣ ଦର୍ଶାଇ ମେସିନ୍ ଅଫ୍ କରନ୍ତୁ।",
+          en: "Turn Machine OFF by specifying reason (Shift End / Maintenance / Mould Change)."
+        },
+        speech: {
+          ta: "ஷிப்ட் முடியும் போதோ அல்லது பிரேக்டவுன் ஏற்படும் போதோ 'மெஷின் ஆஃப்' பட்டனை அழுத்தி, காரணம் மற்றும் இறுதி கவுன்ட்டர் ரீடிங்கை கொடுத்து முடிவுக்கு கொண்டு வாருங்கள்.",
+          or: "ଶିଫ୍ଟ ଶେଷ ହେଲେ କିମ୍ବା ମେସିନ୍ ଖରାପ ହେଲେ 'Machine OFF' କ୍ଲିକ୍ କରନ୍ତୁ। କାରଣ ଏବଂ ଶେଷ କାଉଣ୍ଟର୍ ଦେଇ ସମାପ୍ତ କରନ୍ତୁ।",
+          en: "When shutting down for the day or breakdown, click Machine OFF. Select the exact reason like Shift Completed or Breakdown, enter final count and close."
+        },
+        actionTip: {
+          ta: "காரணம் (Shift Completed) தேர்வு செய்து 'End Session' அழுத்தவும்",
+          or: "କାରଣ ଚୟନ କରି 'End Session' କ୍ଲିକ୍ କରନ୍ତୁ",
+          en: "Select Reason (Shift End) and tap 'End Session'"
+        },
+        pointerPos: { top: "80%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header">
+            <span>🛑 Machine OFF / நிறுத்து</span>
+            <span class="status-pill pill-red">Shutdown</span>
+          </div>
+          <div class="mock-card highlight">
+            <label style="font-size: 0.72rem; color: #94a3b8;">OFF Reason / நிறுத்துவதற்கான காரணம்</label>
+            <div class="mock-input" style="color: #f87171;">🏁 Shift Completed / End of Day</div>
+            
+            <label style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px; display: block;">Final Machine Counter / இறுதி கவுன்ட்</label>
+            <input class="mock-input" value="10900" readonly />
+
+            <button class="mock-btn mock-btn-danger" style="margin-top: 10px;">🔴 TURN MACHINE OFF / மெஷின் நிறுத்து</button>
+          </div>
+        `
+      },
+      {
+        id: 6,
+        part: 2,
+        badge: "PART 2: QUALITY & FINAL",
+        badgeType: "badge-qc",
+        title: {
+          ta: "6. FIFO முறையில் பேக் தேர்வு & QR ஸ்கேன்",
+          or: "୬. FIFO ନିୟମରେ ବ୍ୟାଗ୍ ଚୟନ ଏବଂ QR ସ୍କାନ୍",
+          en: "6. Inspection: FIFO Bag Selection & Scan"
+        },
+        desc: {
+          ta: "ட்ரிம்மிங் & இன்ஸ்பெக்ஷனில் FIFO வரிசைப்படி வரும் பேக்கை ஸ்கேன் செய்யவும்.",
+          or: "ଟ୍ରିମିଂ ଏବଂ ଇନସପେକସନରେ FIFO ନିୟମ ଅନୁସାରେ ବ୍ୟାଗ୍ ସ୍କାନ୍ କରନ୍ତୁ।",
+          en: "Pick and scan bags in strict First-In First-Out (FIFO) queue order."
+        },
+        speech: {
+          ta: "இப்போது பகுதி இரண்டு: தரக்கட்டுப்பாடு மற்றும் ஃபினிஷிங். ட்ரிம்மிங் மற்றும் இன்ஸ்பெக்ஷனுக்கு பேக் எடுக்கும் போது எப்போதும் முதல் வந்த பேக்கை மட்டுமே எடுக்க வேண்டும். கேமரா மூலம் க்யூஆர் கோடை ஸ்கேன் செய்யுங்கள்.",
+          or: "ବର୍ତ୍ତମାନ ଦ୍ୱିତୀୟ ଭାଗ: ଗୁଣବତ୍ତା ଯାଞ୍ଚ। ଟ୍ରିମିଂ ଏବଂ ଇନସପେକସନ୍ ପାଇଁ ସର୍ବଦା ପ୍ରଥମେ ଆସିଥିବା ବ୍ୟାଗ୍ (FIFO) ବାଛନ୍ତୁ। କ୍ୟାମେରା ଦ୍ୱାରା QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ।",
+          en: "Part 2: Quality Inspection & Finishing. Always process bags in strict FIFO order. Scan the Bag QR barcode with the camera scanner."
+        },
+        actionTip: {
+          ta: "கேமராவை இயக்கி பேக்கின் QR குறியீட்டை ஸ்கேன் செய்யவும்",
+          or: "କ୍ୟାମେରା ଅନ୍ କରି ବ୍ୟାଗର QR କୋଡ୍ ସ୍କାନ୍ କରନ୍ତୁ",
+          en: "Scan Bag QR Code or select recommended FIFO Bag"
+        },
+        pointerPos: { top: "45%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header" style="background: #065f46;">
+            <span>🔍 Quality Inspection</span>
+            <span class="status-pill pill-green">FIFO Active</span>
+          </div>
+          <div class="mock-card highlight">
+            <div style="font-size: 0.75rem; color: #34d399; font-weight: 700;">✅ FIFO Recommended Next Bag</div>
+            <div style="font-weight: 800; font-size: 1.1rem; color: #fff; margin: 4px 0;">BAG-2627-0842</div>
+            <div style="font-size: 0.7rem; color: #94a3b8;">Part: DM1C4UBHIB01 · Batch: B26-104</div>
+            
+            <button class="mock-btn" style="background: #059669; margin-top: 10px;">📷 SCAN BAG QR / ஸ்கேன் செய்</button>
+          </div>
+        `
+      },
+      {
+        id: 7,
+        part: 2,
+        badge: "PART 2: QUALITY & FINAL",
+        badgeType: "badge-qc",
+        title: {
+          ta: "7. எடை சரிபார்ப்பு & ரீஜெக்ஷன் விவரம்",
+          or: "୭. ଓଜନ ଯାଞ୍ଚ ଏବଂ ରିଜେକ୍ସନ୍ ବିବରଣୀ",
+          en: "7. Weight Verification & Defect Logging"
+        },
+        desc: {
+          ta: "பேக் எடையை சரிபார்த்து, குறைபாடுள்ள பார்ட்களின் காரணம் மற்றும் எடையை பதிவிடவும்.",
+          or: "ବ୍ୟାଗ୍ ଓଜନ ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ ଖରାପ ପାର୍ଟର କାରଣ ସହିତ ଓଜନ ଏଣ୍ଟ୍ରି କରନ୍ତୁ।",
+          en: "Verify Inspected Weight vs Base Weight; enter defect reasons and piece count."
+        },
+        speech: {
+          ta: "ஏழாவது படி: இன்ஸ்பெக்ஷன் செய்யப்பட்ட எடையை சரிபாருங்கள். ஏதேனும் ஃப்ளாஷ், ஏர் டிராப், அல்லது பர்ன் மார்க் போன்ற குறைபாடுகள் இருந்தால் அதற்கான காரணம் மற்றும் எடையை உள்ளிட்டு உறுதிப்படுத்தவும்.",
+          or: "ସପ୍ତମ ସୋପାନ: ଯାଞ୍ଚ ହୋଇଥିବା ଓଜନ ଲେଖନ୍ତୁ। ଯଦି ଫ୍ଲାସ୍ କିମ୍ବା ଅନ୍ୟ କୌଣସି ତ୍ରୁଟି ଥାଏ, ତେବେ ତାର କାରଣ ଏବଂ ସଂଖ୍ୟା ଦେଇ ସେଭ୍ କରନ୍ତୁ।",
+          en: "Step 7: Record the verified inspected weight. If any defect is found (Flash, Burn mark, Short), add reject item and the app calculates equivalent pieces automatically."
+        },
+        actionTip: {
+          ta: "எடை மற்றும் ரீஜெக்ஷன் காரணம் கொடுத்து 'Save Inspection' அழுத்தவும்",
+          or: "ଓଜନ ଏବଂ ରିଜେକ୍ସନ୍ ଦେଇ 'Save Inspection' କ୍ଲିକ୍ କରନ୍ତୁ",
+          en: "Verify Inspected Wt (kg) and save reading"
+        },
+        pointerPos: { top: "82%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header" style="background: #065f46;">
+            <span>BAG-2627-0842</span>
+            <span class="status-pill pill-green">Base: 12.50 kg</span>
+          </div>
+          <div class="mock-card highlight">
+            <label style="font-size: 0.72rem; color: #94a3b8;">Inspected Weight / ஆய்வு எடை (kg)</label>
+            <input class="mock-input" value="12.48" readonly style="color: #34d399; font-size: 1rem;" />
+            
+            <div style="margin-top: 8px; border-top: 1px solid #334155; padding-top: 6px;">
+              <div style="font-size: 0.72rem; color: #f87171; font-weight: 600;">Defects / ரீஜெக்ஷன்:</div>
+              <div style="font-size: 0.7rem; color: #cbd5e1;">• Trimming Flash: 0.050 kg (4 pcs)</div>
+            </div>
+
+            <button class="mock-btn mock-btn-success" style="margin-top: 10px;">✅ APPROVE & COMPLETE BAG</button>
+          </div>
+        `
+      },
+      {
+        id: 8,
+        part: 2,
+        badge: "PART 2: QUALITY & FINAL",
+        badgeType: "badge-qc",
+        title: {
+          ta: "8. ஹோல்ட் (Quarantine) & மேற்பார்வையாளர் ஒப்புதல்",
+          or: "୮. ହୋଲ୍ଡ (Quarantine) ଏବଂ ସୁପରଭାଇଜର ରିଲିଜ୍",
+          en: "8. Quarantine (HOLD) & Supervisor Release"
+        },
+        desc: {
+          ta: "தரக்குறைபாடு உள்ள பேக்கை HOLD செய்து Supervisor PIN மூலம் சரிபார்க்கவும்.",
+          or: "ଗୁଣବତ୍ତା ଖରାପ ଥିବା ବ୍ୟାଗକୁ HOLD କରନ୍ତୁ ଏବଂ ସୁପରଭାଇଜର PIN ଦ୍ୱାରା ରିଲିଜ୍ କରନ୍ତୁ।",
+          en: "Quarantine suspect bags on HOLD. Only released with Supervisor PIN & remarks."
+        },
+        speech: {
+          ta: "எட்டாவது படி: எடையிலோ அல்லது தரத்திலோ சந்தேகம் இருந்தால் பேக்கை உடனடியாக ஹோல்ட் செய்யுங்கள். மேற்பார்வையாளர் வந்து பரிசோதித்து தனது ரகசிய பின் மூலம் மட்டுமே அதை விடுவிக்க முடியும்.",
+          or: "ଅଷ୍ଟମ ସୋପାନ: ଯଦି ବ୍ୟାଗ୍ ଗୁଣବତ୍ତାରେ ସନ୍ଦେହ ଥାଏ ତେବେ ତାକୁ HOLD କରନ୍ତୁ। ସୁପରଭାଇଜର ଆସି ଯାଞ୍ଚ କରି ତାଙ୍କ PIN ଦେଇ ହିଁ ତାକୁ ରିଲିଜ୍ କରିପାରିବେ।",
+          en: "Step 8: If quality is out of tolerance, put the bag on HOLD. The bag enters Quarantine stage and requires supervisor PIN verification to release or scrap."
+        },
+        actionTip: {
+          ta: "சந்தேகத்திற்குரிய பேக்கை 'HOLD' செய்து Supervisor-க்கு தெரிவிக்கவும்",
+          or: "ସନ୍ଦେହଜନକ ବ୍ୟାଗକୁ 'HOLD' କରି ସୁପରଭାଇଜରଙ୍କୁ ଜଣାନ୍ତୁ",
+          en: "Move suspect bags to HOLD and notify Quality Incharge"
+        },
+        pointerPos: { top: "75%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header" style="background: #991b1b;">
+            <span>⚠️ QUARANTINE / ஹோல்ட்</span>
+            <span class="status-pill pill-red">HOLD BAG</span>
+          </div>
+          <div class="mock-card highlight" style="border-color: #ef4444; background: #450a0a;">
+            <div style="color: #fca5a5; font-weight: 700; font-size: 0.8rem;">⚠️ Quality Tolerance Alert</div>
+            <div style="font-size: 0.72rem; color: #fecaca; margin-top: 4px;">Weight diff > 3% or Dimension deviation</div>
+            
+            <div style="background: #1e1e1e; padding: 6px; border-radius: 6px; margin-top: 8px;">
+              <label style="font-size: 0.7rem; color: #94a3b8;">Supervisor Release PIN / மேற்பார்வையாளர் PIN</label>
+              <input class="mock-input" type="password" value="••••" readonly />
+            </div>
+
+            <button class="mock-btn mock-btn-danger" style="margin-top: 8px;">🔓 SUPERVISOR RELEASE</button>
+          </div>
+        `
+      },
+      {
+        id: 9,
+        part: 2,
+        badge: "PART 2: QUALITY & FINAL",
+        badgeType: "badge-qc",
+        title: {
+          ta: "9. இறுதி நிலைகள்: பேக்கிங் & டிஸ்பாட்ச்",
+          or: "୯. ଅନ୍ତିମ ପର୍ଯ୍ୟାୟ: ପ୍ୟାକିଂ ଏବଂ ଡିସପାଚ୍",
+          en: "9. Final Stages: Packing & Dispatch"
+        },
+        desc: {
+          ta: "ஆய்வு முடிந்த பேக்கை பேக்கிங் செய்து வாடிக்கையாளர் லேபிள் ஒட்டி டிஸ்பாட்ச் செய்யவும்.",
+          or: "ଯାଞ୍ଚ ସରିଥିବା ବ୍ୟାଗକୁ ପ୍ୟାକିଂ କରି ଗ୍ରାହକ ଲେବଲ୍ ଲଗାଇ ଡିସପାଚ୍ କରନ୍ତୁ।",
+          en: "Generate customer shipping box labels, verify carton barcode, and complete dispatch."
+        },
+        speech: {
+          ta: "இறுதிப் படி: ஆய்வு செய்யப்பட்ட சரியான பேக்குகளை பேக்கிங் பகுதிக்கு கொண்டு சென்று லேபிள் ஒட்டுங்கள். பின் டிஸ்பாட்ச் பகுதியில் ஸ்கேன் செய்து வாடிக்கையாளருக்கு அனுப்பி வையுங்கள். நன்றி!",
+          or: "ଶେଷ ସୋପାନ: ଯାଞ୍ଚ ହୋଇଥିବା ବ୍ୟାଗକୁ ପ୍ୟାକିଂ ବିଭାଗକୁ ନେଇ ବକ୍ସ ଲେବଲ୍ ଲଗାନ୍ତୁ। ତାପରେ ଡିସପାଚ୍ ସ୍କାନ୍ କରି ଗ୍ରାହକଙ୍କୁ ପଠାନ୍ତୁ। ଧନ୍ୟବାଦ!",
+          en: "Final Stage: Send inspected bags to Packing. Print standard box barcode labels. Scan customer delivery batch in Dispatch and complete the order. Excellent work!"
+        },
+        actionTip: {
+          ta: "பேக்கிங் லேபிள் அச்சிட்டு டிஸ்பாட்ச் ஸ்கேன் செய்து முடிக்கவும்",
+          or: "ପ୍ୟାକିଂ ଲେବଲ୍ ପ୍ରିଣ୍ଟ କରି ଡିସପାଚ୍ ସ୍କାନ୍ ସମାପ୍ତ କରନ୍ତୁ",
+          en: "Generate Box Label and confirm Final Dispatch"
+        },
+        pointerPos: { top: "78%", left: "50%" },
+        renderMock: () => `
+          <div class="mock-header" style="background: #1e3a8a;">
+            <span>📦 Packing & Dispatch</span>
+            <span class="status-pill pill-green">Ready to Ship</span>
+          </div>
+          <div class="mock-card highlight">
+            <div style="font-weight: 700; color: #93c5fd; font-size: 0.85rem;">BOX-2627-0198</div>
+            <div style="font-size: 0.72rem; color: #cbd5e1;">Qty: 500 pcs (10 Bags packed)</div>
+            <div style="font-size: 0.72rem; color: #34d399; margin-top: 4px;">Customer: TATA MOTORS / HYUNDAI</div>
+
+            <div style="display: flex; gap: 6px; margin-top: 10px;">
+              <button class="mock-btn" style="background: #475569; font-size: 0.75rem;">🏷️ Print Label</button>
+              <button class="mock-btn mock-btn-success" style="font-size: 0.75rem;">🚚 DISPATCH</button>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + lang).classList.add('active');
+      renderSceneList();
+      renderCurrentScene();
+    }
+
+    function renderSceneList() {
+      const container = document.getElementById('scene-list-container');
+      container.innerHTML = '';
+      scenes.forEach((scene, index) => {
+        const item = document.createElement('div');
+        item.className = 'scene-item ' + (index === currentSceneIndex ? 'active' : '');
+        item.onclick = () => selectScene(index);
+        const titleText = scene.title[currentLang] || scene.title.en;
+        const descText = scene.desc[currentLang] || scene.desc.en;
+        item.innerHTML = '<div class="scene-number">' + (index + 1) + '</div><div style="flex:1;"><div style="font-weight:600; font-size:0.95rem;">' + titleText + '</div><div style="font-size:0.8rem; color:#94a3b8;">' + descText + '</div><span class="scene-badge ' + scene.badgeType + '">' + scene.badge + '</span></div>';
+        container.appendChild(item);
+      });
+    }
+
+    function renderCurrentScene() {
+      const scene = scenes[currentSceneIndex];
+      document.getElementById('app-screen').innerHTML = scene.renderMock();
+      document.getElementById('tap-pointer').style.top = scene.pointerPos.top;
+      document.getElementById('tap-pointer').style.left = scene.pointerPos.left;
+      document.getElementById('action-tip-text').innerText = scene.actionTip[currentLang] || scene.actionTip.en;
+
+      if (currentLang === 'ta') {
+        document.getElementById('sub-native').innerText = scene.speech.ta;
+        document.getElementById('sub-secondary').innerText = scene.speech.en;
+      } else if (currentLang === 'or') {
+        document.getElementById('sub-native').innerText = scene.speech.or;
+        document.getElementById('sub-secondary').innerText = scene.speech.en;
+      } else {
+        document.getElementById('sub-native').innerText = scene.speech.en;
+        document.getElementById('sub-secondary').innerText = scene.speech.ta;
+      }
+
+      const progress = ((currentSceneIndex + 1) / scenes.length) * 100;
+      document.getElementById('progress-bar-fill').style.width = progress + '%';
+      document.getElementById('curr-time').innerText = '0:' + String((currentSceneIndex + 1) * 30).padStart(2, '0');
+
+      document.querySelectorAll('.scene-item').forEach((item, idx) => {
+        if (idx === currentSceneIndex) {
+          item.classList.add('active');
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
+
+    function selectScene(index) {
+      currentSceneIndex = index;
+      renderCurrentScene();
+      if (isPlaying) speakCurrentScene();
+    }
+
+    function nextScene() {
+      if (currentSceneIndex < scenes.length - 1) {
+        currentSceneIndex++;
+        renderCurrentScene();
+        if (isPlaying) speakCurrentScene();
+      } else {
+        pauseVideo();
+      }
+    }
+
+    function prevScene() {
+      if (currentSceneIndex > 0) {
+        currentSceneIndex--;
+        renderCurrentScene();
+        if (isPlaying) speakCurrentScene();
+      }
+    }
+
+    function togglePlay() {
+      if (isPlaying) pauseVideo();
+      else playVideo();
+    }
+
+    function playVideo() {
+      isPlaying = true;
+      document.getElementById('play-btn').innerText = '⏸ Pause Video';
+      document.getElementById('play-btn').classList.replace('btn-primary', 'btn-amber');
+      speakCurrentScene();
+    }
+
+    function pauseVideo() {
+      isPlaying = false;
+      document.getElementById('play-btn').innerText = '▶ Play Video / வீடியோ';
+      document.getElementById('play-btn').classList.replace('btn-amber', 'btn-primary');
+      if (synth) synth.cancel();
+      if (timer) clearTimeout(timer);
+    }
+
+    function toggleSpeed() {
+      if (playbackSpeed === 1.0) playbackSpeed = 1.25;
+      else if (playbackSpeed === 1.25) playbackSpeed = 1.5;
+      else playbackSpeed = 1.0;
+      document.getElementById('speed-btn').innerText = playbackSpeed + 'x';
+    }
+
+    function speakCurrentScene() {
+      if (!('speechSynthesis' in window)) return;
+      synth.cancel();
+      const scene = scenes[currentSceneIndex];
+      let text = scene.speech[currentLang] || scene.speech.en;
+      let utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = playbackSpeed;
+      utterance.lang = currentLang === 'ta' ? 'ta-IN' : (currentLang === 'or' ? 'hi-IN' : 'en-IN');
+
+      utterance.onend = () => {
+        if (isPlaying) {
+          timer = setTimeout(() => { nextScene(); }, 1500 / playbackSpeed);
+        }
+      };
+      utterance.onerror = () => {
+        if (isPlaying) {
+          timer = setTimeout(() => { nextScene(); }, 4000 / playbackSpeed);
+        }
+      };
+      synth.speak(utterance);
+    }
+
+    function seekVideo(event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const pct = clickX / rect.width;
+      const targetIndex = Math.min(Math.floor(pct * scenes.length), scenes.length - 1);
+      selectScene(targetIndex);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSceneList();
+      renderCurrentScene();
+    });
+  </script>
+</body>
+</html>

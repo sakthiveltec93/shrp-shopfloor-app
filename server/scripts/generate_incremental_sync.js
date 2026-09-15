@@ -1,8 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const dir = path.join(__dirname, '../../scratch/logs_only');
-const outSql = path.join(__dirname, '../db/sync_new_logs_26_27.sql');
+const dir = 'C:/Users/KNALHOME/.gemini/antigravity/brain/4612286a-b1a3-45db-baed-121a81e46ad3/scratch/logs_only';
+const outSql = path.join(__dirname, '../db/seed_sync_new_logs_26_27.sql');
+
+function readJsonFile(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '').trim();
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error(`Error parsing ${filePath}:`, err.message);
+    return [];
+  }
+}
 
 function convertOADate(val) {
   const num = parseFloat(val);
@@ -32,8 +44,8 @@ const lines = [
 ];
 
 // 1. BAG_LOG
-if (fs.existsSync(path.join(dir, 'BAG_LOG.json'))) {
-  const bags = JSON.parse(fs.readFileSync(path.join(dir, 'BAG_LOG.json'), 'utf8'));
+const bags = readJsonFile(path.join(dir, 'BAG_LOG.json'));
+if (bags.length > 0) {
   lines.push(`-- 1. Bags Sync (${bags.length} total in sheet)`);
   for (const b of bags) {
     const code = escapeSql(b['Bag Barcode']);
@@ -42,11 +54,11 @@ if (fs.existsSync(path.join(dir, 'BAG_LOG.json'))) {
     const mCode = escapeSql(b['Machine']);
     const batch = escapeSql(b['Batch No']);
     const pCode = escapeSql(b['Part No']);
-    const type = b['Bag Type'] && b['Bag Type'].includes('RUNNER') ? 'RUNNER' : 'PART';
+    const type = b['Bag Type'] && String(b['Bag Type']).includes('RUNNER') ? 'RUNNER' : 'PART';
     const wt = parseFloat(b['Weight Kg']) || 0;
     const qty = parseInt(b['Approx Qty'], 10) || 0;
     const status = escapeSql(b['Status']) || 'OPEN';
-    const runner = b['With runner'] && b['With runner'].toLowerCase().includes('yes') ? 'TRUE' : 'FALSE';
+    const runner = b['With runner'] && String(b['With runner']).toLowerCase().includes('yes') ? 'TRUE' : 'FALSE';
     const shiftMatch = batch.match(/([AB])$/);
     const shift = shiftMatch ? shiftMatch[1] : 'A';
 
@@ -54,13 +66,14 @@ if (fs.existsSync(path.join(dir, 'BAG_LOG.json'))) {
 SELECT '${code}', '${date}'::DATE, '${shift}', m.id, p.id, '${batch}', '${type}', ${wt}, ${qty}, '${status}', ${runner}, '${date} 09:30:00'::TIMESTAMPTZ
 FROM machines m, parts p
 WHERE m.machine_code = '${mCode}' AND (p.part_code = '${pCode}' OR p.shrp_part_code = '${pCode}' OR p.customer_part_no = '${pCode}')
+LIMIT 1
 ON CONFLICT (bag_code) DO NOTHING;`);
   }
 }
 
 // 2. TRIM_LOG
-if (fs.existsSync(path.join(dir, 'TRIM_LOG.json'))) {
-  const trims = JSON.parse(fs.readFileSync(path.join(dir, 'TRIM_LOG.json'), 'utf8'));
+const trims = readJsonFile(path.join(dir, 'TRIM_LOG.json'));
+if (trims.length > 0) {
   lines.push(`\n-- 2. Trim Log Sync (${trims.length} total)`);
   for (const t of trims) {
     const code = escapeSql(t['Bag Barcode']);
@@ -80,8 +93,8 @@ AND NOT EXISTS (SELECT 1 FROM trim_entries te WHERE te.bag_id = b.id);`);
 }
 
 // 3. INSPECTION_LOG
-if (fs.existsSync(path.join(dir, 'INSPECTION_LOG.json'))) {
-  const ins = JSON.parse(fs.readFileSync(path.join(dir, 'INSPECTION_LOG.json'), 'utf8'));
+const ins = readJsonFile(path.join(dir, 'INSPECTION_LOG.json'));
+if (ins.length > 0) {
   lines.push(`\n-- 3. Inspection Log Sync (${ins.length} total)`);
   for (const i of ins) {
     const code = escapeSql(i['Bag Barcode']);
@@ -101,8 +114,8 @@ AND NOT EXISTS (SELECT 1 FROM inspection_entries ie WHERE ie.bag_id = b.id);`);
 }
 
 // 4. PACKING_LOG
-if (fs.existsSync(path.join(dir, 'PACKING_LOG.json'))) {
-  const packs = JSON.parse(fs.readFileSync(path.join(dir, 'PACKING_LOG.json'), 'utf8'));
+const packs = readJsonFile(path.join(dir, 'PACKING_LOG.json'));
+if (packs.length > 0) {
   lines.push(`\n-- 4. Packing Log Sync (${packs.length} total)`);
   for (const pk of packs) {
     const code = escapeSql(pk['Bag Barcode']);
@@ -117,6 +130,36 @@ SELECT b.id, COALESCE((SELECT id FROM users WHERE username ILIKE '${op}' OR full
 FROM bags b
 WHERE b.bag_code = '${code}'
 AND NOT EXISTS (SELECT 1 FROM packing_entries pe WHERE pe.bag_id = b.id);`);
+  }
+}
+
+// 5. PRODUCTION_LOG
+const prods = readJsonFile(path.join(dir, 'PRODUCTION_LOG.json'));
+if (prods.length > 0) {
+  lines.push(`\n-- 5. Production Entries Sync (${prods.length} total)`);
+  for (const p of prods) {
+    const date = convertOADate(p['Production Date']);
+    const shift = (p['Shift'] && ['A', 'B'].includes(p['Shift'].toUpperCase())) ? p['Shift'].toUpperCase() : 'A';
+    const mCode = escapeSql(p['Machine']);
+    const pCode = escapeSql(p['Part No']);
+    const op = escapeSql(p['Operator']);
+    const startCount = parseInt(p['Start Mach Count'], 10) || 0;
+    const endCount = parseInt(p['End Mach Count'], 10) || startCount;
+    const goodQty = parseInt(p['Net Qty'] || p['Production Qty'], 10) || 0;
+    const rejQty = parseInt(p['Reject Qty'], 10) || 0;
+    const downtime = parseInt(p['Downtime Minutes'], 10) || 0;
+    const remarks = escapeSql(p['Remarks'] || p['Batch No']);
+    const efficiency = parseFloat(p['Effiecency'] || p['Efficiency']) || null;
+
+    lines.push(`INSERT INTO production_entries (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot, start_count, end_count, good_qty, reject_qty, downtime_minutes, remarks, efficiency_pct, created_at)
+SELECT m.id, p.id, COALESCE((SELECT id FROM users WHERE username ILIKE '${op}' OR full_name ILIKE '%${op}%' LIMIT 1), 1), '${shift}', '${date}'::DATE, 1, ${startCount}, ${endCount}, ${goodQty}, ${rejQty}, ${downtime}, '${remarks}', ${efficiency ? efficiency : 'NULL'}, '${date} 08:00:00'::TIMESTAMPTZ
+FROM machines m, parts p
+WHERE m.machine_code = '${mCode}' AND (p.part_code = '${pCode}' OR p.shrp_part_code = '${pCode}' OR p.customer_part_no = '${pCode}')
+AND NOT EXISTS (
+  SELECT 1 FROM production_entries pe
+  WHERE pe.machine_id = m.id AND pe.entry_date = '${date}'::DATE AND pe.shift = '${shift}' AND pe.start_count = ${startCount} AND pe.end_count = ${endCount}
+)
+LIMIT 1;`);
   }
 }
 
