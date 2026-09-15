@@ -91,6 +91,7 @@ export const ta = {
       mould_setup: { label: "மோல்டு செட்டப்", hint: "மெஷினுக்கு பார்ட் ஒதுக்கு" },
       entry: { label: "புரொடக்ஷன் பதிவு", hint: "ஒவ்வொரு மணி நேர கவுன்ட் பதிவு" },
       bag_entry: { label: "பேக் பதிவு", hint: "பேட்சிற்கு பேக் பதிவு செய்" },
+      log: { label: "ஷிப்ட் பதிவு", hint: "இன்றைய மெஷின் பதிவுகள் & சுருக்கம்" },
       trimming: { label: "ட்ரிம்மிங்", hint: "அடுத்த பேக், FIFO" },
       inspection: { label: "இன்ஸ்பெக்ஷன்", hint: "அடுத்த பேக், FIFO" },
       packing: { label: "பேக்கிங்", hint: "அடுத்த பேக், FIFO" },

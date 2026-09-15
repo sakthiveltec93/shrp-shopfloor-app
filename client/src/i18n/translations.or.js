@@ -91,6 +91,7 @@ export const or = {
       mould_setup: { label: "ମୋଲ୍ଡ ସେଟଅପ୍", hint: "ମେସିନରେ ପାର୍ଟ ଆବଣ୍ଟନ" },
       entry: { label: "ଉତ୍ପାଦନ ଏଣ୍ଟ୍ରି", hint: "ପ୍ରତି ଘଣ୍ଟାର କାଉଣ୍ଟ୍ ଏଣ୍ଟ୍ରି" },
       bag_entry: { label: "ବ୍ୟାଗ୍ ଏଣ୍ଟ୍ରି", hint: "ବ୍ୟାଚ୍ ବିପକ୍ଷରେ ବ୍ୟାଗ୍ ଏଣ୍ଟ୍ରି" },
+      log: { label: "ଶିଫ୍ଟ ଲଗ୍", hint: "ଆଜିର ମେସିନ୍ ଏଣ୍ଟ୍ରି & ଉତ୍ପାଦନ ସାରାଂଶ" },
       trimming: { label: "ଟ୍ରିମିଂ", hint: "ପରବର୍ତ୍ତୀ ବ୍ୟାଗ୍, FIFO" },
       inspection: { label: "ଇନସପେକସନ୍", hint: "ପରବର୍ତ୍ତୀ ବ୍ୟାଗ୍, FIFO" },
       packing: { label: "ପ୍ୟାକିଂ", hint: "ପରବର୍ତ୍ତୀ ବ୍ୟାଗ୍, FIFO" },

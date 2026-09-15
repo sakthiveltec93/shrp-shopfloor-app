@@ -91,6 +91,7 @@ export const en = {
       mould_setup: { label: "Mould Setup", hint: "Assign part to machine" },
       entry: { label: "Hourly Production Entry", hint: "Log hourly count & scrap" },
       bag_entry: { label: "Bag Entry", hint: "Log bag against batch" },
+      log: { label: "Shift Log", hint: "Today's machine entries & production summary" },
       trimming: { label: "Trimming", hint: "Next bag in queue, FIFO" },
       inspection: { label: "Inspection", hint: "Next bag in queue, FIFO" },
       packing: { label: "Packing", hint: "Next bag in queue, FIFO" },
