@@ -31,6 +31,7 @@ import RMInward from './pages/RMInward'
 import RMStockRegister from './pages/RMStockRegister'
 import PartRecipes from './pages/PartRecipes'
 import Profile from './pages/Profile'
+import MastersHub from './pages/MastersHub'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function HeartbeatTracker() {
@@ -62,12 +63,13 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute page="reports"><Reports /></ProtectedRoute>} />
-        <Route path="/machines" element={<ProtectedRoute><MachinesDashboard /></ProtectedRoute>} />
-        <Route path="/moulds" element={<ProtectedRoute><MouldsDashboard /></ProtectedRoute>} />
-        <Route path="/rm-inward" element={<ProtectedRoute><RMInward /></ProtectedRoute>} />
-        <Route path="/rm-stock" element={<ProtectedRoute><RMStockRegister /></ProtectedRoute>} />
-        <Route path="/recipes" element={<ProtectedRoute><PartRecipes /></ProtectedRoute>} />
-        <Route path="/mould-setup" element={<ProtectedRoute page="mould_setup"><MouldSetup /></ProtectedRoute>} />
+        <Route path="/machines" element={<ProtectedRoute roles={['admin', 'supervisor']}><MachinesDashboard /></ProtectedRoute>} />
+        <Route path="/moulds" element={<ProtectedRoute roles={['admin', 'supervisor']}><MouldsDashboard /></ProtectedRoute>} />
+        <Route path="/rm-inward" element={<ProtectedRoute roles={['admin', 'supervisor']}><RMInward /></ProtectedRoute>} />
+        <Route path="/rm-stock" element={<ProtectedRoute roles={['admin', 'supervisor']}><RMStockRegister /></ProtectedRoute>} />
+        <Route path="/recipes" element={<ProtectedRoute roles={['admin', 'supervisor']}><PartRecipes /></ProtectedRoute>} />
+        <Route path="/mould-setup" element={<ProtectedRoute roles={['admin', 'supervisor']} page="mould_setup"><MouldSetup /></ProtectedRoute>} />
+        <Route path="/masters" element={<ProtectedRoute roles={['admin', 'supervisor']}><MastersHub /></ProtectedRoute>} />
         <Route
           path="/approvals"
           element={<ProtectedRoute roles={['supervisor', 'admin']} page="approvals"><Approvals /></ProtectedRoute>}

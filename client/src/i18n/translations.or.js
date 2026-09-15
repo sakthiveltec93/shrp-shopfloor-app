@@ -102,7 +102,8 @@ export const or = {
       users: { label: "କର୍ମଚାରୀ ତାଲିକା", hint: "ୟୁଜର & ଆକ୍ସେସ୍" },
       reports: { label: "ଦୈନିକ ରିପୋର୍ଟ", hint: "ସାରାଂଶ & ଗ୍ରାଫ୍" },
       machines: { label: "ମେସିନ୍ & TPM", hint: "ମେସିନ୍ ସ୍ଥିତି & ରକ୍ଷଣାବେକ୍ଷଣ" },
-      moulds: { label: "ମୋଲ୍ଡ ଆୟୁଷ", hint: "ସଟ୍ କାଉଣ୍ଟ୍ & ଇତିହାସ" }
+      moulds: { label: "ମୋଲ୍ଡ ଆୟୁଷ", hint: "ସଟ୍ କାଉଣ୍ଟ୍ & ଇତିହାସ" },
+      masters_hub: { label: "ମାଷ୍ଟର୍ସ ହବ୍", hint: "ପାର୍ଟ, RM, ଗେଜ୍, ସପ୍ଲାୟର୍ & ଅଧିକ" }
     }
   },
   mouldSetup: {

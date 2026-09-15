@@ -922,3 +922,44 @@ CREATE TABLE IF NOT EXISTS deletion_audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_deletion_audit_created_at ON deletion_audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deletion_audit_entity ON deletion_audit_log(entity_type, entity_id);
+
+-- ============================================================
+-- Gauges & Instruments Master (calibration tracking, IATF 16949)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS gauges (
+  id SERIAL PRIMARY KEY,
+  gauge_code TEXT UNIQUE NOT NULL,
+  gauge_name TEXT NOT NULL,
+  gauge_type TEXT,
+  range_spec TEXT,
+  accuracy TEXT,
+  location TEXT,
+  calibration_interval_days INTEGER NOT NULL DEFAULT 365,
+  last_calibrated_at DATE,
+  calibration_cert_no TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'scrapped')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gauges_status ON gauges(status);
+
+-- ============================================================
+-- Supplier Master (separate from customers - who SHRP buys RM/services from)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS suppliers (
+  id SERIAL PRIMARY KEY,
+  supplier_code TEXT UNIQUE NOT NULL,
+  supplier_name TEXT NOT NULL,
+  contact_person TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  materials_supplied TEXT,
+  payment_terms TEXT,
+  lead_time_days INTEGER,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(active);
+

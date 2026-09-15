@@ -146,6 +146,22 @@ export const api = {
   customers: () => request('/masters/customers'),
   createCustomer: (name) => request('/masters/customers', { method: 'POST', body: { name } }),
   checkItems: (category) => request(`/masters/check-items${category ? `?category=${category}` : ''}`),
+
+  // Gauges & Instruments master
+  gauges: () => request('/gauges'),
+  gaugeDetail: (id) => request(`/gauges/${id}`),
+  gaugeCalibrationSummary: () => request('/gauges/calibration-summary'),
+  createGauge: (payload) => request('/gauges', { method: 'POST', body: payload }),
+  updateGauge: (id, payload) => request(`/gauges/${id}`, { method: 'PUT', body: payload }),
+  recordCalibration: (id, payload) => request(`/gauges/${id}/calibrate`, { method: 'POST', body: payload }),
+  deleteGauge: (id) => request(`/gauges/${id}`, { method: 'DELETE' }),
+
+  // Supplier master
+  suppliers: () => request('/suppliers'),
+  supplierDetail: (id) => request(`/suppliers/${id}`),
+  createSupplier: (payload) => request('/suppliers', { method: 'POST', body: payload }),
+  updateSupplier: (id, payload) => request(`/suppliers/${id}`, { method: 'PUT', body: payload }),
+  deleteSupplier: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
   currentAssignments: () => request('/assignments/current'),
   pendingAssignments: () => request('/assignments/pending'),
   createAssignment: (payload) => request('/assignments', { method: 'POST', body: payload }),
@@ -256,6 +272,7 @@ export const api = {
 
   moulds: {
     list: () => request('/moulds'),
+    pmSummary: () => request('/moulds/pm-summary'),
     detail: (id) => request(`/moulds/${id}`),
     create: (payload) => request('/moulds', { method: 'POST', body: payload }),
     update: (id, payload) => request(`/moulds/${id}`, { method: 'PUT', body: payload }),

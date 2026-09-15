@@ -13,7 +13,7 @@ const ERP_SECTIONS = [
     accentColor: '#f59e0b', // amber
     badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
-      { key: 'mould_setup', to: '/mould-setup', icon: '⚙' },
+      { key: 'mould_setup', to: '/mould-setup', icon: '⚙', supervisorOnly: true },
       { key: 'entry', to: '/entry', icon: '📝' },
       { key: 'bag_entry', to: '/bag-entry', icon: '◧' },
       { key: 'log', to: '/log', icon: '📋' },
@@ -45,9 +45,9 @@ const ERP_SECTIONS = [
     accentColor: '#3b82f6', // blue
     badgeBg: 'rgba(59, 130, 246, 0.15)',
     tiles: [
-      { key: 'rm_inward', to: '/rm-inward', icon: '📥' },
-      { key: 'rm_stock', to: '/rm-stock', icon: '📦' },
-      { key: 'recipes', to: '/recipes', icon: '🧪' },
+      { key: 'rm_inward', to: '/rm-inward', icon: '📥', supervisorOnly: true },
+      { key: 'rm_stock', to: '/rm-stock', icon: '📦', supervisorOnly: true },
+      { key: 'recipes', to: '/recipes', icon: '🧪', supervisorOnly: true },
     ],
   },
   {
@@ -59,10 +59,11 @@ const ERP_SECTIONS = [
     accentColor: '#a855f7', // purple
     badgeBg: 'rgba(168, 85, 247, 0.15)',
     tiles: [
-      { key: 'machines', to: '/machines', icon: '🖥️' },
-      { key: 'moulds', to: '/moulds', icon: '⚙️' },
+      { key: 'machines', to: '/machines', icon: '🖥️', supervisorOnly: true },
+      { key: 'moulds', to: '/moulds', icon: '⚙️', supervisorOnly: true },
       { key: 'parts', to: '/parts', icon: '📋', supervisorOnly: true },
       { key: 'reports', to: '/reports', icon: '📊', supervisorOnly: true },
+      { key: 'masters_hub', to: '/masters', icon: '🗂️', supervisorOnly: true },
     ],
   },
   {
@@ -131,7 +132,7 @@ export default function Home() {
     if (tile.adminOnly && !isAdmin) return false;
     if (tile.supervisorOnly && !isSupervisorOrAdmin) return false;
     if (isSupervisorOrAdmin) return true;
-    if (['machines', 'moulds', 'rework', 'rm_inward', 'rm_stock'].includes(tile.key)) return true;
+    if (['rework'].includes(tile.key)) return true;
     return Array.isArray(user.pages) && user.pages.includes(tile.key);
   };
 

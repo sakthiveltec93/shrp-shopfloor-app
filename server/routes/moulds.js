@@ -88,7 +88,37 @@ router.get('/', async (req, res) => {
   res.json(result);
 });
 
-// 2. Get Single Mould Detail with Parts, Files & Maintenance History
+// 1b. Fleet-wide PM health summary (counts by status) for dashboard tiles
+router.get('/pm-summary', async (req, res) => {
+  const { rows: moulds } = await pool.query(
+    'SELECT id, mould_code, mould_name, cumulative_shots, shots_since_pm, pm_interval_shots FROM moulds'
+  );
+
+  const summary = { ok: 0, due_soon: 0, overdue: 0 };
+  const details = moulds.map((m) => {
+    const shotsSincePm = Number(m.shots_since_pm || 0);
+    const interval = Math.max(1, Number(m.pm_interval_shots || 20000));
+    const progressPct = Math.min(150, Math.round((shotsSincePm / interval) * 100));
+
+    let pmStatus = 'ok';
+    if (progressPct >= 100) pmStatus = 'overdue';
+    else if (progressPct >= 80) pmStatus = 'due_soon';
+
+    summary[pmStatus] += 1;
+
+    return {
+      id: m.id,
+      mould_code: m.mould_code,
+      mould_name: m.mould_name,
+      pm_progress_pct: progressPct,
+      pm_status: pmStatus,
+    };
+  });
+
+  res.json({ summary, moulds: details });
+});
+
+
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
 

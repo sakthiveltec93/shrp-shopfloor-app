@@ -19,6 +19,8 @@ const reportRoutes = require('./routes/reports');
 const machineRoutes = require('./routes/machines');
 const mouldRoutes = require('./routes/moulds');
 const rawMaterialRoutes = require('./routes/rawMaterials');
+const gaugeRoutes = require('./routes/gauges');
+const supplierRoutes = require('./routes/suppliers');
 
 const app = express();
 app.use(cors());
@@ -43,6 +45,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/machines', machineRoutes);
 app.use('/api/moulds', mouldRoutes);
 app.use('/api/raw-materials', rawMaterialRoutes);
+app.use('/api/gauges', gaugeRoutes);
+app.use('/api/suppliers', supplierRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

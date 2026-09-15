@@ -148,9 +148,10 @@ router.post('/', async (req, res) => {
     // Secondary feature: Automatically accumulate shots on the mould(s) linked to this part.
     // Isolated in try/catch so secondary tooling analytics NEVER block or roll back core production entries!
     try {
-      const grossQty = Math.max(0, Number(end_count) - Number(startCount));
-      const cav = Math.max(1, Number(part?.cavity_count) || 1);
-      const shotsRun = Math.round(grossQty / cav);
+      // NOTE: `shots` (computed above as end_count - startCount) is ALREADY the direct
+      // machine shot count. Do not divide by cavities again here - that was the bug that
+      // undercounted mould wear by a factor of the part's cavity count.
+      const shotsRun = shots;
       if (shotsRun > 0) {
         await pool.query(`
           UPDATE moulds

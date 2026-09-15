@@ -102,7 +102,8 @@ export const en = {
       users: { label: "Staff & Logins", hint: "Accounts & page access" },
       reports: { label: "Daily Reports", hint: "Shift summary & graphs" },
       machines: { label: "Machines & TPM", hint: "Machine status, MTBF & breakdowns" },
-      moulds: { label: "Moulds & Tool Life", hint: "Shot count, PM & history" }
+      moulds: { label: "Moulds & Tool Life", hint: "Shot count, PM & history" },
+      masters_hub: { label: "Masters Hub", hint: "Parts, RM, Gauges, Suppliers & more" }
     }
   },
   mouldSetup: {

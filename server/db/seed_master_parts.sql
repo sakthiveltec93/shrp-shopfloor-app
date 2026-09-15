@@ -45,8 +45,17 @@ BEGIN
     v_part_code := COALESCE(NULLIF(p_customer_part_no, ''), p_shrp_part_code);
   END IF;
 
-  -- Look for existing part by shrp_part_code first
-  SELECT id INTO v_part_id FROM parts WHERE shrp_part_code = p_shrp_part_code LIMIT 1;
+  -- Look for an existing part whose identity overlaps with EITHER identifier we were
+  -- given, across ALL four identity-bearing columns. Different seed scripts have stored
+  -- the same physical part's short code / long technical number in different columns
+  -- (sometimes swapped relative to each other), so a narrow single-column exact match
+  -- misses rows that already exist under a different field, creating a duplicate.
+  SELECT id INTO v_part_id FROM parts
+  WHERE UPPER(TRIM(part_code)) IN (UPPER(TRIM(p_shrp_part_code)), UPPER(TRIM(COALESCE(p_customer_part_no, ''))))
+     OR UPPER(TRIM(part_name)) IN (UPPER(TRIM(p_shrp_part_code)), UPPER(TRIM(COALESCE(p_customer_part_no, ''))))
+     OR UPPER(TRIM(COALESCE(shrp_part_code, ''))) IN (UPPER(TRIM(p_shrp_part_code)), UPPER(TRIM(COALESCE(p_customer_part_no, ''))))
+     OR UPPER(TRIM(COALESCE(customer_part_no, ''))) IN (UPPER(TRIM(p_shrp_part_code)), UPPER(TRIM(COALESCE(p_customer_part_no, ''))))
+  LIMIT 1;
 
   -- If not found, look by exact part_code match
   IF v_part_id IS NULL THEN
