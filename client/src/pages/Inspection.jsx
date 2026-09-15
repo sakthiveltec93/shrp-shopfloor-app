@@ -15,10 +15,12 @@ export default function Inspection() {
     loading, refetch, clearBag,
   } = useFifoBag('inspect');
 
-  // Sub-tab switcher: 'ready' or 'hold'
+  // Sub-tab switcher: 'ready' | 'completed' | 'hold'
   const [activeSubTab, setActiveSubTab] = useState('ready');
   const [holdBags, setHoldBags] = useState([]);
   const [holdLoading, setHoldLoading] = useState(false);
+  const [completedBags, setCompletedBags] = useState([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
 
   // Supervisor release modal for quarantined bags
   const [releasingBag, setReleasingBag] = useState(null);
@@ -66,8 +68,18 @@ export default function Inspection() {
       .finally(() => setHoldLoading(false));
   };
 
+  // Fetch Completed Inspection bags
+  const loadCompletedBags = () => {
+    setCompletedLoading(true);
+    api.bagHistoryLog({ stage: 'inspect', part_id: partId || undefined })
+      .then((res) => setCompletedBags(res || []))
+      .catch(() => setCompletedBags([]))
+      .finally(() => setCompletedLoading(false));
+  };
+
   useEffect(() => {
-    loadHoldBags();
+    if (activeSubTab === 'hold') loadHoldBags();
+    if (activeSubTab === 'completed') loadCompletedBags();
   }, [partId, activeSubTab]);
 
   useEffect(() => {
@@ -227,7 +239,7 @@ export default function Inspection() {
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
 
-      {/* Sub-tab switcher: Ready Bags vs Quarantined / HOLD Bags */}
+      {/* Sub-tab switcher: Ready Bags vs Completed Bags vs Quarantined / HOLD Bags */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button
           type="button"
@@ -244,11 +256,24 @@ export default function Inspection() {
         </button>
         <button
           type="button"
+          className={activeSubTab === 'completed' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onClick={() => setActiveSubTab('completed')}
+        >
+          <span>✅ Completed Bags</span>
+          {completedBags.length > 0 && (
+            <span style={{ background: activeSubTab === 'completed' ? '#fff' : 'var(--green, #22c55e)', color: '#000', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {completedBags.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
           className={activeSubTab === 'hold' ? 'btn btn-danger' : 'btn btn-secondary'}
           style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           onClick={() => setActiveSubTab('hold')}
         >
-          <span>🛑 Quarantined / HOLD Bags</span>
+          <span>🛑 Quarantined / HOLD</span>
           {holdBags.length > 0 && (
             <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
               {holdBags.length}
@@ -257,7 +282,76 @@ export default function Inspection() {
         </button>
       </div>
 
-      {activeSubTab === 'hold' ? (
+      {activeSubTab === 'completed' ? (
+        /* COMPLETED INSPECTED BAGS VIEW */
+        <div className="panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
+              ✅ Completed Inspected Bags ({completedBags.length})
+            </h3>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '4px 10px', fontSize: 12 }}
+              onClick={loadCompletedBags}
+              disabled={completedLoading}
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {completedLoading ? (
+            <p className="muted">Loading completed inspection bags…</p>
+          ) : completedBags.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>
+              No completed inspected bags found for this selection.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {completedBags.map((cb) => {
+                const lastInsp = cb.inspection_history && cb.inspection_history.length > 0 ? cb.inspection_history[cb.inspection_history.length - 1] : null;
+                return (
+                  <div
+                    key={cb.id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 6,
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      background: 'rgba(34, 197, 94, 0.05)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span className="shrp-code-pill" style={{ background: 'var(--green)', color: '#000', fontWeight: 700 }}>
+                          {cb.shrp_part_code || cb.part_code}
+                        </span>
+                        <strong style={{ fontSize: 14 }}>{cb.bag_code}</strong>
+                        <span className={`status-pill status-${(cb.status || '').toLowerCase()}`}>
+                          {cb.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                        Base Wt: <strong>{cb.base_weight_kg} kg</strong> · Inspected Wt: <strong>{lastInsp?.inspected_wt_kg || cb.base_weight_kg} kg</strong> · ({cb.qty} Nos)
+                        {lastInsp?.reject_wt_kg > 0 && <span style={{ color: 'var(--red)', marginLeft: 6 }}>(Rejects: {lastInsp.reject_wt_kg} kg)</span>}
+                        {lastInsp?.sent_to_rework_qty > 0 && <span style={{ color: 'var(--amber)', marginLeft: 6 }}>(Rework: {lastInsp.sent_to_rework_qty} Nos)</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        Date: {cb.entry_date ? new Date(cb.entry_date).toLocaleDateString('en-GB') : '-'} (Shift {cb.shift}) ·
+                        {lastInsp ? ` Inspected by ${lastInsp.operator_name || 'Inspector'} at ${new Date(lastInsp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ` Logged as ${cb.status}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : activeSubTab === 'hold' ? (
         /* HOLD / QUARANTINED BAGS VIEW */
         <div className="panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

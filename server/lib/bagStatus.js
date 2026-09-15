@@ -39,11 +39,11 @@ function isLegitimateStatusAdvance(currentStatus, toStatus, trimReq, inspReq) {
     case 'INSPECTED':
       return trimReq
         ? (cs === 'TRIMMED' || cs === 'PARTIAL_INSPECT' || cs === 'INSPECTED')
-        : (cs === 'OPEN' || cs === 'PARTIAL_INSPECT' || cs === 'INSPECTED');
+        : (cs === 'OPEN' || cs === 'TRIMMED' || cs === 'PARTIAL_INSPECT' || cs === 'INSPECTED');
     case 'PACKED':
       if (inspReq) return cs === 'INSPECTED' || cs === 'PACKED';
-      if (trimReq) return cs === 'TRIMMED' || cs === 'PACKED';
-      return cs === 'OPEN' || cs === 'PACKED';
+      if (trimReq) return cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PACKED';
+      return cs === 'OPEN' || cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PACKED';
     case 'DISPATCHED':
       return cs === 'PACKED';
     case 'HOLD':

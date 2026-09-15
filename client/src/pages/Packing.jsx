@@ -15,6 +15,13 @@ export default function Packing() {
     loading, refetch, clearBag,
   } = useFifoBag('pack');
 
+  // Sub-tab view: 'ready' | 'completed' | 'hold'
+  const [activeSubTab, setActiveSubTab] = useState('ready');
+  const [completedBags, setCompletedBags] = useState([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [holdBags, setHoldBags] = useState([]);
+  const [holdLoading, setHoldLoading] = useState(false);
+
   // Counting scale & packing inputs
   const [samplePacketWtKg, setSamplePacketWtKg] = useState('');
   const [customPackQty, setCustomPackQty] = useState('');
@@ -39,6 +46,29 @@ export default function Packing() {
       setBalancePoolData(null);
     }
   }, [activePartId]);
+
+  // Fetch Completed Packed bags
+  const loadCompletedBags = () => {
+    setCompletedLoading(true);
+    api.bagHistoryLog({ stage: 'pack', part_id: activePartId || undefined })
+      .then((res) => setCompletedBags(res || []))
+      .catch(() => setCompletedBags([]))
+      .finally(() => setCompletedLoading(false));
+  };
+
+  // Fetch HOLD bags
+  const loadHoldBags = () => {
+    setHoldLoading(true);
+    api.holdBags({ stage: 'PACKING', part_id: activePartId || undefined })
+      .then((res) => setHoldBags(res || []))
+      .catch(() => setHoldBags([]))
+      .finally(() => setHoldLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeSubTab === 'completed') loadCompletedBags();
+    if (activeSubTab === 'hold') loadHoldBags();
+  }, [activePartId, activeSubTab]);
 
   // Derive part standard packing information
   const partObj = parts.find((p) => String(p.id) === String(activePartId));
@@ -159,23 +189,198 @@ export default function Packing() {
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
 
-      {/* Dual Method Toggle */}
-      <div className="btn-row" style={{ marginBottom: 14 }}>
+      {/* Sub-tab switcher: Ready Bags vs Completed Bags vs Quarantined / HOLD Bags */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button
           type="button"
-          className={method === 'scan' ? 'btn btn-primary' : 'btn btn-secondary'}
-          onClick={() => setMethod('scan')}
+          className={activeSubTab === 'ready' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onClick={() => setActiveSubTab('ready')}
         >
-          Method B: QR / Barcode Scan
+          <span>🟢 Ready Bags</span>
+          {batchBags.length > 0 && (
+            <span style={{ background: activeSubTab === 'ready' ? '#fff' : 'var(--amber)', color: '#000', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {batchBags.length}
+            </span>
+          )}
         </button>
         <button
           type="button"
-          className={method === 'manual' ? 'btn btn-primary' : 'btn btn-secondary'}
-          onClick={() => setMethod('manual')}
+          className={activeSubTab === 'completed' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onClick={() => setActiveSubTab('completed')}
         >
-          Method A: Manual Selection
+          <span>✅ Completed Bags</span>
+          {completedBags.length > 0 && (
+            <span style={{ background: activeSubTab === 'completed' ? '#fff' : 'var(--green, #22c55e)', color: '#000', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {completedBags.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={activeSubTab === 'hold' ? 'btn btn-danger' : 'btn btn-secondary'}
+          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onClick={() => setActiveSubTab('hold')}
+        >
+          <span>🛑 Quarantined / HOLD</span>
+          {holdBags.length > 0 && (
+            <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {holdBags.length}
+            </span>
+          )}
         </button>
       </div>
+
+      {activeSubTab === 'completed' ? (
+        /* COMPLETED PACKED BAGS VIEW */
+        <div className="panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
+              ✅ Completed Packed Bags ({completedBags.length})
+            </h3>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '4px 10px', fontSize: 12 }}
+              onClick={loadCompletedBags}
+              disabled={completedLoading}
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {completedLoading ? (
+            <p className="muted">Loading completed packing bags…</p>
+          ) : completedBags.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>
+              No completed packed bags found for this selection.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {completedBags.map((cb) => {
+                const lastPack = cb.packing_history && cb.packing_history.length > 0 ? cb.packing_history[cb.packing_history.length - 1] : null;
+                return (
+                  <div
+                    key={cb.id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 6,
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      background: 'rgba(34, 197, 94, 0.05)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span className="shrp-code-pill" style={{ background: 'var(--green)', color: '#000', fontWeight: 700 }}>
+                          {cb.shrp_part_code || cb.part_code}
+                        </span>
+                        <strong style={{ fontSize: 14 }}>{cb.bag_code}</strong>
+                        <span className={`status-pill status-${(cb.status || '').toLowerCase()}`}>
+                          {cb.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                        Base Wt: <strong>{cb.base_weight_kg} kg</strong> · Packed: <strong>{lastPack?.packed_qty || cb.qty} pcs ({lastPack?.packets_count || 1} pkts)</strong>
+                        {lastPack?.balance_qty > 0 && <span style={{ color: 'var(--amber)', marginLeft: 6 }}>(Pool Balance: {lastPack.balance_qty} pcs)</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        Date: {cb.entry_date ? new Date(cb.entry_date).toLocaleDateString('en-GB') : '-'} (Shift {cb.shift}) ·
+                        {lastPack ? ` Packed by ${lastPack.operator_name || 'Operator'} at ${new Date(lastPack.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ` Logged as ${cb.status}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : activeSubTab === 'hold' ? (
+        /* HOLD / QUARANTINED BAGS VIEW */
+        <div className="panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--red)' }}>
+              🛑 Quarantined Bags on HOLD ({holdBags.length})
+            </h3>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '4px 10px', fontSize: 12 }}
+              onClick={loadHoldBags}
+              disabled={holdLoading}
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {holdLoading ? (
+            <p className="muted">Loading quarantined bags…</p>
+          ) : holdBags.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>
+              ✅ No bags are currently on HOLD for Packing.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {holdBags.map((hb) => (
+                <div
+                  key={hb.id}
+                  style={{
+                    padding: 12,
+                    borderRadius: 6,
+                    border: '1px solid var(--red)',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span className="shrp-code-pill" style={{ background: 'var(--red)', color: '#fff' }}>
+                        {hb.shrp_part_code || hb.part_code}
+                      </span>
+                      <strong style={{ fontSize: 14 }}>{hb.bag_code}</strong>
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>({hb.base_weight_kg} kg · {hb.qty} Nos)</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#fca5a5' }}>
+                      Reason: <strong>{hb.hold_reason || 'Quarantined for quality check'}</strong>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                      Held by: {hb.hold_by_name || 'Operator'} · {hb.hold_at ? new Date(hb.hold_at).toLocaleString('en-GB') : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* READY BAGS PACKING WORKFLOW */
+        <>
+          {/* Dual Method Toggle */}
+          <div className="btn-row" style={{ marginBottom: 14 }}>
+            <button
+              type="button"
+              className={method === 'scan' ? 'btn btn-primary' : 'btn btn-secondary'}
+              onClick={() => setMethod('scan')}
+            >
+              Method B: QR / Barcode Scan
+            </button>
+            <button
+              type="button"
+              className={method === 'manual' ? 'btn btn-primary' : 'btn btn-secondary'}
+              onClick={() => setMethod('manual')}
+            >
+              Method A: Manual Selection
+            </button>
+          </div>
 
       {method === 'scan' && (
         <form onSubmit={handleScanSubmit} className="panel">
@@ -459,6 +664,8 @@ export default function Packing() {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
 
       {/* Put on HOLD Modal */}
