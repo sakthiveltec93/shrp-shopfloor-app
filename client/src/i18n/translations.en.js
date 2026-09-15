@@ -43,9 +43,10 @@ export const en = {
     },
     nav: {
       home: "Home",
-      mouldSetup: "Mould Setup",
       entry: "Entry",
-      log: "Shift Log"
+      log: "Shift Log",
+      masters: "Item Master",
+      mouldSetup: "Mould Setup"
     }
   },
   login: {

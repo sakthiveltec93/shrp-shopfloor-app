@@ -43,9 +43,10 @@ export const or = {
     },
     nav: {
       home: "ମୁଖ୍ୟ ପୃଷ୍ଠା",
-      mouldSetup: "ମୋଲ୍ଡ ସେଟଅପ୍",
       entry: "ଏଣ୍ଟ୍ରି",
-      log: "ଶିଫ୍ଟ ଲଗ୍"
+      log: "ଶିଫ୍ଟ ଲଗ୍",
+      masters: "ମାଷ୍ଟର",
+      mouldSetup: "ମୋଲ୍ଡ ସେଟଅପ୍"
     }
   },
   login: {

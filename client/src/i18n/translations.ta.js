@@ -43,9 +43,10 @@ export const ta = {
     },
     nav: {
       home: "முகப்பு",
-      mouldSetup: "மோல்டு செட்டப்",
       entry: "பதிவு",
-      log: "இன்றைய பதிவு"
+      log: "இன்றைய பதிவு",
+      masters: "மாஸ்டர்",
+      mouldSetup: "மோல்டு செட்டப்"
     }
   },
   login: {

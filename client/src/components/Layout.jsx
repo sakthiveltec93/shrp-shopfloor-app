@@ -6,9 +6,10 @@ import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
 
 const NAV_ITEMS = [
   { to: '/', labelKey: 'layout.nav.home', icon: '⌂', key: null },
-  { to: '/mould-setup', labelKey: 'layout.nav.mouldSetup', icon: '⚙', key: 'mould_setup' },
   { to: '/entry', labelKey: 'layout.nav.entry', icon: '📝', key: 'entry' },
   { to: '/log', labelKey: 'layout.nav.log', icon: '📋', key: 'log' },
+  { to: '/masters', labelKey: 'layout.nav.masters', icon: '🗂️', key: 'masters', supervisorOnly: true },
+  { to: '/mould-setup', labelKey: 'layout.nav.mouldSetup', icon: '⚙', key: 'mould_setup', supervisorOnly: true },
 ];
 
 export default function Layout({ children }) {
@@ -38,8 +39,8 @@ export default function Layout({ children }) {
   const isSupervisorOrAdmin = user && (user.role === 'admin' || user.role === 'supervisor');
   const visibleNavItems = user
     ? NAV_ITEMS.filter((item) => {
-        if (item.key === 'mould_setup' && !isSupervisorOrAdmin) return false;
-        return !item.key || user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes(item.key));
+        if (item.supervisorOnly && !isSupervisorOrAdmin) return false;
+        return !item.key || isSupervisorOrAdmin || (Array.isArray(user.pages) && user.pages.includes(item.key));
       })
     : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
