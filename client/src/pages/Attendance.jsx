@@ -46,7 +46,12 @@ export default function Attendance() {
   const [roster, setRoster] = useState([]);
 
   useEffect(() => {
-    api.attendance.today().then(setToday).catch(() => setToday(null));
+    api.attendance.today().then((row) => {
+      setToday(row);
+      if (typeof window !== 'undefined' && row) {
+        window.dispatchEvent(new CustomEvent('attendance-updated', { detail: row }));
+      }
+    }).catch(() => setToday(null));
     api.attendance.settings().then((s) => { setSettings(s); setRadiusInput(String(s.radius_m)); }).catch(() => {});
   }, []);
 
@@ -62,6 +67,9 @@ export default function Attendance() {
       const pos = await getPosition(lang);
       const row = await api.attendance.checkIn(pos.lat, pos.lng);
       setToday(row);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('attendance-updated', { detail: row }));
+      }
       setSuccess(t('attendance.checkedInSuccess', { time: new Date(row.check_in_at).toLocaleTimeString() }));
     } catch (err) {
       setError(err.message);
@@ -76,6 +84,9 @@ export default function Attendance() {
       const pos = await getPosition(lang);
       const row = await api.attendance.checkOut(pos.lat, pos.lng);
       setToday(row);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('attendance-updated', { detail: row }));
+      }
       setSuccess(t('attendance.checkedOutAt', { time: new Date(row.check_out_at).toLocaleTimeString() }));
     } catch (err) {
       setError(err.message);

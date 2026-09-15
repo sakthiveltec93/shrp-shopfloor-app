@@ -107,14 +107,37 @@ export default function Layout({ children }) {
   useEffect(() => {
     if (!user) return;
     const fetchTodayStatus = () => {
-      api.todayAttendanceStatus?.()
+      api.attendance?.today?.()
         .then((data) => setTodayAttendance(data))
         .catch(() => {});
     };
     fetchTodayStatus();
+
+    const handleAttendanceUpdated = (e) => {
+      if (e?.detail) {
+        setTodayAttendance(e.detail);
+      } else {
+        fetchTodayStatus();
+      }
+    };
+    window.addEventListener('attendance-updated', handleAttendanceUpdated);
     const interval = setInterval(fetchTodayStatus, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('attendance-updated', handleAttendanceUpdated);
+      clearInterval(interval);
+    };
   }, [user]);
+
+  function formatPillTime(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }
 
   return (
     <div className="app-layout">
@@ -167,6 +190,13 @@ export default function Layout({ children }) {
                 type="button"
                 className="attendance-quick-pill"
                 onClick={() => navigate('/attendance')}
+                title={
+                  !todayAttendance?.check_in_at
+                    ? 'Shift Attendance: Not Checked In (Click to Check In)'
+                    : todayAttendance?.check_out_at
+                    ? `Shift Attendance: Checked Out at ${new Date(todayAttendance.check_out_at).toLocaleTimeString()}`
+                    : `Shift Attendance: Checked In at ${new Date(todayAttendance.check_in_at).toLocaleTimeString()}`
+                }
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -181,7 +211,7 @@ export default function Layout({ children }) {
                     ? 'rgba(239, 68, 68, 0.18)'
                     : todayAttendance?.check_out_at
                     ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(16, 185, 129, 0.18)',
+                    : 'rgba(16, 185, 129, 0.22)',
                   border: !todayAttendance?.check_in_at
                     ? '1.5px solid #ef4444'
                     : todayAttendance?.check_out_at
@@ -195,8 +225,12 @@ export default function Layout({ children }) {
                 }}
               >
                 <span>{!todayAttendance?.check_in_at ? '🔴' : todayAttendance?.check_out_at ? '⚪' : '🟢'}</span>
-                <span className="hide-mobile-micro">
-                  {!todayAttendance?.check_in_at ? 'IN' : todayAttendance?.check_out_at ? 'OUT' : 'ACTIVE'}
+                <span>
+                  {!todayAttendance?.check_in_at
+                    ? 'OUT'
+                    : todayAttendance?.check_out_at
+                    ? 'OUT'
+                    : `IN ${formatPillTime(todayAttendance.check_in_at)}`}
                 </span>
               </button>
             )}

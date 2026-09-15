@@ -222,6 +222,7 @@ export const api = {
     updateSettings: (payload) => request('/attendance/settings', { method: 'PUT', body: payload }),
     roster: (date) => request(`/attendance${date ? `?date=${date}` : ''}`),
   },
+  todayAttendanceStatus: () => request('/attendance/today'),
 
   deletions: {
     auditLog: (startDate, endDate, entityType) => request(`/deletions/audit-log?start_date=${startDate || ''}&end_date=${endDate || ''}&entity_type=${entityType || 'ALL'}`),
