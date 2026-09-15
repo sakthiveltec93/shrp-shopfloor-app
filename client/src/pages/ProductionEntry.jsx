@@ -405,7 +405,7 @@ export default function ProductionEntry() {
                 disabled={user?.role === 'operator'}
                 style={{ width: '100%', marginTop: 4, fontWeight: 600 }}
               >
-                {operators.map((op) => (
+                {Array.from(new Map(operators.map((op) => [op.full_name.trim().toUpperCase(), op])).values()).map((op) => (
                   <option key={op.id} value={op.id}>
                     {op.full_name} ({op.role.toUpperCase()}) {op.id === user?.id ? '★ Current User' : ''}
                   </option>
@@ -443,7 +443,20 @@ export default function ProductionEntry() {
         </div>
       )}
 
-      {session && isOwnSession && (
+      {session && isOwnSession && (() => {
+        const uniqueOps = Array.from(new Map(operators.map((op) => [op.full_name.trim().toUpperCase(), op])).values());
+        const prevCount = session.last_count != null ? Number(session.last_count) : Number(session.start_count || 0);
+        const enteredEndCount = Number(entryForm.end_count) || 0;
+        const liveShots = enteredEndCount >= prevCount ? enteredEndCount - prevCount : 0;
+        const cav = assigned?.cavity_count ? Number(assigned.cavity_count) : 1;
+        const liveGrossPieces = liveShots * cav;
+        const liveTotalRejects = rejectRows.reduce((sum, r) => sum + (Number(r.qty) || 0), 0);
+        const liveNetGood = Math.max(0, liveGrossPieces - liveTotalRejects);
+        const cycleSec = Number(assigned?.standard_cycle_time_sec) || 0;
+        const targetPerHour = cycleSec > 0 ? Math.round((3600 / cycleSec) * cav) : null;
+        const targetShotsPerHour = cycleSec > 0 ? Math.round(3600 / cycleSec) : null;
+
+        return (
         <div className="panel">
           {/* Active Machine Operator Banner */}
           <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
@@ -464,33 +477,186 @@ export default function ProductionEntry() {
           </div>
 
           {belowTargetPrompt ? (
-            <div className="panel" style={{ borderColor: 'var(--amber)' }}>
-              <p style={{ marginTop: 0, fontSize: 13 }}>{belowTargetPrompt.error}</p>
-              {belowTargetPrompt.efficiency_pct != null && (
-                <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>{t('entry.efficiencyLabel', { pct: belowTargetPrompt.efficiency_pct })}</p>
-              )}
-              <div className="field">
-                <label htmlFor="remarks_req">{t('entry.remarksRequired', 'Remarks Required')}</label>
-                <textarea id="remarks_req" rows={2} required
-                  value={entryForm.remarks} onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))} />
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(20, 10, 5, 0.95) 100%)',
+              border: '2px solid #f59e0b',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              boxShadow: '0 8px 24px rgba(245, 158, 11, 0.2)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <div>
+                  <h4 style={{ margin: 0, color: '#fbbf24', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ⚠️ Low Production Output Warning
+                  </h4>
+                  <div style={{ fontSize: 12, color: '#fef3c7', marginTop: 4 }}>
+                    {belowTargetPrompt.error}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBelowTargetPrompt(null)}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 28, height: 28, borderRadius: '50%', cursor: 'pointer', fontSize: 14 }}
+                  title="Close warning and re-check data"
+                >
+                  ✕
+                </button>
               </div>
-              <button className="btn btn-primary" disabled={savingEntry || !entryForm.remarks}
-                onClick={() => submitEntry(true)}>
-                {savingEntry ? t('entry.saving', 'Saving...') : t('entry.saveWithRemarks', 'Save with Remarks')}
-              </button>
+
+              {/* Metric comparison pills */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <span style={{ fontSize: 11, background: 'rgba(245, 158, 11, 0.2)', color: '#fde68a', padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>
+                  🎯 Target: {belowTargetPrompt.target_qty} pcs ({belowTargetPrompt.target_shots || Math.round(belowTargetPrompt.target_qty / cav)} shots)
+                </span>
+                <span style={{ fontSize: 11, background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>
+                  📦 Actual: {belowTargetPrompt.good_qty} pcs ({belowTargetPrompt.shots_logged || liveShots} shots)
+                </span>
+                {belowTargetPrompt.efficiency_pct != null && (
+                  <span style={{ fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>
+                    📈 Efficiency: {belowTargetPrompt.efficiency_pct}%
+                  </span>
+                )}
+              </div>
+
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label htmlFor="remarks_req" style={{ color: '#fbbf24', fontWeight: 600, fontSize: 12 }}>
+                  {t('entry.remarksRequired', 'Remarks (Mandatory - explain reason for low output or breakdown):')}
+                </label>
+                <textarea
+                  id="remarks_req"
+                  rows={2}
+                  required
+                  placeholder="e.g. Machine heater issue / delay in raw material / power interruption / quality checking..."
+                  value={entryForm.remarks}
+                  onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))}
+                  style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', color: '#fff', padding: 8, borderRadius: 6, fontSize: 13 }}
+                />
+              </div>
+
+              {/* TWO BALANCED ACTION BUTTONS: GO BACK/EDIT vs SAVE WITH REMARKS */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setBelowTargetPrompt(null)}
+                  style={{
+                    flex: 1,
+                    padding: '11px 14px',
+                    background: '#334155',
+                    border: '1px solid #475569',
+                    color: '#f8fafc',
+                    borderRadius: 8,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  ✏️ ← Edit / Re-check Values
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={savingEntry || !entryForm.remarks?.trim()}
+                  onClick={() => submitEntry(true)}
+                  style={{
+                    flex: 1.3,
+                    padding: '11px 14px',
+                    background: (!entryForm.remarks?.trim() || savingEntry) ? '#64748b' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: 'none',
+                    color: '#fff',
+                    borderRadius: 8,
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: (!entryForm.remarks?.trim() || savingEntry) ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  {savingEntry ? t('entry.saving', 'Saving...') : '💾 Save with Remarks'}
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleEntrySubmit}>
               <div className="field">
                 <label htmlFor="end_count">{t('entry.machineCountNow', 'Machine Counter Now *')}</label>
                 {session.last_count != null && (
-                  <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                    {t('entry.lastCount', { count: session.last_count })}
-                    {session.last_entry_time && t('entry.lastCountAt', { time: new Date(session.last_entry_time).toLocaleTimeString() })}
+                  <div className="muted" style={{ fontSize: 13, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                      {t('entry.lastCount', { count: session.last_count })}
+                    </span>
+                    {session.last_entry_time && (
+                      <span style={{ color: '#94a3b8' }}>
+                        ({new Date(session.last_entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })})
+                      </span>
+                    )}
                   </div>
                 )}
                 <input id="end_count" type="number" inputMode="numeric" required
+                  placeholder={`e.g. ${prevCount + 50}`}
                   value={entryForm.end_count} onChange={(e) => setEntryForm((f) => ({ ...f, end_count: e.target.value }))} />
+
+                {/* LIVE CALCULATION PREVIEW CARD */}
+                {entryForm.end_count !== '' && enteredEndCount >= prevCount && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                    border: '1.5px solid #3b82f6',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    marginTop: 8,
+                    marginBottom: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        ⚡ Live Output Preview ({cav} Cavities · Cycle {cycleSec}s)
+                      </span>
+                      {targetPerHour && (
+                        <span style={{ fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                          Target: {targetPerHour} pcs/hr ({targetShotsPerHour} shots/hr)
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 8 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Shots Logged</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc' }}>
+                          {liveShots} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>shots</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gross Pieces</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#38bdf8' }}>
+                          {liveGrossPieces} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Rejections</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: liveTotalRejects > 0 ? '#f87171' : '#34d399' }}>
+                          {liveTotalRejects} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--line)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Net Good Output</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#4ade80' }}>
+                          {liveNetGood} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="field">
@@ -554,8 +720,8 @@ export default function ProductionEntry() {
             <div className="readout" style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <div className="readout-label">{t('entry.lastEntry', { hour: lastEntry.hour_slot })}</div>
-                {t('entry.lastEntryDetail', { good: lastEntry.good_qty, reject: lastEntry.reject_qty, downtime: lastEntry.downtime_minutes })}
-                {lastEntry.efficiency_pct != null && t('entry.efficiencySuffix', { pct: lastEntry.efficiency_pct })}
+                {t('entry.lastEntryDetail', { qty: lastEntry.good_qty, scrap: lastEntry.reject_qty, dt: lastEntry.downtime_minutes })}
+                {lastEntry.efficiency_pct != null && ` · Efficiency: ${lastEntry.efficiency_pct}%`}
               </div>
               <button
                 type="button"
@@ -584,7 +750,7 @@ export default function ProductionEntry() {
             <button
               type="button"
               className="btn btn-secondary"
-              style={{ flex: 1, borderColor: '#3b82f6', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 600 }}
+              style={{ flex: 1, borderColor: '#3b82f6', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 700, padding: '10px 14px' }}
               onClick={() => {
                 setShowChangeOp((v) => !v);
                 setShowOff(false);
@@ -600,7 +766,7 @@ export default function ProductionEntry() {
             <button
               type="button"
               className="btn btn-secondary"
-              style={{ flex: 1, borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171', background: 'rgba(239, 68, 68, 0.08)', fontWeight: 600 }}
+              style={{ flex: 1, borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171', background: 'rgba(239, 68, 68, 0.08)', fontWeight: 700, padding: '10px 14px' }}
               onClick={() => {
                 setShowOff((v) => !v);
                 setShowChangeOp(false);
@@ -618,20 +784,20 @@ export default function ProductionEntry() {
 
           {/* DEDICATED CHANGE OPERATOR MODAL / SECTION */}
           {showChangeOp && (
-            <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1.5px solid #3b82f6', borderRadius: 8, padding: 14, marginTop: 14 }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.95)', border: '2px solid #3b82f6', borderRadius: 12, padding: 16, marginTop: 14, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <h3 style={{ margin: 0, fontSize: 16, color: '#60a5fa', fontWeight: 700 }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: '#60a5fa', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                   🔄 Operator Handover / Change Operator
                 </h3>
-                <button type="button" onClick={() => setShowChangeOp(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+                <button type="button" onClick={() => setShowChangeOp(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer' }}>✕</button>
               </div>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0 }}>
                 Closes <strong>{session.operator_name}</strong>'s shift and transfers machine to the next operator. The new operator's login will reflect this machine instantly.
               </p>
 
-              <form onSubmit={handleChangeOperatorSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <form onSubmit={handleChangeOperatorSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div className="field">
-                  <label>Handover Machine Counter *</label>
+                  <label style={{ fontWeight: 600 }}>Handover Machine Counter *</label>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -643,14 +809,15 @@ export default function ProductionEntry() {
                 </div>
 
                 <div className="field">
-                  <label>👤 Incoming Operator Taking Over *</label>
+                  <label style={{ fontWeight: 600 }}>👤 Incoming Operator Taking Over *</label>
                   <select
                     required
                     value={changeOpForm.new_operator_user_id}
                     onChange={(e) => setChangeOpForm({ ...changeOpForm, new_operator_user_id: e.target.value })}
+                    style={{ fontWeight: 600 }}
                   >
                     <option value="">-- Select Incoming Operator --</option>
-                    {operators
+                    {uniqueOps
                       .filter((op) => op.id !== session.operator_user_id)
                       .map((op) => (
                         <option key={op.id} value={op.id}>
@@ -670,11 +837,42 @@ export default function ProductionEntry() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowChangeOp(false)}>
-                    Cancel
+                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setShowChangeOp(false)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      background: '#334155',
+                      border: '1px solid #475569',
+                      color: '#f8fafc',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary" disabled={changingOp} style={{ flex: 1, background: '#3b82f6' }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={changingOp || !changeOpForm.new_operator_user_id}
+                    style={{
+                      flex: 1.4,
+                      padding: '12px 16px',
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: 8,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: (changingOp || !changeOpForm.new_operator_user_id) ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)'
+                    }}
+                  >
                     {changingOp ? 'Transferring...' : '🔄 Confirm Handover & Assign Operator'}
                   </button>
                 </div>
@@ -684,19 +882,21 @@ export default function ProductionEntry() {
 
           {/* OFF MACHINE FORM */}
           {showOff && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: 8, padding: 14, marginTop: 14 }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.95)', border: '2px solid #ef4444', borderRadius: 12, padding: 16, marginTop: 14, boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <h3 style={{ margin: 0, fontSize: 16, color: '#f87171', fontWeight: 700 }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: '#f87171', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                   ⚡ Switch Off Machine
                 </h3>
-                <button type="button" onClick={() => setShowOff(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+                <button type="button" onClick={() => setShowOff(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer' }}>✕</button>
               </div>
 
-              <form onSubmit={handleOffSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <form onSubmit={handleOffSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div className="field">
-                  <label htmlFor="off_reason">{t('entry.offReason', 'Reason for Stopping *')}</label>
+                  <label htmlFor="off_reason" style={{ fontWeight: 600 }}>{t('entry.offReason', 'Reason for Stopping *')}</label>
                   <select id="off_reason" value={offForm.off_reason} required
-                    onChange={(e) => setOffForm((f) => ({ ...f, off_reason: e.target.value }))}>
+                    onChange={(e) => setOffForm((f) => ({ ...f, off_reason: e.target.value }))}
+                    style={{ fontWeight: 600 }}
+                  >
                     <option value="" disabled>{t('entry.selectReasonOption', 'Select reason')}</option>
                     {OFF_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
@@ -709,10 +909,10 @@ export default function ProductionEntry() {
                     <select
                       value={offForm.new_operator_user_id}
                       onChange={(e) => setOffForm((f) => ({ ...f, new_operator_user_id: e.target.value }))}
-                      style={{ width: '100%', marginTop: 4 }}
+                      style={{ width: '100%', marginTop: 4, fontWeight: 600 }}
                     >
                       <option value="">-- No Operator Now (Stop Machine) --</option>
-                      {operators
+                      {uniqueOps
                         .filter((op) => op.id !== session.operator_user_id)
                         .map((op) => (
                           <option key={op.id} value={op.id}>
@@ -724,7 +924,7 @@ export default function ProductionEntry() {
                 )}
 
                 <div className="field">
-                  <label htmlFor="off_count">{t('entry.finalCount', 'Final Machine Counter *')}</label>
+                  <label htmlFor="off_count" style={{ fontWeight: 600 }}>{t('entry.finalCount', 'Final Machine Counter *')}</label>
                   <input id="off_count" type="number" inputMode="numeric" required
                     value={offForm.off_count} onChange={(e) => setOffForm((f) => ({ ...f, off_count: e.target.value }))} />
                 </div>
@@ -733,11 +933,42 @@ export default function ProductionEntry() {
                   <textarea id="off_remarks" rows={2} value={offForm.off_remarks}
                     onChange={(e) => setOffForm((f) => ({ ...f, off_remarks: e.target.value }))} />
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowOff(false)}>
-                    Cancel
+                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setShowOff(false)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      background: '#334155',
+                      border: '1px solid #475569',
+                      color: '#f8fafc',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Cancel
                   </button>
-                  <button className="btn btn-primary" type="submit" disabled={endingOff} style={{ flex: 1, background: '#ef4444' }}>
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={endingOff || !offForm.off_reason}
+                    style={{
+                      flex: 1.4,
+                      padding: '12px 16px',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: 8,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: (endingOff || !offForm.off_reason) ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
                     {endingOff ? t('entry.submitting', 'Submitting...') : '⚡ Confirm Machine OFF'}
                   </button>
                 </div>
@@ -745,7 +976,8 @@ export default function ProductionEntry() {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 {entryToDelete && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',

@@ -73,29 +73,40 @@ router.post('/', async (req, res) => {
 
   const partRes = await pool.query(`SELECT cavity_count, standard_cycle_time_sec FROM parts WHERE id = $1`, [session.part_id]);
   const part = partRes.rows[0];
+  const cavities = Math.max(1, Number(part?.cavity_count) || 1);
+  const cycleSec = Number(part?.standard_cycle_time_sec) || 0;
 
-  const totalQty = end_count - startCount;
-  const goodQty = Math.max(0, totalQty - rejectQty);
+  const shots = Math.max(0, end_count - startCount);
+  const grossPieces = shots * cavities;
+  const goodQty = Math.max(0, grossPieces - rejectQty);
 
   const endTime = new Date();
   const elapsedSeconds = Math.max(1, (endTime.getTime() - startTime.getTime()) / 1000);
 
   let efficiencyPct = null;
   let targetQty = null;
-  if (part && part.cavity_count > 0 && part.standard_cycle_time_sec > 0) {
-    targetQty = (elapsedSeconds / Number(part.standard_cycle_time_sec)) * part.cavity_count;
-    const idealSeconds = (goodQty / part.cavity_count) * Number(part.standard_cycle_time_sec);
+  if (cycleSec > 0) {
+    targetQty = (elapsedSeconds / cycleSec) * cavities;
+    const idealSeconds = (goodQty / cavities) * cycleSec;
     efficiencyPct = Math.round((idealSeconds / elapsedSeconds) * 1000) / 10;
   }
   const belowTarget = targetQty != null && goodQty < targetQty;
 
   if (belowTarget && !remarks) {
+    const elapsedMin = Math.max(1, Math.round(elapsedSeconds / 60));
+    const targetShots = Math.round(targetQty / cavities);
     return res.status(409).json({
-      error: `Output (${goodQty}) is below the target (${Math.round(targetQty)}) for this period. Remarks are required.`,
+      error: `Output (${goodQty} pcs / ${shots} shots) is below the target (${Math.round(targetQty)} pcs / ${targetShots} shots) for this period (${elapsedMin} min). Remarks are required.`,
       code: 'below_target',
       target_qty: Math.round(targetQty),
+      target_shots: targetShots,
+      shots_logged: shots,
+      cavity_count: cavities,
+      gross_qty: grossPieces,
       good_qty: goodQty,
+      reject_qty: rejectQty,
       efficiency_pct: efficiencyPct,
+      elapsed_minutes: elapsedMin,
     });
   }
 

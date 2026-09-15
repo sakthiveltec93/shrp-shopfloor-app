@@ -19,8 +19,8 @@ function interpolate(str, vars) {
   if (typeof str !== 'string') {
     return typeof str === 'object' && str !== null ? '' : String(str ?? '');
   }
-  if (!vars) return str;
-  return str.replace(/\{\{(\w+)\}\}/g, (_, name) => (vars[name] !== undefined ? vars[name] : `{{${name}}}`));
+  if (!vars) return str.replace(/\{\{(\w+)\}\}/g, '');
+  return str.replace(/\{\{(\w+)\}\}/g, (_, name) => (vars[name] !== undefined && vars[name] !== null ? vars[name] : ''));
 }
 
 export function LanguageProvider({ children }) {

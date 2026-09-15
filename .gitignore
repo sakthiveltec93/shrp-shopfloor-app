@@ -7,3 +7,6 @@ dist/
 *.xlsx
 *.xlsm
 Signed PSW & AOI/
+*.mp4
+*.zip
+scratch/

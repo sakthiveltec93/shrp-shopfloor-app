@@ -55,11 +55,19 @@ router.post('/heartbeat', async (req, res) => {
 router.get('/operators', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, username, full_name, role
+      `SELECT DISTINCT ON (UPPER(TRIM(full_name))) id, username, full_name, role
        FROM users
        WHERE active = TRUE AND deleted_at IS NULL
-       ORDER BY CASE WHEN role = 'operator' THEN 1 WHEN role = 'supervisor' THEN 2 ELSE 3 END, full_name`
+       ORDER BY UPPER(TRIM(full_name)), CASE WHEN role = 'operator' THEN 1 WHEN role = 'supervisor' THEN 2 ELSE 3 END, id ASC`
     );
+    // Sort array by role priority and name
+    rows.sort((a, b) => {
+      const roleOrder = { operator: 1, supervisor: 2, admin: 3, qa: 4 };
+      const rA = roleOrder[a.role] || 5;
+      const rB = roleOrder[b.role] || 5;
+      if (rA !== rB) return rA - rB;
+      return a.full_name.localeCompare(b.full_name);
+    });
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
