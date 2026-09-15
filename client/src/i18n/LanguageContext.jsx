@@ -49,8 +49,15 @@ export function LanguageProvider({ children }) {
       const fallback = resolve(translations.en, key);
       if (typeof fallback === 'string') return interpolate(fallback, vars);
       
-      // If neither is a string, return key
-      return key;
+      // If default string provided as second argument
+      if (typeof vars === 'string') return vars;
+
+      // Fallback: convert dot/camelCase key into clean readable text
+      const lastPart = key.split('.').pop() || key;
+      return lastPart
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (s) => s.toUpperCase())
+        .trim();
     };
   }, [lang]);
 
