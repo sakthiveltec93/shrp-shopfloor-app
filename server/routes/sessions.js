@@ -71,13 +71,17 @@ router.get('/suggested-start-count', async (req, res) => {
   res.json({ suggested_start_count: rows[0] ? rows[0].off_count : null });
 });
 
-// Start Machine - creates a new running session. Fails cleanly if another
-// operator already has this machine running (the DB's partial unique
-// index is what actually guarantees this, not just this check).
+// Start Machine - creates a new running session.
 router.post('/start', async (req, res) => {
-  const { machine_id, start_count } = req.body;
+  const { machine_id, start_count, operator_user_id } = req.body;
   if (!machine_id || start_count == null) {
     return res.status(400).json({ error: 'machine_id and start_count are required' });
+  }
+
+  // Determine assigned operator
+  let assignedOperatorId = req.user.id;
+  if (operator_user_id && (req.user.role === 'admin' || req.user.role === 'supervisor')) {
+    assignedOperatorId = Number(operator_user_id);
   }
 
   const assignment = await pool.query(
@@ -92,9 +96,19 @@ router.post('/start', async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)
        VALUES ($1,$2,$3,now(),$4) RETURNING *`,
-      [machine_id, assignment.rows[0].part_id, req.user.id, start_count]
+      [machine_id, assignment.rows[0].part_id, assignedOperatorId, Number(start_count)]
     );
-    res.status(201).json(rows[0]);
+
+    const fullSession = await pool.query(`
+      SELECT ms.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
+      FROM machine_sessions ms
+      JOIN machines m ON m.id = ms.machine_id
+      JOIN parts p ON p.id = ms.part_id
+      JOIN users u ON u.id = ms.operator_user_id
+      WHERE ms.id = $1
+    `, [rows[0].id]);
+
+    res.status(201).json(fullSession.rows[0] || rows[0]);
   } catch (err) {
     if (err.code === '23505') { // unique_violation on the partial index
       const active = await pool.query(
@@ -110,13 +124,10 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// Off Machine - closes the session. Only the operator who started it (or
-// a supervisor/admin) may close it - prevents one operator from
-// accidentally ending another's shift. reason drives what happens next
-// (the client navigates to Mould Setup itself when reason is mould_change).
+// Off Machine - closes the session.
 router.post('/:id/off', async (req, res) => {
   const { id } = req.params;
-  const { off_count, off_reason, off_remarks } = req.body;
+  const { off_count, off_reason, off_remarks, new_operator_user_id } = req.body;
   if (off_count == null || !OFF_REASONS.includes(off_reason)) {
     return res.status(400).json({ error: `off_count is required and off_reason must be one of: ${OFF_REASONS.join(', ')}` });
   }
@@ -128,14 +139,98 @@ router.post('/:id/off', async (req, res) => {
     return res.status(403).json({ error: 'Only the operator who started this machine can switch it off. Ask a supervisor for help.' });
   }
 
-  const { rows } = await pool.query(
-    `UPDATE machine_sessions
-     SET status = 'OFF', off_time = now(), off_count = $1, off_reason = $2, off_remarks = $3
-     WHERE id = $4 AND status = 'RUNNING' RETURNING *`,
-    [off_count, off_reason, off_remarks || null, id]
-  );
-  if (!rows[0]) return res.status(404).json({ error: 'Running session not found' });
-  res.json(rows[0]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `UPDATE machine_sessions
+       SET status = 'OFF', off_time = now(), off_count = $1, off_reason = $2, off_remarks = $3
+       WHERE id = $4 AND status = 'RUNNING' RETURNING *`,
+      [Number(off_count), off_reason, off_remarks || null, id]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Running session not found' });
+    }
+
+    let newSession = null;
+    // If operator_change and new_operator_user_id provided, create the new session immediately
+    if (off_reason === 'operator_change' && new_operator_user_id) {
+      const ins = await client.query(
+        `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)
+         VALUES ($1, $2, $3, now(), $4) RETURNING *`,
+        [current.machine_id, current.part_id, Number(new_operator_user_id), Number(off_count)]
+      );
+      const fullNew = await client.query(`
+        SELECT ms.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
+        FROM machine_sessions ms
+        JOIN machines m ON m.id = ms.machine_id
+        JOIN parts p ON p.id = ms.part_id
+        JOIN users u ON u.id = ms.operator_user_id
+        WHERE ms.id = $1
+      `, [ins.rows[0].id]);
+      newSession = fullNew.rows[0];
+    }
+
+    await client.query('COMMIT');
+    res.json({ closed_session: rows[0], new_session: newSession, ...rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Change Operator (Dedicated Handover Endpoint)
+router.post('/:id/change-operator', async (req, res) => {
+  const { id } = req.params;
+  const { off_count, new_operator_user_id, remarks } = req.body;
+  if (off_count == null || !new_operator_user_id) {
+    return res.status(400).json({ error: 'off_count and new_operator_user_id are required' });
+  }
+
+  const existing = await pool.query("SELECT * FROM machine_sessions WHERE id = $1 AND status = 'RUNNING'", [id]);
+  const current = existing.rows[0];
+  if (!current) return res.status(404).json({ error: 'Running session not found' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Close current session
+    await client.query(
+      `UPDATE machine_sessions
+       SET status = 'OFF', off_time = now(), off_count = $1, off_reason = 'operator_change', off_remarks = $2
+       WHERE id = $3 AND status = 'RUNNING'`,
+      [Number(off_count), remarks || 'Operator handover', id]
+    );
+
+    // 2. Start new session for new operator
+    const ins = await client.query(
+      `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)
+       VALUES ($1, $2, $3, now(), $4) RETURNING *`,
+      [current.machine_id, current.part_id, Number(new_operator_user_id), Number(off_count)]
+    );
+
+    const fullNew = await client.query(`
+      SELECT ms.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
+      FROM machine_sessions ms
+      JOIN machines m ON m.id = ms.machine_id
+      JOIN parts p ON p.id = ms.part_id
+      JOIN users u ON u.id = ms.operator_user_id
+      WHERE ms.id = $1
+    `, [ins.rows[0].id]);
+
+    await client.query('COMMIT');
+    res.status(201).json(fullNew.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;

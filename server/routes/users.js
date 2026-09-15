@@ -49,6 +49,23 @@ router.post('/heartbeat', async (req, res) => {
   }
 });
 
+// ============================================================
+// 1.1 List Active Operators / Users (All Authenticated Users)
+// ============================================================
+router.get('/operators', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, username, full_name, role
+       FROM users
+       WHERE active = TRUE AND deleted_at IS NULL
+       ORDER BY CASE WHEN role = 'operator' THEN 1 WHEN role = 'supervisor' THEN 2 ELSE 3 END, full_name`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin-Only Routes Beyond This Point
 router.use(requireRole('admin'));
 

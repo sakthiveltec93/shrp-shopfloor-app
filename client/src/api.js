@@ -143,11 +143,13 @@ export const api = {
   suggestedStartCount: (machineId) => request(`/sessions/suggested-start-count?machine_id=${machineId}`),
   startMachine: (payload) => request('/sessions/start', { method: 'POST', body: payload }),
   offMachine: (id, payload) => request(`/sessions/${id}/off`, { method: 'POST', body: payload }),
+  changeOperator: (id, payload) => request(`/sessions/${id}/change-operator`, { method: 'POST', body: payload }),
 
   checkItemsToday: (machineId, shift) => request(`/checksheet/today?machine_id=${machineId}&shift=${shift}`),
   checkSheetItems: () => request('/checksheet/items'),
   submitCheckSheet: (payload) => request('/checksheet/submit', { method: 'POST', body: payload }),
 
+  operators: () => request('/users/operators'),
   users: () => request('/users'),
   createUser: (payload) => request('/users', { method: 'POST', body: payload }),
   updateUser: (id, payload) => request(`/users/${id}`, { method: 'PUT', body: payload }),
@@ -242,24 +244,8 @@ export const api = {
   linkPartMould: (partId, mouldId, cavities) =>
     request(`/masters/parts/${partId}/mould`, { method: 'PUT', body: { mould_id: mouldId, cavities_for_part: cavities } }),
 
-  rawMaterials: {
-    list: () => request('/raw-materials'),
-    save: (payload) => request('/raw-materials', { method: 'POST', body: payload }),
-    inwardList: () => request('/raw-materials/inward'),
-    inwardDetail: (id) => request(`/raw-materials/inward/${id}`),
-    createInward: (payload) => request('/raw-materials/inward', { method: 'POST', body: payload, description: `RM Inward ${payload.supplier_lot_no || ''}` }),
-    inspectInward: (id, payload) => request(`/raw-materials/inward/${id}/inspect`, { method: 'POST', body: payload, description: `RM Inward Inspection #${id}` }),
-    stockRegister: () => request('/raw-materials/stock-register'),
-    recipes: () => request('/raw-materials/recipes'),
-    saveRecipe: (partId, payload) => request(`/raw-materials/recipes/${partId}`, { method: 'POST', body: payload }),
-    bulkSaveRecipes: (recipes) => request('/raw-materials/recipes/bulk', { method: 'POST', body: { recipes } }),
-    wipPool: (date, shift) => request(`/raw-materials/wip-pool?date=${date || ''}&shift=${shift || ''}`),
-    issue: (payload) => request('/raw-materials/issue', { method: 'POST', body: payload, description: `RM Issue ${payload.material_id}` }),
-  },
-
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };
 
 export { getToken, offlineQueue };
-

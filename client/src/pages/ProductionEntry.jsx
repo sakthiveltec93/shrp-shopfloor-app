@@ -4,11 +4,11 @@ import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const OFF_REASONS = [
-  { value: 'mould_change', labelKey: 'entry.offReasons.mould_change' },
-  { value: 'shift_completed', labelKey: 'entry.offReasons.shift_completed' },
-  { value: 'breakdown', labelKey: 'entry.offReasons.breakdown' },
-  { value: 'operator_change', labelKey: 'entry.offReasons.operator_change' },
-  { value: 'other', labelKey: 'entry.offReasons.other' },
+  { value: 'operator_change', labelKey: 'entry.offReasons.operator_change', label: '🔄 Change Operator / Shift Handover' },
+  { value: 'shift_completed', labelKey: 'entry.offReasons.shift_completed', label: '🏁 Shift Completed / End of Day' },
+  { value: 'mould_change', labelKey: 'entry.offReasons.mould_change', label: '🔧 Mould Change / New Part Setup' },
+  { value: 'breakdown', labelKey: 'entry.offReasons.breakdown', label: '⚡ Machine Breakdown / Maintenance' },
+  { value: 'other', labelKey: 'entry.offReasons.other', label: '🛠️ Other Reason' },
 ];
 
 export default function ProductionEntry() {
@@ -21,6 +21,9 @@ export default function ProductionEntry() {
   const [context, setContext] = useState(null);
   const [machineId, setMachineId] = useState('');
   const [session, setSession] = useState(undefined); // undefined = loading, null = none running
+
+  const [operators, setOperators] = useState([]);
+  const [assignedOperatorId, setAssignedOperatorId] = useState('');
 
   const [startCount, setStartCount] = useState('');
   const [starting, setStarting] = useState(false);
@@ -38,8 +41,13 @@ export default function ProductionEntry() {
   const [lastEntry, setLastEntry] = useState(null);
 
   const [showOff, setShowOff] = useState(false);
-  const [offForm, setOffForm] = useState({ off_count: '', off_reason: '', off_remarks: '' });
+  const [offForm, setOffForm] = useState({ off_count: '', off_reason: '', off_remarks: '', new_operator_user_id: '' });
   const [endingOff, setEndingOff] = useState(false);
+
+  // Quick Change Operator state
+  const [showChangeOp, setShowChangeOp] = useState(false);
+  const [changeOpForm, setChangeOpForm] = useState({ off_count: '', new_operator_user_id: '', remarks: '' });
+  const [changingOp, setChangingOp] = useState(false);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -47,10 +55,10 @@ export default function ProductionEntry() {
   useEffect(() => {
     (async () => {
       try {
-        const [m, a, r, rr, ctx, items, mine] = await Promise.all([
+        const [m, a, r, rr, ctx, items, mine, ops] = await Promise.all([
           api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
           api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
-          api.mySession(),
+          api.mySession(), api.operators(),
         ]);
         if (m) setMachines(m);
         if (a) setAssignments(a);
@@ -58,10 +66,11 @@ export default function ProductionEntry() {
         if (rr) setRejectReasons(rr);
         if (ctx) setContext(ctx);
         if (items) setCheckSheetItems(items);
+        if (ops) setOperators(Array.isArray(ops) ? ops : []);
         if (mine) {
           setMachineId(String(mine.machine_id));
           setSession(mine);
-          setOffForm({ off_count: '', off_reason: '', off_remarks: '' });
+          setOffForm({ off_count: '', off_reason: '', off_remarks: '', new_operator_user_id: '' });
         }
       } catch (err) {
         console.warn('Initial load using cached state or offline:', err);
@@ -69,9 +78,15 @@ export default function ProductionEntry() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (user && !assignedOperatorId) {
+      setAssignedOperatorId(String(user.id));
+    }
+  }, [user]);
+
   const assigned = assignments.find((a) => String(a.machine_id) === String(machineId));
-  const isOwnSession = !!(session && user && (session.operator_user_id === user.id || user.role === 'admin'));
-  const lockedByOther = !!(session && user && session.operator_user_id !== user.id && user.role !== 'admin');
+  const isOwnSession = !!(session && user && (session.operator_user_id === user.id || user.role === 'admin' || user.role === 'supervisor'));
+  const lockedByOther = !!(session && user && session.operator_user_id !== user.id && user.role === 'operator');
 
   async function selectMachine(id) {
     setMachineId(id);
@@ -81,6 +96,7 @@ export default function ProductionEntry() {
     setError(''); setSuccess('');
     setBelowTargetPrompt(null);
     setShowOff(false);
+    setShowChangeOp(false);
     setLastEntry(null);
     if (!id) return;
     const active = await api.activeSession(id);
@@ -92,8 +108,10 @@ export default function ProductionEntry() {
       ]);
       setStartCount(suggested_start_count != null ? String(suggested_start_count) : '');
       setCheckSheetStatus(todayCheck);
+      if (user) setAssignedOperatorId(String(user.id));
     } else {
-      setOffForm({ off_count: '', off_reason: '', off_remarks: '' });
+      setOffForm({ off_count: '', off_reason: '', off_remarks: '', new_operator_user_id: '' });
+      setChangeOpForm({ off_count: active.last_count != null ? String(active.last_count) : String(active.start_count), new_operator_user_id: '', remarks: '' });
     }
   }
 
@@ -110,11 +128,11 @@ export default function ProductionEntry() {
       remarks: checkResponses[item.id]?.remarks || '',
     }));
     if (responses.some((r) => !r.status)) {
-      setError(t('entry.answerAllItems'));
+      setError(t('entry.answerAllItems', 'Please answer all check sheet items'));
       return;
     }
     if (responses.some((r) => r.status === 'NG' && !r.remarks)) {
-      setError(t('entry.remarksRequiredForNg'));
+      setError(t('entry.remarksRequiredForNg', 'Remarks required for NG items'));
       return;
     }
     setSubmittingCheck(true);
@@ -133,9 +151,18 @@ export default function ProductionEntry() {
     setError(''); setSuccess('');
     setStarting(true);
     try {
-      const s = await api.startMachine({ machine_id: Number(machineId), start_count: Number(startCount) });
+      const targetOperatorId = (user?.role === 'admin' || user?.role === 'supervisor') && assignedOperatorId
+        ? Number(assignedOperatorId)
+        : user?.id;
+
+      const s = await api.startMachine({
+        machine_id: Number(machineId),
+        start_count: Number(startCount),
+        operator_user_id: targetOperatorId,
+      });
       setSession(s);
-      setSuccess(t('entry.machineStartedAt', { time: new Date(s.start_time).toLocaleString() }));
+      const opName = operators.find((o) => o.id === targetOperatorId)?.full_name || s.operator_name || user?.full_name;
+      setSuccess(`⚡ Machine switched ON for operator ${opName} at count ${s.start_count}!`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -198,22 +225,55 @@ export default function ProductionEntry() {
     submitEntry(false);
   }
 
+  async function handleChangeOperatorSubmit(e) {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (!changeOpForm.new_operator_user_id) {
+      setError('Please select the incoming operator to assign');
+      return;
+    }
+    setChangingOp(true);
+    try {
+      const res = await api.changeOperator(session.id, {
+        off_count: Number(changeOpForm.off_count),
+        new_operator_user_id: Number(changeOpForm.new_operator_user_id),
+        remarks: changeOpForm.remarks || 'Shift handover',
+      });
+      setShowChangeOp(false);
+      setSession(res);
+      const newOpName = res.operator_name || operators.find((o) => o.id === Number(changeOpForm.new_operator_user_id))?.full_name;
+      setSuccess(`✅ Machine handed over to operator ${newOpName}! New session started at counter ${res.start_count}.`);
+      setChangeOpForm({ off_count: '', new_operator_user_id: '', remarks: '' });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setChangingOp(false);
+    }
+  }
+
   function handleOffSubmit(e) {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!offForm.off_reason) { setError(t('entry.selectOffReasonError')); return; }
+    if (!offForm.off_reason) { setError(t('entry.selectOffReasonError', 'Please select a reason')); return; }
     setEndingOff(true);
     api.offMachine(session.id, {
       off_count: Number(offForm.off_count),
       off_reason: offForm.off_reason,
       off_remarks: offForm.off_remarks || null,
-    }).then((closed) => {
-      setSession(null);
+      new_operator_user_id: offForm.new_operator_user_id ? Number(offForm.new_operator_user_id) : undefined,
+    }).then((res) => {
       setShowOff(false);
-      const reasonEntry = OFF_REASONS.find((r) => r.value === closed.off_reason);
-      setSuccess(t('entry.machineSwitchedOff', { reason: reasonEntry ? t(reasonEntry.labelKey) : closed.off_reason }));
-      if (closed.off_reason === 'mould_change') {
-        window.location.href = '/mould-setup';
+      if (res.new_session) {
+        setSession(res.new_session);
+        setSuccess(`✅ Machine handed over to operator ${res.new_session.operator_name}! Active session started.`);
+      } else {
+        setSession(null);
+        setStartCount(String(offForm.off_count));
+        const reasonEntry = OFF_REASONS.find((r) => r.value === offForm.off_reason);
+        setSuccess(`⚡ Machine switched OFF (${reasonEntry ? reasonEntry.label : offForm.off_reason}) at count ${offForm.off_count}.`);
+        if (offForm.off_reason === 'mould_change') {
+          window.location.href = '/mould-setup';
+        }
       }
     }).catch((err) => setError(err.message))
       .finally(() => setEndingOff(false));
@@ -221,7 +281,7 @@ export default function ProductionEntry() {
 
   return (
     <div className="screen">
-      <h1 className="screen-title">{t('entry.title')}</h1>
+      <h1 className="screen-title">{t('entry.title', 'Hourly Production Entry')}</h1>
       {context && <p className="screen-sub">{t('entry.shiftHour', { shift: context.shift, hour: context.hour_slot })}</p>}
 
       {error && <div className="error-banner">{error}</div>}
@@ -229,9 +289,9 @@ export default function ProductionEntry() {
 
       <div className="panel">
         <div className="field">
-          <label htmlFor="machine">{t('common.machine')}</label>
+          <label htmlFor="machine">{t('common.machine', 'Machine')}</label>
           <select id="machine" value={machineId} onChange={(e) => selectMachine(e.target.value)}>
-            <option value="" disabled>{t('common.selectMachine')}</option>
+            <option value="" disabled>{t('common.selectMachine', 'Select machine')}</option>
             {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
           </select>
         </div>
@@ -264,22 +324,22 @@ export default function ProductionEntry() {
             </div>
           ) : (
             <div className="readout" style={{ marginBottom: 14 }}>
-              <div className="readout-label">{t('entry.assignedPart')}</div>
-              {t('entry.noneAssigned')}
+              <div className="readout-label">{t('entry.assignedPart', 'Assigned Part')}</div>
+              {t('entry.noneAssigned', 'No mould/part assigned. Please submit Mould Setup.')}
             </div>
           )
         )}
 
-        {machineId && session === undefined && <p className="muted">{t('entry.checkingStatus')}</p>}
+        {machineId && session === undefined && <p className="muted">{t('entry.checkingStatus', 'Checking machine session...')}</p>}
 
         {machineId && session === null && assigned && checkSheetStatus === undefined && (
-          <p className="muted">{t('entry.checkingCheckSheet')}</p>
+          <p className="muted">{t('entry.checkingCheckSheet', 'Checking daily check sheet...')}</p>
         )}
 
         {machineId && session === null && assigned && checkSheetStatus === null && (
           <form onSubmit={handleSubmitCheckSheet}>
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-              {t('entry.completeCheckSheet')}
+              {t('entry.completeCheckSheet', 'Complete shift start check sheet before turning ON machine')}
             </p>
             {checkSheetItems.map((item) => (
               <div key={item.id} className="field">
@@ -301,31 +361,60 @@ export default function ProductionEntry() {
                   ))}
                 </div>
                 {checkResponses[item.id]?.status === 'NG' && (
-                  <input placeholder={t('entry.remarksNgPlaceholder')}
+                  <input placeholder={t('entry.remarksNgPlaceholder', 'Remarks for NG')}
                     value={checkResponses[item.id]?.remarks || ''}
                     onChange={(e) => setCheckResponse(item.id, 'remarks', e.target.value)} />
                 )}
               </div>
             ))}
             <button className="btn btn-primary" type="submit" disabled={submittingCheck}>
-              {submittingCheck ? t('entry.submitting') : t('entry.submitCheckSheet')}
+              {submittingCheck ? t('entry.submitting', 'Submitting...') : t('entry.submitCheckSheet', 'Submit Check Sheet')}
             </button>
           </form>
         )}
 
+        {/* START MACHINE FORM with OPERATOR ASSIGNMENT */}
         {machineId && session === null && assigned && checkSheetStatus && (
-          <form onSubmit={handleStart}>
-            <div className="readout" style={{ marginBottom: 14 }}>
-              <div className="readout-label">{t('entry.checkSheetLabel')}</div>
+          <form onSubmit={handleStart} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="readout">
+              <div className="readout-label">{t('entry.checkSheetLabel', 'Check Sheet Completed')}</div>
               {t('entry.checkSheetCompletedBy', { name: checkSheetStatus.operator_name, time: new Date(checkSheetStatus.submitted_at).toLocaleTimeString() })}
             </div>
+
+            {/* Operator Selection (Crucial for Admin assigning Operator) */}
+            <div className="field" style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: 12, borderRadius: 8 }}>
+              <label htmlFor="assigned_operator" style={{ color: '#60a5fa', fontWeight: 700 }}>
+                👤 Assigned Operator for this Machine *
+              </label>
+              <select
+                id="assigned_operator"
+                required
+                value={assignedOperatorId}
+                onChange={(e) => setAssignedOperatorId(e.target.value)}
+                disabled={user?.role === 'operator'}
+                style={{ width: '100%', marginTop: 4, fontWeight: 600 }}
+              >
+                {operators.map((op) => (
+                  <option key={op.id} value={op.id}>
+                    {op.full_name} ({op.role.toUpperCase()}) {op.id === user?.id ? '★ Current User' : ''}
+                  </option>
+                ))}
+              </select>
+              {(user?.role === 'admin' || user?.role === 'supervisor') && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  💡 As Admin/Supervisor, you can assign any operator. When they log in, this machine session will automatically appear in their app.
+                </div>
+              )}
+            </div>
+
             <div className="field">
-              <label htmlFor="start_count">{t('entry.startCountLabel')}</label>
+              <label htmlFor="start_count">{t('entry.startCountLabel', 'Starting Machine Counter *')}</label>
               <input id="start_count" type="number" inputMode="numeric" required
                 value={startCount} onChange={(e) => setStartCount(e.target.value)} />
             </div>
-            <button className="btn btn-primary" type="submit" disabled={starting}>
-              {starting ? t('entry.starting') : t('entry.startMachine')}
+
+            <button className="btn btn-primary" type="submit" disabled={starting} style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+              {starting ? t('entry.starting', 'Starting machine...') : '⚡ Switch ON Machine & Assign Operator'}
             </button>
           </form>
         )}
@@ -334,7 +423,7 @@ export default function ProductionEntry() {
       {session && lockedByOther && (
         <div className="panel" style={{ borderColor: 'var(--amber)' }}>
           <div className="readout" style={{ marginBottom: 8 }}>
-            <div className="readout-label">{t('entry.runningSince')}</div>
+            <div className="readout-label">{t('entry.runningSince', 'Active Session')}</div>
             {t('entry.startedBy', { time: new Date(session.start_time).toLocaleString(), name: session.operator_name })}
           </div>
           <p style={{ fontSize: 13, marginBottom: 0 }}>
@@ -345,9 +434,22 @@ export default function ProductionEntry() {
 
       {session && isOwnSession && (
         <div className="panel">
-          <div className="readout" style={{ marginBottom: 14 }}>
-            <div className="readout-label">{t('entry.runningSince')}</div>
-            {t('entry.startedBy', { time: new Date(session.start_time).toLocaleString(), name: session.operator_name })}
+          {/* Active Machine Operator Banner */}
+          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  <strong style={{ fontSize: 15, color: '#34d399' }}>Machine ON & Running</strong>
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 4 }}>
+                  Assigned Operator: <strong style={{ color: '#fbbf24' }}>{session.operator_name}</strong>
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Started: {new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
           </div>
 
           {belowTargetPrompt ? (
@@ -357,19 +459,19 @@ export default function ProductionEntry() {
                 <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>{t('entry.efficiencyLabel', { pct: belowTargetPrompt.efficiency_pct })}</p>
               )}
               <div className="field">
-                <label htmlFor="remarks_req">{t('entry.remarksRequired')}</label>
+                <label htmlFor="remarks_req">{t('entry.remarksRequired', 'Remarks Required')}</label>
                 <textarea id="remarks_req" rows={2} required
                   value={entryForm.remarks} onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))} />
               </div>
               <button className="btn btn-primary" disabled={savingEntry || !entryForm.remarks}
                 onClick={() => submitEntry(true)}>
-                {savingEntry ? t('entry.saving') : t('entry.saveWithRemarks')}
+                {savingEntry ? t('entry.saving', 'Saving...') : t('entry.saveWithRemarks', 'Save with Remarks')}
               </button>
             </div>
           ) : (
             <form onSubmit={handleEntrySubmit}>
               <div className="field">
-                <label htmlFor="end_count">{t('entry.machineCountNow')}</label>
+                <label htmlFor="end_count">{t('entry.machineCountNow', 'Machine Counter Now *')}</label>
                 {session.last_count != null && (
                   <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
                     {t('entry.lastCount', { count: session.last_count })}
@@ -381,44 +483,44 @@ export default function ProductionEntry() {
               </div>
 
               <div className="field">
-                <label>{t('entry.rejects')}</label>
+                <label>{t('entry.rejects', 'Rejection Quantity & Reasons')}</label>
                 {rejectRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}>
-                    <option value="">{t('entry.reasonPlaceholder')}</option>
+                    <option value="">{t('entry.reasonPlaceholder', 'Select scrap reason')}</option>
                       {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.code ? `${r.code} - ${r.item_name}` : r.item_name}</option>)}
                     </select>
-                    <input type="number" inputMode="numeric" placeholder={t('entry.qtyPlaceholder')}
+                    <input type="number" inputMode="numeric" placeholder={t('entry.qtyPlaceholder', 'Qty')}
                       value={row.qty} onChange={(e) => updateRejectRow(i, 'qty', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeRejectRow(i)}>✕</button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-secondary" onClick={addRejectRow}>{t('entry.addRejectReason')}</button>
+                <button type="button" className="btn btn-secondary" onClick={addRejectRow}>{t('entry.addRejectReason', '+ Add scrap reason')}</button>
               </div>
 
               <div className="field">
-                <label>{t('entry.downtime')}</label>
+                <label>{t('entry.downtime', 'Downtime Duration & Reasons')}</label>
                 {downtimeRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
                     <select value={row.reason_id} onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}>
-                      <option value="">{t('entry.reasonPlaceholder')}</option>
+                      <option value="">{t('entry.reasonPlaceholder', 'Select downtime reason')}</option>
                       {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.related_to ? `${r.item_name} (${r.related_to})` : r.item_name}</option>)}
                     </select>
-                    <input type="number" inputMode="numeric" placeholder={t('entry.minutesPlaceholder')}
+                    <input type="number" inputMode="numeric" placeholder={t('entry.minutesPlaceholder', 'Minutes')}
                       value={row.minutes} onChange={(e) => updateDowntimeRow(i, 'minutes', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeDowntimeRow(i)}>✕</button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-secondary" onClick={addDowntimeRow}>{t('entry.addDowntimeReason')}</button>
+                <button type="button" className="btn btn-secondary" onClick={addDowntimeRow}>{t('entry.addDowntimeReason', '+ Add downtime')}</button>
               </div>
 
               <div className="field">
-                <label htmlFor="remarks">{t('entry.remarksOptional')}</label>
+                <label htmlFor="remarks">{t('entry.remarksOptional', 'Remarks (Optional)')}</label>
                 <textarea id="remarks" rows={2} value={entryForm.remarks}
                   onChange={(e) => setEntryForm((f) => ({ ...f, remarks: e.target.value }))} />
               </div>
               <button className="btn btn-primary" type="submit" disabled={savingEntry}>
-                {savingEntry ? t('entry.saving') : t('entry.saveEntry')}
+                {savingEntry ? t('entry.saving', 'Saving...') : t('entry.saveEntry', '💾 Log Hourly Production')}
               </button>
             </form>
           )}
@@ -431,35 +533,170 @@ export default function ProductionEntry() {
             </div>
           )}
 
-          <button type="button" className="btn btn-secondary" style={{ marginTop: 14 }}
-            onClick={() => setShowOff((v) => !v)}>
-            {showOff ? t('entry.cancel') : t('entry.offMachine')}
-          </button>
+          {/* ACTION BUTTONS: CHANGE OPERATOR & OFF MACHINE */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1, borderColor: '#3b82f6', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', fontWeight: 600 }}
+              onClick={() => {
+                setShowChangeOp((v) => !v);
+                setShowOff(false);
+                setChangeOpForm({
+                  off_count: session.last_count != null ? String(session.last_count) : String(session.start_count),
+                  new_operator_user_id: '',
+                  remarks: '',
+                });
+              }}
+            >
+              🔄 Change Operator
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1, borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171', background: 'rgba(239, 68, 68, 0.08)', fontWeight: 600 }}
+              onClick={() => {
+                setShowOff((v) => !v);
+                setShowChangeOp(false);
+                setOffForm({
+                  off_count: session.last_count != null ? String(session.last_count) : String(session.start_count),
+                  off_reason: '',
+                  off_remarks: '',
+                  new_operator_user_id: '',
+                });
+              }}
+            >
+              ⚡ Off Machine
+            </button>
+          </div>
 
+          {/* DEDICATED CHANGE OPERATOR MODAL / SECTION */}
+          {showChangeOp && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1.5px solid #3b82f6', borderRadius: 8, padding: 14, marginTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: '#60a5fa', fontWeight: 700 }}>
+                  🔄 Operator Handover / Change Operator
+                </h3>
+                <button type="button" onClick={() => setShowChangeOp(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0 }}>
+                Closes <strong>{session.operator_name}</strong>'s shift and transfers machine to the next operator. The new operator's login will reflect this machine instantly.
+              </p>
+
+              <form onSubmit={handleChangeOperatorSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="field">
+                  <label>Handover Machine Counter *</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    required
+                    value={changeOpForm.off_count}
+                    onChange={(e) => setChangeOpForm({ ...changeOpForm, off_count: e.target.value })}
+                    placeholder={`Last counter: ${session.last_count || session.start_count}`}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>👤 Incoming Operator Taking Over *</label>
+                  <select
+                    required
+                    value={changeOpForm.new_operator_user_id}
+                    onChange={(e) => setChangeOpForm({ ...changeOpForm, new_operator_user_id: e.target.value })}
+                  >
+                    <option value="">-- Select Incoming Operator --</option>
+                    {operators
+                      .filter((op) => op.id !== session.operator_user_id)
+                      .map((op) => (
+                        <option key={op.id} value={op.id}>
+                          {op.full_name} ({op.role.toUpperCase()})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Handover Remarks (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Shift B handover, relief during break"
+                    value={changeOpForm.remarks}
+                    onChange={(e) => setChangeOpForm({ ...changeOpForm, remarks: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowChangeOp(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={changingOp} style={{ flex: 1, background: '#3b82f6' }}>
+                    {changingOp ? 'Transferring...' : '🔄 Confirm Handover & Assign Operator'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* OFF MACHINE FORM */}
           {showOff && (
-            <form onSubmit={handleOffSubmit} style={{ marginTop: 14 }}>
-              <div className="field">
-                <label htmlFor="off_reason">{t('entry.offReason')}</label>
-                <select id="off_reason" value={offForm.off_reason} required
-                  onChange={(e) => setOffForm((f) => ({ ...f, off_reason: e.target.value }))}>
-                  <option value="" disabled>{t('entry.selectReasonOption')}</option>
-                  {OFF_REASONS.map((r) => <option key={r.value} value={r.value}>{t(r.labelKey)}</option>)}
-                </select>
+            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: 8, padding: 14, marginTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 16, color: '#f87171', fontWeight: 700 }}>
+                  ⚡ Switch Off Machine
+                </h3>
+                <button type="button" onClick={() => setShowOff(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer' }}>✕</button>
               </div>
-              <div className="field">
-                <label htmlFor="off_count">{t('entry.finalCount')}</label>
-                <input id="off_count" type="number" inputMode="numeric" required
-                  value={offForm.off_count} onChange={(e) => setOffForm((f) => ({ ...f, off_count: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label htmlFor="off_remarks">{t('entry.remarksOptional')}</label>
-                <textarea id="off_remarks" rows={2} value={offForm.off_remarks}
-                  onChange={(e) => setOffForm((f) => ({ ...f, off_remarks: e.target.value }))} />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={endingOff}>
-                {endingOff ? t('entry.submitting') : t('entry.confirmOffMachine')}
-              </button>
-            </form>
+
+              <form onSubmit={handleOffSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="field">
+                  <label htmlFor="off_reason">{t('entry.offReason', 'Reason for Stopping *')}</label>
+                  <select id="off_reason" value={offForm.off_reason} required
+                    onChange={(e) => setOffForm((f) => ({ ...f, off_reason: e.target.value }))}>
+                    <option value="" disabled>{t('entry.selectReasonOption', 'Select reason')}</option>
+                    {OFF_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                </div>
+
+                {/* If operator_change is chosen inside Off form, show operator selector */}
+                {offForm.off_reason === 'operator_change' && (
+                  <div className="field" style={{ background: 'rgba(59, 130, 246, 0.08)', padding: 10, borderRadius: 6, border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                    <label style={{ color: '#60a5fa', fontWeight: 600 }}>👤 Next Operator (Optional - instant restart)</label>
+                    <select
+                      value={offForm.new_operator_user_id}
+                      onChange={(e) => setOffForm((f) => ({ ...f, new_operator_user_id: e.target.value }))}
+                      style={{ width: '100%', marginTop: 4 }}
+                    >
+                      <option value="">-- No Operator Now (Stop Machine) --</option>
+                      {operators
+                        .filter((op) => op.id !== session.operator_user_id)
+                        .map((op) => (
+                          <option key={op.id} value={op.id}>
+                            {op.full_name} ({op.role.toUpperCase()})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="field">
+                  <label htmlFor="off_count">{t('entry.finalCount', 'Final Machine Counter *')}</label>
+                  <input id="off_count" type="number" inputMode="numeric" required
+                    value={offForm.off_count} onChange={(e) => setOffForm((f) => ({ ...f, off_count: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label htmlFor="off_remarks">{t('entry.remarksOptional', 'Remarks (Optional)')}</label>
+                  <textarea id="off_remarks" rows={2} value={offForm.off_remarks}
+                    onChange={(e) => setOffForm((f) => ({ ...f, off_remarks: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowOff(false)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary" type="submit" disabled={endingOff} style={{ flex: 1, background: '#ef4444' }}>
+                    {endingOff ? t('entry.submitting', 'Submitting...') : '⚡ Confirm Machine OFF'}
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
         </div>
       )}
