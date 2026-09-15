@@ -224,6 +224,7 @@ export const api = {
   },
 
   deletions: {
+    auditLog: (startDate, endDate, entityType) => request(`/deletions/audit-log?start_date=${startDate || ''}&end_date=${endDate || ''}&entity_type=${entityType || 'ALL'}`),
     request: (payload) => request('/deletions/request', { method: 'POST', body: payload }),
     pending: () => request('/deletions/pending'),
     approve: (id, review_notes) => request(`/deletions/${id}/approve`, { method: 'POST', body: { review_notes } }),
@@ -236,6 +237,11 @@ export const api = {
     processSummary: (date) => request(`/reports/process-summary?date=${date || ''}`),
     trendSummary: (startDate, endDate) => request(`/reports/trend-summary?start_date=${startDate || ''}&end_date=${endDate || ''}`),
     stageRaw: (stage, date) => request(`/reports/stage-raw?stage=${stage}&date=${date || ''}`),
+    part360: (partId, startDate, endDate, shift) => request(`/reports/analytics/part-360?partId=${partId}&startDate=${startDate || ''}&endDate=${endDate || ''}&shift=${shift || 'ALL'}`),
+    machine360: (machineId, startDate, endDate, shift) => request(`/reports/analytics/machine-360?machineId=${machineId}&startDate=${startDate || ''}&endDate=${endDate || ''}&shift=${shift || 'ALL'}`),
+    mould360: (mouldId, startDate, endDate) => request(`/reports/analytics/mould-360?mouldId=${mouldId}&startDate=${startDate || ''}&endDate=${endDate || ''}`),
+    operator360: (operatorId, startDate, endDate, shift) => request(`/reports/analytics/operator-360?operatorId=${operatorId}&startDate=${startDate || ''}&endDate=${endDate || ''}&shift=${shift || 'ALL'}`),
+    bag360: (bagCode) => request(`/reports/analytics/bag-360?bagCode=${encodeURIComponent(bagCode)}`),
   },
 
   machines_mgmt: {

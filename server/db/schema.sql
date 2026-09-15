@@ -891,3 +891,22 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status, c
 
 
 
+
+-- ============================================================
+-- Deletion Audit Trail with Mandatory Remarks (IATF 16949 / ISO 9001)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS deletion_audit_log (
+  id SERIAL PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id INTEGER NOT NULL,
+  entity_code TEXT,
+  deleted_by INTEGER REFERENCES users(id),
+  deleted_by_name TEXT,
+  deleted_by_role TEXT,
+  reason TEXT NOT NULL,
+  details JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_created_at ON deletion_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deletion_audit_entity ON deletion_audit_log(entity_type, entity_id);
