@@ -348,13 +348,13 @@ router.get('/stage-parts', async (req, res) => {
                 AND b.status != 'HOLD' AND (
                 ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
                 ($1 = 'inspect' AND (
-                  (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
-                  (NOT p.trim_required AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
+                  ((p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+                  (NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
                 )) OR
                 ($1 = 'pack' AND (
                   (p.inspection_required AND b.status = 'INSPECTED') OR
-                  (NOT p.inspection_required AND p.trim_required AND b.status IN ('TRIMMED', 'INSPECTED')) OR
-                  (NOT p.inspection_required AND NOT p.trim_required AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
+                  (NOT p.inspection_required AND (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'INSPECTED')) OR
+                  (NOT p.inspection_required AND NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
                 )) OR
                 ($1 = 'dispatch' AND b.status = 'PACKED')
               )
@@ -373,13 +373,13 @@ router.get('/stage-parts', async (req, res) => {
           AND b.status != 'HOLD' AND (
           ($1 = 'trim' AND b.status IN ('OPEN', 'PARTIAL_TRIM')) OR
           ($1 = 'inspect' AND (
-            (p.trim_required AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
-            (NOT p.trim_required AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
+            ((p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+            (NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
           )) OR
           ($1 = 'pack' AND (
             (p.inspection_required AND b.status = 'INSPECTED') OR
-            (NOT p.inspection_required AND p.trim_required AND b.status IN ('TRIMMED', 'INSPECTED')) OR
-            (NOT p.inspection_required AND NOT p.trim_required AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
+            (NOT p.inspection_required AND (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'INSPECTED')) OR
+            (NOT p.inspection_required AND NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
           )) OR
           ($1 = 'dispatch' AND b.status = 'PACKED')
         )
@@ -561,16 +561,16 @@ router.get('/', async (req, res) => {
     clauses.push(`b.bag_type = 'PART'`);
     clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`(
-      (p.trim_required = TRUE AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
-      (p.trim_required = FALSE AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
+      ((p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'PARTIAL_INSPECT')) OR
+      (NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'PARTIAL_INSPECT'))
     )`);
   } else if (stage === 'pack') {
     clauses.push(`b.bag_type = 'PART'`);
     clauses.push(`b.bag_code NOT ILIKE '%-REJ%' AND b.bag_code NOT ILIKE '%-RUNNER%' AND b.bag_code NOT ILIKE '%-LUMP%' AND b.bag_code NOT ILIKE '%-SCRAP%' AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')`);
     clauses.push(`(
       (p.inspection_required = TRUE AND b.status = 'INSPECTED') OR
-      (p.inspection_required = FALSE AND p.trim_required = TRUE AND b.status IN ('TRIMMED', 'INSPECTED')) OR
-      (p.inspection_required = FALSE AND p.trim_required = FALSE AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
+      (p.inspection_required = FALSE AND (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('TRIMMED', 'INSPECTED')) OR
+      (p.inspection_required = FALSE AND NOT (p.trim_required = TRUE OR b.weighed_with_runner = TRUE) AND b.status IN ('OPEN', 'TRIMMED', 'INSPECTED'))
     )`);
   } else if (stage === 'dispatch') {
     clauses.push(`b.bag_type = 'PART'`);
@@ -668,6 +668,8 @@ router.get('/by-code/:code', async (req, res) => {
 
   // Stage validation & Gating
   if (stage) {
+    const requiresTrim = Boolean(bag.trim_required || bag.weighed_with_runner);
+
     if (bag.status === 'HOLD') {
       return res.status(409).json({
         error: `⛔ Bag '${bag.bag_code}' is on HOLD (Quarantined). Must be released by Supervisor before processing.`,
@@ -690,9 +692,9 @@ router.get('/by-code/:code', async (req, res) => {
       if (bag.bag_type !== 'PART') {
         return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be inspected.` });
       }
-      if (bag.trim_required && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
+      if (requiresTrim && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
         return res.status(409).json({
-          error: `⛔ Trimming Required: Part '${bag.shrp_part_code || bag.part_code}' requires trimming. Bag '${bag.bag_code}' must be trimmed first before inspection.`,
+          error: `⛔ Trimming Required: Part '${bag.shrp_part_code || bag.part_code}' (Bag '${bag.bag_code}') requires trimming because it was bagged with runner. Must be trimmed first before inspection.`,
           bag,
           fifoValid: false
         });
@@ -707,9 +709,9 @@ router.get('/by-code/:code', async (req, res) => {
       if (bag.bag_type !== 'PART') {
         return res.status(409).json({ error: `⛔ Bag '${bag.bag_code}' is a ${bag.bag_type} bag and cannot be packed.` });
       }
-      if (bag.trim_required && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
+      if (requiresTrim && (bag.status === 'OPEN' || bag.status === 'PARTIAL_TRIM')) {
         return res.status(409).json({
-          error: `⛔ Trimming Required: Bag '${bag.bag_code}' must be trimmed and inspected first before packing.`,
+          error: `⛔ Trimming Required: Bag '${bag.bag_code}' was bagged with runner and must be trimmed and inspected first before packing.`,
           bag,
           fifoValid: false
         });
@@ -735,10 +737,11 @@ router.get('/by-code/:code', async (req, res) => {
   let oldestBag = null;
 
   if (stage) {
+    const requiresTrim = Boolean(bag.trim_required || bag.weighed_with_runner);
     let requiredStatuses;
     if (stage === 'trim') requiredStatuses = ['OPEN', 'PARTIAL_TRIM'];
-    else if (stage === 'inspect') requiredStatuses = bag.trim_required ? ['TRIMMED', 'PARTIAL_INSPECT'] : ['OPEN', 'TRIMMED', 'PARTIAL_INSPECT'];
-    else if (stage === 'pack') requiredStatuses = bag.inspection_required ? ['INSPECTED'] : (bag.trim_required ? ['TRIMMED', 'INSPECTED'] : ['OPEN', 'TRIMMED', 'INSPECTED']);
+    else if (stage === 'inspect') requiredStatuses = requiresTrim ? ['TRIMMED', 'PARTIAL_INSPECT'] : ['OPEN', 'TRIMMED', 'PARTIAL_INSPECT'];
+    else if (stage === 'pack') requiredStatuses = bag.inspection_required ? ['INSPECTED'] : (requiresTrim ? ['TRIMMED', 'INSPECTED'] : ['OPEN', 'TRIMMED', 'INSPECTED']);
     else if (stage === 'dispatch') requiredStatuses = ['PACKED'];
 
     if (requiredStatuses && requiredStatuses.includes(bag.status)) {
@@ -1101,7 +1104,8 @@ router.post('/:id(\\d+)/inspect', async (req, res) => {
   const part = await getPart(bag.part_id);
   const cavityCount = part.cavity_count || 1;
   const partWeightG = Number(part.part_weight_g || (part.unit_weight_g ? part.unit_weight_g / cavityCount : 0));
-  const requiredStatuses = part.trim_required ? ['TRIMMED', 'PARTIAL_INSPECT'] : ['OPEN', 'TRIMMED', 'PARTIAL_INSPECT'];
+  const requiresTrim = Boolean(part.trim_required || bag.weighed_with_runner);
+  const requiredStatuses = requiresTrim ? ['TRIMMED', 'PARTIAL_INSPECT'] : ['OPEN', 'TRIMMED', 'PARTIAL_INSPECT'];
 
   // FIFO check
   const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
@@ -1339,9 +1343,10 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
   }
 
   const part = await getPart(bag.part_id);
+  const requiresTrim = Boolean(part.trim_required || bag.weighed_with_runner);
   const requiredStatuses = part.inspection_required
     ? ['INSPECTED']
-    : (part.trim_required ? ['TRIMMED', 'INSPECTED'] : ['OPEN', 'TRIMMED', 'INSPECTED']);
+    : (requiresTrim ? ['TRIMMED', 'INSPECTED'] : ['OPEN', 'TRIMMED', 'INSPECTED']);
 
   // FIFO check
   const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
