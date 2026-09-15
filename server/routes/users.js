@@ -279,14 +279,15 @@ router.post('/:id/toggle-active', async (req, res) => {
 
 // ============================================================
 // ============================================================
+// ============================================================
 // 7. Delete User (Guaranteed Safe Delete / Purge for any account)
 // ============================================================
 router.delete('/:id', async (req, res) => {
   const targetParam = req.params.id;
   const numId = Number(targetParam);
 
-  // 1. Fetch user info by id OR username
   try {
+    // 1. Fetch user info by id OR username
     const { rows: userRows } = await pool.query(
       `SELECT * FROM users WHERE id = $1 OR username = $2`,
       [isNaN(numId) ? -1 : numId, targetParam]
@@ -295,87 +296,123 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     const targetUser = userRows[0];
+    const userId = targetUser.id;
 
     // Prevent deleting your own logged-in admin account
-    if (targetUser.id === req.user.id || targetUser.username === req.user.username) {
+    if (req.user && (targetUser.id === req.user.id || targetUser.username === req.user.username)) {
       return res.status(400).json({
         error: 'You cannot delete your own logged-in admin account. Please log in with a different admin account to delete this user.',
       });
     }
 
-    const userId = targetUser.id;
-
-    // Run column alterations safely outside the transaction block
-    const alterQueries = [
-      'ALTER TABLE production_entries ALTER COLUMN operator_user_id DROP NOT NULL',
-      'ALTER TABLE machine_assignments ALTER COLUMN set_by_user_id DROP NOT NULL',
-      'ALTER TABLE machine_assignments ALTER COLUMN approved_by_user_id DROP NOT NULL',
-      'ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL',
-      'ALTER TABLE trim_entries ALTER COLUMN operator_user_id DROP NOT NULL',
-      'ALTER TABLE inspection_entries ALTER COLUMN operator_user_id DROP NOT NULL',
-      'ALTER TABLE packing_entries ALTER COLUMN operator_user_id DROP NOT NULL',
-      'ALTER TABLE packing_balance_pool ALTER COLUMN operator_user_id DROP NOT NULL',
+    // Child tables where records owned by this user should be deleted:
+    const childTablesToDelete = [
+      'user_page_access',
+      'notifications',
+      'user_activity_log',
+      'attendance',
+      'leave_requests',
+      'user_leave_balances',
     ];
-    for (const q of alterQueries) {
-      try { await pool.query(q); } catch (e) { /* ignore if already nullable or not exists */ }
-    }
 
-    // Now perform the unlinking and purging inside a clean transaction
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Unlink transactional FK references so IATF history is preserved
-      await client.query('UPDATE production_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE machine_assignments SET set_by_user_id = NULL WHERE set_by_user_id = $1', [userId]);
-      await client.query('UPDATE machine_assignments SET approved_by_user_id = NULL WHERE approved_by_user_id = $1', [userId]);
-      await client.query('UPDATE bags SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE trim_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE inspection_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE packing_entries SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE packing_balance_pool SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-      await client.query('UPDATE machine_sessions SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]);
-
-      // Try unlinking optional extra tables if they exist
-      const optionalUnlinks = [
-        ['UPDATE bag_hold_log SET hold_by_user_id = NULL WHERE hold_by_user_id = $1', [userId]],
-        ['UPDATE bag_hold_log SET released_by_user_id = NULL WHERE released_by_user_id = $1', [userId]],
-        ['UPDATE rework_log SET created_by_user_id = NULL WHERE created_by_user_id = $1', [userId]],
-        ['UPDATE rework_log SET worked_by_user_id = NULL WHERE worked_by_user_id = $1', [userId]],
-        ['UPDATE rm_inward_entries SET inspector_user_id = NULL WHERE inspector_user_id = $1', [userId]],
-        ['UPDATE rm_inward_entries SET approved_by_user_id = NULL WHERE approved_by_user_id = $1', [userId]],
-        ['UPDATE rm_stock_movements SET operator_user_id = NULL WHERE operator_user_id = $1', [userId]],
-        ['UPDATE leave_requests SET reviewed_by = NULL WHERE reviewed_by = $1', [userId]],
-      ];
-      for (const [q, params] of optionalUnlinks) {
-        try { await client.query(q, params); } catch (e) { /* optional table */ }
+    for (const tbl of childTablesToDelete) {
+      try {
+        await pool.query(`DELETE FROM ${tbl} WHERE user_id = $1`, [userId]);
+      } catch (e) {
+        // Table or col may not exist; safe to continue
       }
-
-      // Delete user-owned child records
-      await client.query('DELETE FROM user_page_access WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM user_activity_log WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM attendance WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM leave_requests WHERE user_id = $1', [userId]);
-
-      // Purge the user account record
-      await client.query('DELETE FROM users WHERE id = $1', [userId]);
-
-      await client.query('COMMIT');
-      return res.json({
-        ok: true,
-        message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently and username freed for registration.`,
-      });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      console.error('Error in user deletion transaction:', err);
-      res.status(500).json({ error: err.message });
-    } finally {
-      client.release();
     }
-  } catch (outerErr) {
-    console.error('Error fetching user for deletion:', outerErr);
-    res.status(500).json({ error: outerErr.message });
+
+    // Operational/audit tables and columns to unlink (SET column = NULL):
+    const unlinks = [
+      ['production_entries', 'operator_user_id'],
+      ['machine_assignments', 'set_by_user_id'],
+      ['machine_assignments', 'approved_by_user_id'],
+      ['bags', 'operator_user_id'],
+      ['bags', 'tolerance_approved_by'],
+      ['bags', 'fifo_override_by'],
+      ['bag_hold_log', 'hold_by_user_id'],
+      ['bag_hold_log', 'released_by_user_id'],
+      ['trim_entries', 'operator_user_id'],
+      ['inspection_entries', 'operator_user_id'],
+      ['packing_entries', 'operator_user_id'],
+      ['packing_balance_pool', 'operator_user_id'],
+      ['machine_sessions', 'operator_user_id'],
+      ['rework_log', 'created_by_user_id'],
+      ['rework_log', 'worked_by_user_id'],
+      ['rework_entries', 'operator_user_id'],
+      ['dispatch_attachments', 'uploaded_by_user_id'],
+      ['dispatch_entries', 'operator_user_id'],
+      ['shift_handover_notes', 'operator_user_id'],
+      ['attendance', 'approved_by'],
+      ['parts', 'deleted_by'],
+      ['deletion_requests', 'requested_by'],
+      ['deletion_requests', 'reviewed_by'],
+      ['machine_breakdowns', 'logged_by'],
+      ['mould_maintenance_logs', 'logged_by'],
+      ['mould_files', 'uploaded_by_user_id'],
+      ['rm_inward_entries', 'inspector_user_id'],
+      ['rm_inward_entries', 'approved_by_user_id'],
+      ['rm_stock_movements', 'operator_user_id'],
+      ['rm_batch_dispense', 'over_consumed_approved_by'],
+      ['leave_requests', 'reviewed_by'],
+      ['users', 'deleted_by'],
+    ];
+
+    for (const [tbl, col] of unlinks) {
+      try {
+        await pool.query(`ALTER TABLE ${tbl} ALTER COLUMN ${col} DROP NOT NULL`);
+      } catch (e) {
+        // already nullable or doesn't exist
+      }
+      try {
+        await pool.query(`UPDATE ${tbl} SET ${col} = NULL WHERE ${col} = $1`, [userId]);
+      } catch (e) {
+        // table or column doesn't exist
+      }
+    }
+
+    // Dynamic catalog inspection: Find ANY other table in Postgres with foreign keys pointing to users(id)
+    try {
+      const { rows: fkRows } = await pool.query(`
+        SELECT
+          tc.table_name,
+          kcu.column_name
+        FROM information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND ccu.table_name = 'users'
+          AND ccu.column_name = 'id'
+          AND tc.table_name != 'users'
+      `);
+
+      for (const fk of fkRows) {
+        try {
+          await pool.query(`ALTER TABLE "${fk.table_name}" ALTER COLUMN "${fk.column_name}" DROP NOT NULL`);
+          await pool.query(`UPDATE "${fk.table_name}" SET "${fk.column_name}" = NULL WHERE "${fk.column_name}" = $1`, [userId]);
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (catalogErr) {
+      console.warn('Catalog FK lookup skipped:', catalogErr.message);
+    }
+
+    // Delete the user record
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    return res.json({
+      ok: true,
+      message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently.`,
+    });
+  } catch (err) {
+    console.error('Error in user deletion:', err);
+    return res.status(500).json({ error: 'Failed to delete user: ' + err.message });
   }
 });
 

@@ -117,6 +117,13 @@ if (typeof window !== 'undefined') {
 export const api = {
   request,
   login: (username, pin) => request('/auth/login', { method: 'POST', body: { username, pin } }),
+  users: () => request('/users'),
+  createUser: (payload) => request('/users', { method: 'POST', body: payload }),
+  updateUser: (id, payload) => request(`/users/${id}`, { method: 'PUT', body: payload }),
+  toggleActiveUser: (id) => request(`/users/${id}/toggle-active`, { method: 'POST' }),
+  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+  userActivityReport: (date) => request(`/users/activity-report${date ? `?date=${date}` : ''}`),
+  userActivityDetail: (id, date) => request(`/users/${id}/activity${date ? `?date=${date}` : ''}`),
   masters: {
     machines: () => request('/masters/machines'),
     parts: () => request('/masters/parts'),
