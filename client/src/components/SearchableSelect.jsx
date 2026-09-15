@@ -1,1 +1,554 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';\n\n/**\n * Universal SearchableSelect Component\n * Replaces cumbersome mobile <select> dropdowns with a fast, typing-enabled,\n * searchable picker with instant filtering across codes, names, badges & descriptions.\n */\nexport default function SearchableSelect({\n  id,\n  name,\n  value,\n  onChange,\n  options = [],\n  placeholder = '🔍 Search & select...',\n  searchPlaceholder = '🔍 Type code, name, customer no...',\n  disabled = false,\n  required = false,\n  allowClear = false,\n  className = '',\n  style = {},\n  getOptionValue,\n  getOptionLabel,\n  getOptionBadge,\n  getOptionSublabel,\n  renderCustomOption\n}) {\n  const [isOpen, setIsOpen] = useState(false);\n  const [searchTerm, setSearchTerm] = useState('');\n  const [highlightIndex, setHighlightIndex] = useState(0);\n  \n  const triggerRef = useRef(null);\n  const searchInputRef = useRef(null);\n  const listRef = useRef(null);\n\n  // Normalize options to a standard shape\n  const normalizedOptions = useMemo(() => {\n    if (!Array.isArray(options)) return [];\n    return options.map((opt, idx) => {\n      if (opt === null || opt === undefined) return null;\n      if (typeof opt === 'string' || typeof opt === 'number') {\n        return {\n          id: String(opt),\n          value: String(opt),\n          label: String(opt),\n          badge: '',\n          sublabel: '',\n          raw: opt\n        };\n      }\n\n      const val = getOptionValue\n        ? getOptionValue(opt)\n        : opt.value !== undefined\n        ? opt.value\n        : opt.id !== undefined\n        ? opt.id\n        : String(idx);\n\n      const label = getOptionLabel\n        ? getOptionLabel(opt)\n        : opt.label !== undefined\n        ? opt.label\n        : opt.part_name || opt.machine_code || opt.name || opt.title || opt.material_name || String(val);\n\n      const badge = getOptionBadge\n        ? getOptionBadge(opt)\n        : opt.badge !== undefined\n        ? opt.badge\n        : opt.shrp_part_code || opt.part_code || opt.code || '';\n\n      const sublabel = getOptionSublabel\n        ? getOptionSublabel(opt)\n        : opt.sublabel !== undefined\n        ? opt.sublabel\n        : opt.customer_part_no\n        ? ('Cust: ' + opt.customer_part_no)\n        : opt.grade\n        ? ('Grade: ' + opt.grade)\n        : opt.description || '';\n\n      const searchTerms = [\n        String(val),\n        String(label || ''),\n        String(badge || ''),\n        String(sublabel || ''),\n        String(opt.searchTerms || '')\n      ].join(' ').toLowerCase();\n\n      return {\n        id: String(val),\n        value: val,\n        label: String(label || ''),\n        badge: String(badge || ''),\n        sublabel: String(sublabel || ''),\n        searchTerms,\n        disabled: Boolean(opt.disabled),\n        raw: opt\n      };\n    }).filter(Boolean);\n  }, [options, getOptionValue, getOptionLabel, getOptionBadge, getOptionSublabel]);\n\n  // Current selected option object\n  const selectedOption = useMemo(() => {\n    if (value === undefined || value === null || value === '') return null;\n    return normalizedOptions.find((o) => String(o.value) === String(value)) || null;\n  }, [normalizedOptions, value]);\n\n  // Filtered options based on search term\n  const filteredOptions = useMemo(() => {\n    const term = searchTerm.trim().toLowerCase();\n    if (!term) return normalizedOptions;\n    \n    const keywords = term.split(/\s+/).filter(Boolean);\n    return normalizedOptions.filter((opt) =>\n      keywords.every((kw) => opt.searchTerms.includes(kw))\n    );\n  }, [normalizedOptions, searchTerm]);\n\n  // Auto focus search input when opened\n  useEffect(() => {\n    if (isOpen) {\n      setSearchTerm('');\n      setHighlightIndex(0);\n      const t = setTimeout(() => {\n        if (searchInputRef.current) {\n          searchInputRef.current.focus();\n        }\n      }, 60);\n      return () => clearTimeout(t);\n    }\n  }, [isOpen]);\n\n  // Handle outside click & escape key\n  useEffect(() => {\n    if (!isOpen) return;\n    \n    function handleKeyDown(e) {\n      if (e.key === 'Escape') {\n        setIsOpen(false);\n      } else if (e.key === 'ArrowDown') {\n        e.preventDefault();\n        setHighlightIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));\n      } else if (e.key === 'ArrowUp') {\n        e.preventDefault();\n        setHighlightIndex((prev) => Math.max(prev - 1, 0));\n      } else if (e.key === 'Enter') {\n        e.preventDefault();\n        if (filteredOptions[highlightIndex]) {\n          handleSelect(filteredOptions[highlightIndex]);\n        }\n      } else if (e.key === 'Tab') {\n        setIsOpen(false);\n      }\n    }\n\n    window.addEventListener('keydown', handleKeyDown);\n    return () => window.removeEventListener('keydown', handleKeyDown);\n  }, [isOpen, filteredOptions, highlightIndex]);\n\n  // Scroll active item into view\n  useEffect(() => {\n    if (isOpen && listRef.current && listRef.current.children[highlightIndex]) {\n      listRef.current.children[highlightIndex].scrollIntoView({\n        block: 'nearest',\n        behavior: 'smooth'\n      });\n    }\n  }, [highlightIndex, isOpen]);\n\n  const handleSelect = (option) => {\n    if (!option || option.disabled) return;\n    const val = option.value;\n    \n    if (typeof onChange === 'function') {\n      const syntheticEvent = {\n        target: { id, name, value: val },\n        currentTarget: { id, name, value: val },\n        value: val,\n        option: option.raw,\n        toString: () => String(val),\n        valueOf: () => val\n      };\n      onChange(syntheticEvent, val, option.raw);\n    }\n    setIsOpen(false);\n  };\n\n  const handleClear = (e) => {\n    e.stopPropagation();\n    if (typeof onChange === 'function') {\n      const syntheticEvent = {\n        target: { id, name, value: '' },\n        currentTarget: { id, name, value: '' },\n        value: '',\n        option: null,\n        toString: () => '',\n        valueOf: () => ''\n      };\n      onChange(syntheticEvent, '', null);\n    }\n  };\n\n  return (\n    <div\n      className={'searchable-select-container ' + className}\n      style={{ position: 'relative', width: '100%', ...style }}\n    >\n      {required && (\n        <input\n          type='text'\n          value={value || ''}\n          required={required}\n          onChange={() => {}}\n          style={{\n            position: 'absolute',\n            opacity: 0,\n            width: 1,\n            height: 1,\n            pointerEvents: 'none',\n            top: '50%',\n            left: '50%'\n          }}\n          tabIndex={-1}\n        />\n      )}\n\n      {/* Trigger Button / Display Box */}\n      <button\n        ref={triggerRef}\n        type='button'\n        id={id}\n        name={name}\n        disabled={disabled}\n        onClick={() => !disabled && setIsOpen(true)}\n        className='searchable-select-trigger'\n        style={{\n          width: '100%',\n          minHeight: 44,\n          padding: '8px 12px',\n          background: 'var(--card, #1a2234)',\n          border: '1px solid var(--line, #334155)',\n          borderRadius: 8,\n          color: selectedOption ? 'var(--text, #f8fafc)' : 'var(--text-muted, #94a3b8)',\n          display: 'flex',\n          alignItems: 'center',\n          justifyContent: 'space-between',\n          gap: 8,\n          cursor: disabled ? 'not-allowed' : 'pointer',\n          textAlign: 'left',\n          fontSize: 14,\n          outline: 'none',\n          boxShadow: '0 1px 2px rgba(0,0,0,0.1)'\n        }}\n      >\n        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' }}>\n          {selectedOption ? (\n            <>\n              {selectedOption.badge && (\n                <span\n                  style={{\n                    background: 'rgba(245, 158, 11, 0.15)',\n                    color: '#fbbf24',\n                    border: '1px solid rgba(245, 158, 11, 0.35)',\n                    borderRadius: 4,\n                    padding: '2px 6px',\n                    fontSize: 12,\n                    fontWeight: 700,\n                    whiteSpace: 'nowrap'\n                  }}\n                >\n                  {selectedOption.badge}\n                </span>\n              )}\n              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>\n                <span style={{ fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>\n                  {selectedOption.label}\n                </span>\n                {selectedOption.sublabel && (\n                  <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>\n                    {selectedOption.sublabel}\n                  </span>\n                )}\n              </div>\n            </>\n          ) : (\n            <span style={{ color: 'var(--text-muted, #94a3b8)' }}>{placeholder}</span>\n          )}\n        </div>\n\n        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>\n          {allowClear && selectedOption && !disabled && (\n            <span\n              role='button'\n              tabIndex={0}\n              onClick={handleClear}\n              style={{\n                color: '#94a3b8',\n                padding: '2px 6px',\n                borderRadius: '50%',\n                fontSize: 14,\n                lineHeight: 1,\n                cursor: 'pointer'\n              }}\n              title='Clear selection'\n            >\n              ✕\n            </span>\n          )}\n          <span style={{ color: '#64748b', fontSize: 12 }}>▼</span>\n        </div>\n      </button>\n\n      {/* Full Modal Overlay on Mobile / Popover on Desktop */}\n      {isOpen && (\n        <div\n          style={{\n            position: 'fixed',\n            top: 0,\n            left: 0,\n            right: 0,\n            bottom: 0,\n            backgroundColor: 'rgba(10, 15, 29, 0.75)',\n            backdropFilter: 'blur(4px)',\n            zIndex: 99999,\n            display: 'flex',\n            alignItems: 'flex-start',\n            justifyContent: 'center',\n            padding: '16px',\n            animation: 'fadeIn 0.15s ease-out'\n          }}\n          onClick={() => setIsOpen(false)}\n        >\n          <div\n            style={{\n              background: '#131b2e',\n              border: '1px solid #334155',\n              borderRadius: 14,\n              width: '100%',\n              maxWidth: 540,\n              maxHeight: '85vh',\n              display: 'flex',\n              flexDirection: 'column',\n              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',\n              marginTop: 'min(40px, 5vh)',\n              overflow: 'hidden'\n            }}\n            onClick={(e) => e.stopPropagation()}\n          >\n            {/* Modal Header & Search Bar */}\n            <div\n              style={{\n                padding: '14px 16px',\n                borderBottom: '1px solid #1e293b',\n                display: 'flex',\n                flexDirection: 'column',\n                gap: 10,\n                background: '#0f172a'\n              }}\n            >\n              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>\n                <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 6 }}>\n                  🔍 {typeof placeholder === 'string' ? placeholder.replace(/^[🔍\s]+/, '') : 'Select Option'}\n                </span>\n                <button\n                  type='button'\n                  onClick={() => setIsOpen(false)}\n                  style={{\n                    background: 'transparent',\n                    border: 'none',\n                    color: '#94a3b8',\n                    fontSize: 20,\n                    cursor: 'pointer',\n                    padding: '4px 8px',\n                    borderRadius: 6\n                  }}\n                >\n                  ✕\n                </button>\n              </div>\n\n              {/* Instant Search Input */}\n              <div style={{ position: 'relative', width: '100%' }}>\n                <input\n                  ref={searchInputRef}\n                  type='text'\n                  value={searchTerm}\n                  onChange={(e) => setSearchTerm(e.target.value)}\n                  placeholder={searchPlaceholder}\n                  style={{\n                    width: '100%',\n                    height: 44,\n                    padding: '8px 36px 8px 14px',\n                    background: '#1e293b',\n                    border: '1px solid #3b82f6',\n                    borderRadius: 8,\n                    color: '#fff',\n                    fontSize: 15,\n                    outline: 'none',\n                    boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.2)'\n                  }}\n                />\n                {searchTerm && (\n                  <button\n                    type='button'\n                    onClick={() => setSearchTerm('')}\n                    style={{\n                      position: 'absolute',\n                      right: 10,\n                      top: '50%',\n                      transform: 'translateY(-50%)',\n                      background: 'transparent',\n                      border: 'none',\n                      color: '#94a3b8',\n                      fontSize: 16,\n                      cursor: 'pointer',\n                      padding: 4\n                    }}\n                  >\n                    ✕\n                  </button>\n                )}\n              </div>\n\n              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>\n                <span>Showing {filteredOptions.length} of {normalizedOptions.length} items</span>\n                <span>Type keywords to filter</span>\n              </div>\n            </div>\n\n            {/* List of Options */}\n            <div\n              ref={listRef}\n              style={{\n                flex: 1,\n                overflowY: 'auto',\n                padding: '8px',\n                display: 'flex',\n                flexDirection: 'column',\n                gap: 4\n              }}\n            >\n              {filteredOptions.length === 0 ? (\n                <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8' }}>\n                  <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>\n                  <div style={{ fontWeight: 600, fontSize: 14 }}>No matches found</div>\n                  <div style={{ fontSize: 12, marginTop: 4, color: '#64748b' }}>\n                    No items matching "{searchTerm}"\n                  </div>\n                  <button\n                    type='button'\n                    onClick={() => setSearchTerm('')}\n                    style={{\n                      marginTop: 12,\n                      padding: '6px 14px',\n                      background: '#1e293b',\n                      border: '1px solid #334155',\n                      borderRadius: 6,\n                      color: '#38bdf8',\n                      fontSize: 12,\n                      cursor: 'pointer'\n                    }}\n                  >\n                    Clear Filter\n                  </button>\n                </div>\n              ) : (\n                filteredOptions.map((opt, idx) => {\n                  const isSelected = selectedOption && String(selectedOption.value) === String(opt.value);\n                  const isHighlighted = idx === highlightIndex;\n\n                  if (renderCustomOption) {\n                    return (\n                      <div\n                        key={opt.id}\n                        onClick={() => handleSelect(opt)}\n                        style={{ cursor: opt.disabled ? 'not-allowed' : 'pointer' }}\n                      >\n                        {renderCustomOption(opt, { isSelected, isHighlighted })}\n                      </div>\n                    );\n                  }\n\n                  return (\n                    <div\n                      key={opt.id}\n                      onClick={() => handleSelect(opt)}\n                      onMouseEnter={() => setHighlightIndex(idx)}\n                      style={{\n                        padding: '10px 14px',\n                        borderRadius: 8,\n                        background: isSelected\n                          ? 'rgba(59, 130, 246, 0.2)'\n                          : isHighlighted\n                          ? 'rgba(255, 255, 255, 0.05)'\n                          : 'transparent',\n                        border: isSelected\n                          ? '1px solid #3b82f6'\n                          : '1px solid transparent',\n                        display: 'flex',\n                        alignItems: 'center',\n                        justifyContent: 'space-between',\n                        gap: 12,\n                        cursor: opt.disabled ? 'not-allowed' : 'pointer',\n                        opacity: opt.disabled ? 0.5 : 1,\n                        transition: 'background 0.1s ease'\n                      }}\n                    >\n                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, overflow: 'hidden' }}>\n                        {opt.badge && (\n                          <span\n                            style={{\n                              background: 'rgba(245, 158, 11, 0.15)',\n                              color: '#fbbf24',\n                              border: '1px solid rgba(245, 158, 11, 0.35)',\n                              borderRadius: 4,\n                              padding: '2px 6px',\n                              fontSize: 12,\n                              fontWeight: 700,\n                              whiteSpace: 'nowrap'\n                            }}\n                          >\n                            {opt.badge}\n                          </span>\n                        )}\n                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>\n                          <span style={{ fontWeight: 600, fontSize: 14, color: isSelected ? '#38bdf8' : '#f8fafc' }}>\n                            {opt.label}\n                          </span>\n                          {opt.sublabel && (\n                            <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>\n                              {opt.sublabel}\n                            </span>\n                          )}\n                        </div>\n                      </div>\n\n                      {isSelected && (\n                        <span style={{ color: '#38bdf8', fontWeight: 700, fontSize: 16 }}>\n                          ✓\n                        </span>\n                      )}\n                    </div>\n                  );\n                })\n              )}\n            </div>\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+/**
+ * Universal SearchableSelect Component
+ * Replaces cumbersome mobile <select> dropdowns with a fast, typing-enabled,
+ * searchable picker with instant filtering across codes, names, badges & descriptions.
+ */
+export default function SearchableSelect({
+  id,
+  name,
+  value,
+  onChange,
+  options = [],
+  placeholder = '🔍 Search & select...',
+  searchPlaceholder = '🔍 Type code, name, customer no...',
+  disabled = false,
+  required = false,
+  allowClear = false,
+  className = '',
+  style = {},
+  getOptionValue,
+  getOptionLabel,
+  getOptionBadge,
+  getOptionSublabel,
+  renderCustomOption
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  
+  const triggerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Normalize options to a standard shape
+  const normalizedOptions = useMemo(() => {
+    if (!Array.isArray(options)) return [];
+    return options.map((opt, idx) => {
+      if (opt === null || opt === undefined) return null;
+      if (typeof opt === 'string' || typeof opt === 'number') {
+        return {
+          id: String(opt),
+          value: String(opt),
+          label: String(opt),
+          badge: '',
+          sublabel: '',
+          searchTerms: String(opt).toLowerCase(),
+          disabled: false,
+          raw: opt
+        };
+      }
+
+      const val = getOptionValue
+        ? getOptionValue(opt)
+        : opt.value !== undefined
+        ? opt.value
+        : opt.id !== undefined
+        ? opt.id
+        : String(idx);
+
+      const label = getOptionLabel
+        ? getOptionLabel(opt)
+        : opt.label !== undefined
+        ? opt.label
+        : opt.part_name || opt.machine_code || opt.name || opt.title || opt.material_name || String(val);
+
+      const badge = getOptionBadge
+        ? getOptionBadge(opt)
+        : opt.badge !== undefined
+        ? opt.badge
+        : opt.shrp_part_code || opt.part_code || opt.code || '';
+
+      const sublabel = getOptionSublabel
+        ? getOptionSublabel(opt)
+        : opt.sublabel !== undefined
+        ? opt.sublabel
+        : opt.customer_part_no
+        ? ('Cust: ' + opt.customer_part_no)
+        : opt.grade
+        ? ('Grade: ' + opt.grade)
+        : opt.description || '';
+
+      const searchTerms = [
+        String(val),
+        String(label || ''),
+        String(badge || ''),
+        String(sublabel || ''),
+        String(opt.searchTerms || '')
+      ].join(' ').toLowerCase();
+
+      return {
+        id: String(val),
+        value: val,
+        label: String(label || ''),
+        badge: String(badge || ''),
+        sublabel: String(sublabel || ''),
+        searchTerms,
+        disabled: Boolean(opt.disabled),
+        raw: opt
+      };
+    }).filter(Boolean);
+  }, [options, getOptionValue, getOptionLabel, getOptionBadge, getOptionSublabel]);
+
+  // Current selected option object
+  const selectedOption = useMemo(() => {
+    if (value === undefined || value === null || value === '') return null;
+    return normalizedOptions.find((o) => String(o.value) === String(value)) || null;
+  }, [normalizedOptions, value]);
+
+  // Filtered options based on search term
+  const filteredOptions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return normalizedOptions;
+    
+    const keywords = term.split(/\s+/).filter(Boolean);
+    return normalizedOptions.filter((opt) =>
+      keywords.every((kw) => opt.searchTerms.includes(kw))
+    );
+  }, [normalizedOptions, searchTerm]);
+
+  // Auto focus search input when opened
+  useEffect(() => {
+    if (isOpen) {
+      setSearchTerm('');
+      setHighlightIndex(0);
+      const t = setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 60);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
+
+  // Handle outside click & escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredOptions[highlightIndex]) {
+          handleSelect(filteredOptions[highlightIndex]);
+        }
+      } else if (e.key === 'Tab') {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, filteredOptions, highlightIndex]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (isOpen && listRef.current && listRef.current.children[highlightIndex]) {
+      listRef.current.children[highlightIndex].scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth'
+      });
+    }
+  }, [highlightIndex, isOpen]);
+
+  const handleSelect = (option) => {
+    if (!option || option.disabled) return;
+    const val = option.value;
+    
+    if (typeof onChange === 'function') {
+      const syntheticEvent = {
+        target: { id, name, value: val },
+        currentTarget: { id, name, value: val },
+        value: val,
+        option: option.raw,
+        toString: () => String(val),
+        valueOf: () => val
+      };
+      onChange(syntheticEvent, val, option.raw);
+    }
+    setIsOpen(false);
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    if (typeof onChange === 'function') {
+      const syntheticEvent = {
+        target: { id, name, value: '' },
+        currentTarget: { id, name, value: '' },
+        value: '',
+        option: null,
+        toString: () => '',
+        valueOf: () => ''
+      };
+      onChange(syntheticEvent, '', null);
+    }
+  };
+
+  return (
+    <div
+      className={'searchable-select-container ' + className}
+      style={{ position: 'relative', width: '100%', ...style }}
+    >
+      {required && (
+        <input
+          type='text'
+          value={value || ''}
+          required={required}
+          onChange={() => {}}
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            width: 1,
+            height: 1,
+            pointerEvents: 'none',
+            top: '50%',
+            left: '50%'
+          }}
+          tabIndex={-1}
+        />
+      )}
+
+      {/* Trigger Button / Display Box */}
+      <button
+        ref={triggerRef}
+        type='button'
+        id={id}
+        name={name}
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen(true)}
+        className='searchable-select-trigger'
+        style={{
+          width: '100%',
+          minHeight: 44,
+          padding: '8px 12px',
+          background: 'var(--card, #1a2234)',
+          border: '1px solid var(--line, #334155)',
+          borderRadius: 8,
+          color: selectedOption ? 'var(--text, #f8fafc)' : 'var(--text-muted, #94a3b8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          textAlign: 'left',
+          fontSize: 14,
+          outline: 'none',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' }}>
+          {selectedOption ? (
+            <>
+              {selectedOption.badge && (
+                <span
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: '#fbbf24',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: 4,
+                    padding: '2px 6px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {selectedOption.badge}
+                </span>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <span style={{ fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedOption.label}
+                </span>
+                {selectedOption.sublabel && (
+                  <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {selectedOption.sublabel}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <span style={{ color: 'var(--text-muted, #94a3b8)' }}>{placeholder}</span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {allowClear && selectedOption && !disabled && (
+            <span
+              role='button'
+              tabIndex={0}
+              onClick={handleClear}
+              style={{
+                color: '#94a3b8',
+                padding: '2px 6px',
+                borderRadius: '50%',
+                fontSize: 14,
+                lineHeight: 1,
+                cursor: 'pointer'
+              }}
+              title='Clear selection'
+            >
+              ✕
+            </span>
+          )}
+          <span style={{ color: '#64748b', fontSize: 12 }}>▼</span>
+        </div>
+      </button>
+
+      {/* Full Modal Overlay on Mobile / Popover on Desktop */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(10, 15, 29, 0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            padding: '16px',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+          onClick={() => setIsOpen(false)}
+        >
+          <div
+            style={{
+              background: '#131b2e',
+              border: '1px solid #334155',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 540,
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+              marginTop: 'min(40px, 5vh)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header & Search Bar */}
+            <div
+              style={{
+                padding: '14px 16px',
+                borderBottom: '1px solid #1e293b',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                background: '#0f172a'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🔍 {typeof placeholder === 'string' ? placeholder.replace(/^[🔍\s]+/, '') : 'Select Option'}
+                </span>
+                <button
+                  type='button'
+                  onClick={() => setIsOpen(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: 20,
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: 6
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Instant Search Input */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  ref={searchInputRef}
+                  type='text'
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    padding: '8px 36px 8px 14px',
+                    background: '#1e293b',
+                    border: '1px solid #3b82f6',
+                    borderRadius: 8,
+                    color: '#fff',
+                    fontSize: 15,
+                    outline: 'none',
+                    boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.2)'
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    type='button'
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#94a3b8',
+                      fontSize: 16,
+                      cursor: 'pointer',
+                      padding: 4
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
+                <span>Showing {filteredOptions.length} of {normalizedOptions.length} items</span>
+                <span>Type keywords to filter</span>
+              </div>
+            </div>
+
+            {/* List of Options */}
+            <div
+              ref={listRef}
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4
+              }}
+            >
+              {filteredOptions.length === 0 ? (
+                <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>No matches found</div>
+                  <div style={{ fontSize: 12, marginTop: 4, color: '#64748b' }}>
+                    No items matching "{searchTerm}"
+                  </div>
+                  <button
+                    type='button'
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      marginTop: 12,
+                      padding: '6px 14px',
+                      background: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: 6,
+                      color: '#38bdf8',
+                      fontSize: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              ) : (
+                filteredOptions.map((opt, idx) => {
+                  const isSelected = selectedOption && String(selectedOption.value) === String(opt.value);
+                  const isHighlighted = idx === highlightIndex;
+
+                  if (renderCustomOption) {
+                    return (
+                      <div
+                        key={opt.id}
+                        onClick={() => handleSelect(opt)}
+                        style={{ cursor: opt.disabled ? 'not-allowed' : 'pointer' }}
+                      >
+                        {renderCustomOption(opt, { isSelected, isHighlighted })}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => handleSelect(opt)}
+                      onMouseEnter={() => setHighlightIndex(idx)}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        background: isSelected
+                          ? 'rgba(59, 130, 246, 0.2)'
+                          : isHighlighted
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'transparent',
+                        border: isSelected
+                          ? '1px solid #3b82f6'
+                          : '1px solid transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                        opacity: opt.disabled ? 0.5 : 1,
+                        transition: 'background 0.1s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, overflow: 'hidden' }}>
+                        {opt.badge && (
+                          <span
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              color: '#fbbf24',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              borderRadius: 4,
+                              padding: '2px 6px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {opt.badge}
+                          </span>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: isSelected ? '#38bdf8' : '#f8fafc' }}>
+                            {opt.label}
+                          </span>
+                          {opt.sublabel && (
+                            <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                              {opt.sublabel}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <span style={{ color: '#38bdf8', fontWeight: 700, fontSize: 16 }}>
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
