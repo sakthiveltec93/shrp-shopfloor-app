@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -486,10 +487,17 @@ export default function BagEntry() {
               📷 Scan QR
             </button>
           </label>
-          <select id="machine" value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
-            <option value="" disabled>{t('common.selectMachine')}</option>
-            {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
-          </select>
+          <SearchableSelect
+            id="machine"
+            value={machineId}
+            onChange={(e) => setMachineId(e.target.value)}
+            options={machines}
+            placeholder={t('common.selectMachine')}
+            searchPlaceholder="🔍 Type machine code..."
+            getOptionValue={(m) => m.id}
+            getOptionLabel={(m) => m.machine_code}
+            required
+          />
         </div>
 
         {machineId && assigned && (

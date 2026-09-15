@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
 import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
@@ -290,10 +291,16 @@ export default function ProductionEntry() {
       <div className="panel">
         <div className="field">
           <label htmlFor="machine">{t('common.machine', 'Machine')}</label>
-          <select id="machine" value={machineId} onChange={(e) => selectMachine(e.target.value)}>
-            <option value="" disabled>{t('common.selectMachine', 'Select machine')}</option>
-            {machines.map((m) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
-          </select>
+          <SearchableSelect
+            id="machine"
+            value={machineId}
+            onChange={(e) => selectMachine(e.target.value)}
+            options={machines}
+            placeholder={t('common.selectMachine', 'Select machine')}
+            searchPlaceholder="🔍 Type machine code..."
+            getOptionValue={(m) => m.id}
+            getOptionLabel={(m) => m.machine_code}
+          />
         </div>
 
         {machineId && (
@@ -486,10 +493,17 @@ export default function ProductionEntry() {
                 <label>{t('entry.rejects', 'Rejection Quantity & Reasons')}</label>
                 {rejectRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
-                    <select value={row.reason_id} onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}>
-                    <option value="">{t('entry.reasonPlaceholder', 'Select scrap reason')}</option>
-                      {rejectReasons.map((r) => <option key={r.id} value={r.id}>{r.code ? `${r.code} - ${r.item_name}` : r.item_name}</option>)}
-                    </select>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <SearchableSelect
+                        value={row.reason_id}
+                        onChange={(e) => updateRejectRow(i, 'reason_id', e.target.value)}
+                        options={rejectReasons}
+                        placeholder={t('entry.reasonPlaceholder', 'Select scrap reason')}
+                        searchPlaceholder="🔍 Type scrap reason..."
+                        getOptionValue={(r) => r.id}
+                        getOptionLabel={(r) => r.code ? (r.code + ' - ' + r.item_name) : (r.item_name || r.name)}
+                      />
+                    </div>
                     <input type="number" inputMode="numeric" placeholder={t('entry.qtyPlaceholder', 'Qty')}
                       value={row.qty} onChange={(e) => updateRejectRow(i, 'qty', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeRejectRow(i)}>✕</button>
@@ -502,10 +516,17 @@ export default function ProductionEntry() {
                 <label>{t('entry.downtime', 'Downtime Duration & Reasons')}</label>
                 {downtimeRows.map((row, i) => (
                   <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
-                    <select value={row.reason_id} onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}>
-                      <option value="">{t('entry.reasonPlaceholder', 'Select downtime reason')}</option>
-                      {downtimeReasons.map((r) => <option key={r.id} value={r.id}>{r.related_to ? `${r.item_name} (${r.related_to})` : r.item_name}</option>)}
-                    </select>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <SearchableSelect
+                        value={row.reason_id}
+                        onChange={(e) => updateDowntimeRow(i, 'reason_id', e.target.value)}
+                        options={downtimeReasons}
+                        placeholder={t('entry.reasonPlaceholder', 'Select downtime reason')}
+                        searchPlaceholder="🔍 Type downtime reason..."
+                        getOptionValue={(r) => r.id}
+                        getOptionLabel={(r) => r.related_to ? (r.item_name + ' (' + r.related_to + ')') : (r.item_name || r.name)}
+                      />
+                    </div>
                     <input type="number" inputMode="numeric" placeholder={t('entry.minutesPlaceholder', 'Minutes')}
                       value={row.minutes} onChange={(e) => updateDowntimeRow(i, 'minutes', e.target.value)} />
                     <button type="button" className="btn btn-secondary" onClick={() => removeDowntimeRow(i)}>✕</button>

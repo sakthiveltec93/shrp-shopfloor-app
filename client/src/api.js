@@ -8,10 +8,18 @@ function getToken() {
 }
 
 function isQueueable(path, method) {
-  if (method !== 'POST' && method !== 'PUT' && method !== 'DELETE') return false;
-  // Auth and PIN changes must not be queued offline
-  if (path.startsWith('/auth') || path.startsWith('/account/change-pin')) return false;
-  return true;
+  // Never queue DELETE requests or administrative/master endpoints
+  if (method !== 'POST' && method !== 'PUT') return false;
+  if (path.startsWith('/auth') || path.startsWith('/account') || path.startsWith('/users') || path.startsWith('/masters') || path.startsWith('/deletions')) {
+    return false;
+  }
+  // Only queue shopfloor production entries, bags, and inspections
+  return (
+    path.startsWith('/entries') ||
+    path.startsWith('/bags') ||
+    path.startsWith('/checksheet') ||
+    path.startsWith('/raw-materials/inward')
+  );
 }
 
 async function request(path, { method = 'GET', body, isOfflineReplay = false, description } = {}) {

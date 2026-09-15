@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, getToken } from '../api';
@@ -343,16 +344,16 @@ export default function PartForm() {
           <div className="field">
             <label>Customer</label>
             <div className="btn-row">
-              <select
+              <SearchableSelect
                 value={basic.customer_id}
                 onChange={(e) => updateBasic('customer_id', e.target.value)}
-                style={{ flex: 1 }}
-              >
-                <option value="">-- Select --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                options={customers}
+                placeholder="-- Select Customer --"
+                searchPlaceholder="🔍 Type customer name..."
+                getOptionValue={(c) => c.id}
+                getOptionLabel={(c) => c.name}
+                allowClear
+              />
             </div>
             <div className="btn-row" style={{ marginTop: 6 }}>
               <input
@@ -447,18 +448,17 @@ export default function PartForm() {
         {isNew && (
           <div className="field" style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: 12, borderRadius: 8, marginTop: 10 }}>
             <label style={{ color: '#fbbf24', fontWeight: 700 }}>⚙️ Primary Mould / Tool (Optional)</label>
-            <select
+            <SearchableSelect
               value={basic.mould_id}
               onChange={(e) => updateBasic('mould_id', e.target.value)}
-              style={{ width: '100%', marginTop: 4 }}
-            >
-              <option value="">-- No Mould Linked Yet (Can link later) --</option>
-              {allMoulds.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.mould_code} - {m.mould_name} ({m.total_cavities} Cavities - {m.storage_location})
-                </option>
-              ))}
-            </select>
+              options={allMoulds}
+              placeholder="-- No Mould Linked Yet (Can link later) --"
+              searchPlaceholder="🔍 Type mould code / name..."
+              getOptionValue={(m) => m.id}
+              getOptionLabel={(m) => m.mould_name ? (m.mould_name + ' (' + m.total_cavities + 'C - ' + (m.storage_location || '') + ')') : m.mould_code}
+              getOptionBadge={(m) => m.mould_code}
+              allowClear
+            />
           </div>
         )}
 
@@ -594,18 +594,17 @@ export default function PartForm() {
               <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 13, marginBottom: 8 }}>No mould currently linked to this part.</div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', maxWidth: 480, margin: '0 auto' }}>
-                  <select
+                  <SearchableSelect
                     value={selectedMouldToLink}
                     onChange={(e) => setSelectedMouldToLink(e.target.value)}
-                    style={{ flex: 1, padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                  >
-                    <option value="">-- Select Existing Mould from Master --</option>
-                    {allMoulds.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.mould_code} - {m.mould_name} ({m.total_cavities}C)
-                      </option>
-                    ))}
-                  </select>
+                    options={allMoulds}
+                    placeholder="-- Select Existing Mould from Master --"
+                    searchPlaceholder="🔍 Type mould code / name..."
+                    getOptionValue={(m) => m.id}
+                    getOptionLabel={(m) => m.mould_name ? (m.mould_name + ' (' + m.total_cavities + 'C)') : m.mould_code}
+                    getOptionBadge={(m) => m.mould_code}
+                    allowClear
+                  />
                   <input
                     type="number"
                     min="1"

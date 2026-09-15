@@ -11,9 +11,59 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 14px calc(16px + env(safe-area-inset-left, 0px));
+  padding: calc(10px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 10px calc(12px + env(safe-area-inset-left, 0px));
   background: var(--panel);
-  border-bottom: 3px solid var(--amber);
+  border-bottom: 2px solid var(--amber);
+  gap: 8px;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.brand-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-logo-pill {
+  background: #ffffff;
+  padding: 3px 7px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.brand-logo-img {
+  height: 28px;
+  width: auto;
+  max-width: 80px;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-badge {
+  font-family: var(--font-num, monospace);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--amber, #f5a623);
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.22) 0%, rgba(245, 166, 35, 0.06) 100%);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  padding: 3px 6px;
+  border-radius: 5px;
+  text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(245, 166, 35, 0.12);
+  white-space: nowrap;
 }
 
 .app-header-brand {

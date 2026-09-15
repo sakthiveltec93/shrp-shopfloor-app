@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -548,34 +549,32 @@ export default function RMStockRegister() {
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Target Machine *</label>
-                <select
+                <SearchableSelect
                   value={issueForm.machine_id}
                   onChange={(e) => setIssueForm({ ...issueForm, machine_id: e.target.value })}
+                  options={machines}
+                  placeholder="Select Target Machine..."
+                  searchPlaceholder="🔍 Type machine code..."
+                  getOptionValue={(m) => m.id}
+                  getOptionLabel={(m) => m.machine_name ? (m.machine_name + ' (' + m.machine_code + ')') : m.machine_code}
+                  getOptionBadge={(m) => m.machine_code}
                   required
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13 }}
-                >
-                  {machines.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.machine_name} ({m.machine_code})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Select Material *</label>
-                <select
+                <SearchableSelect
                   value={issueForm.material_id}
                   onChange={(e) => setIssueForm({ ...issueForm, material_id: e.target.value })}
+                  options={materials}
+                  placeholder="Select Material Grade..."
+                  searchPlaceholder="🔍 Type material name, grade..."
+                  getOptionValue={(m) => m.id}
+                  getOptionLabel={(m) => m.material_name}
+                  getOptionBadge={(m) => m.material_code}
                   required
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13 }}
-                >
-                  {materials.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.material_name} ({m.material_code})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

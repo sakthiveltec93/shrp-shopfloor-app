@@ -119,36 +119,20 @@ export default function Layout({ children }) {
   return (
     <div className="app-layout">
       <header className="app-header">
-        <NavLink to="/" className="app-brand">
-          <div className="brand-logo-wrap" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img
-              src="/shrp-logo.png"
-              alt="SHRP Logo"
-              style={{
-                height: 28,
-                width: 'auto',
-                background: '#ffffff',
-                padding: '2px 6px',
-                borderRadius: 4,
-                display: 'inline-block',
-                objectFit: 'contain'
-              }}
-              onError={(e) => {
-                e.currentTarget.src = '/logo.png';
-              }}
-            />
+        <NavLink to="/" className="app-brand" title="SHRP MES Home">
+          <div className="brand-logo-container">
+            <div className="brand-logo-pill">
+              <img
+                src="/shrp-logo.png"
+                alt="SHRP Logo"
+                className="brand-logo-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/logo.png';
+                }}
+              />
+            </div>
             <span className="brand-badge">MES</span>
           </div>
-          {user && (
-            <div className="brand-user-meta" style={{ minWidth: 0 }}>
-              <span className="brand-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.full_name || user.username}
-              </span>
-              <span className="brand-role" style={{ fontSize: 10, textTransform: 'uppercase' }}>
-                {user.role}
-              </span>
-            </div>
-          )}
         </NavLink>
 
         {user && (
@@ -379,14 +363,28 @@ export default function Layout({ children }) {
             )}
           </div>
           {isOnline && pendingSyncCount > 0 && (
-            <button
-              type="button"
-              className="offline-banner-btn"
-              disabled={isSyncing}
-              onClick={handleManualSync}
-            >
-              {isSyncing ? 'Syncing…' : 'Sync Now'}
-            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                className="offline-banner-btn"
+                disabled={isSyncing}
+                onClick={handleManualSync}
+              >
+                {isSyncing ? 'Syncing…' : 'Sync Now'}
+              </button>
+              <button
+                type="button"
+                className="offline-banner-btn"
+                style={{ background: 'rgba(239, 68, 68, 0.2)', borderColor: '#ef4444', color: '#f87171' }}
+                onClick={() => {
+                  api.offlineQueue.clear();
+                  setPendingSyncCount(0);
+                }}
+                title="Clear stuck offline queue"
+              >
+                Clear
+              </button>
+            </div>
           )}
         </div>
       )}

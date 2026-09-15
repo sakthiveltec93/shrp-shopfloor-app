@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -604,19 +605,19 @@ export default function PartRecipes() {
                   Primary Virgin Material (Shown on Customer COA) *
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <select
+                  <SearchableSelect
                     value={form.primary_material_id}
                     onChange={(e) => setForm({ ...form, primary_material_id: e.target.value })}
+                    options={(materials || []).map(m => ({
+                      value: m.id,
+                      label: getShortMaterialName(m),
+                      badge: m.material_code,
+                      sublabel: m.grade || m.category || ''
+                    }))}
+                    placeholder="-- Select Primary Virgin --"
+                    searchPlaceholder="🔍 Type material name, grade..."
                     required
-                    style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
-                  >
-                    <option value="">-- Select Primary Virgin --</option>
-                    {(materials || []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {getShortMaterialName(m)} ({m.material_code})
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ratio:</span>
                     <input
@@ -662,18 +663,19 @@ export default function PartRecipes() {
                   Secondary Virgin Polymer (Optional blend)
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <select
+                  <SearchableSelect
                     value={form.secondary_material_id}
                     onChange={(e) => setForm({ ...form, secondary_material_id: e.target.value })}
-                    style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
-                  >
-                    <option value="">-- None (0%) --</option>
-                    {(materials || []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {getShortMaterialName(m)} ({m.material_code})
-                      </option>
-                    ))}
-                  </select>
+                    options={[{ value: '', label: '-- None (0%) --' }, ...(materials || []).map(m => ({
+                      value: m.id,
+                      label: getShortMaterialName(m),
+                      badge: m.material_code,
+                      sublabel: m.grade || m.category || ''
+                    }))]}
+                    placeholder="-- None (0%) --"
+                    searchPlaceholder="🔍 Type secondary material..."
+                    allowClear
+                  />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ratio:</span>
                     <input
@@ -712,18 +714,19 @@ export default function PartRecipes() {
                   Internal Regrind / Runner Recycle (Shopfloor mixing)
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <select
+                  <SearchableSelect
                     value={form.regrind_material_id}
                     onChange={(e) => setForm({ ...form, regrind_material_id: e.target.value })}
-                    style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
-                  >
-                    <option value="">-- No Regrind (0%) --</option>
-                    {(materials || []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {getShortMaterialName(m)} ({m.material_code})
-                      </option>
-                    ))}
-                  </select>
+                    options={[{ value: '', label: '-- None (0%) --' }, ...(materials || []).map(m => ({
+                      value: m.id,
+                      label: getShortMaterialName(m),
+                      badge: m.material_code,
+                      sublabel: m.grade || m.category || ''
+                    }))]}
+                    placeholder="-- None (0%) --"
+                    searchPlaceholder="🔍 Type regrind name..."
+                    allowClear
+                  />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ratio:</span>
                     <input
@@ -762,18 +765,19 @@ export default function PartRecipes() {
                   Masterbatch / Color Additive (Optional)
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <select
+                  <SearchableSelect
                     value={form.masterbatch_material_id}
                     onChange={(e) => setForm({ ...form, masterbatch_material_id: e.target.value })}
-                    style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, boxSizing: 'border-box' }}
-                  >
-                    <option value="">-- No Masterbatch (0%) --</option>
-                    {(materials || []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {getShortMaterialName(m)} ({m.material_code})
-                      </option>
-                    ))}
-                  </select>
+                    options={[{ value: '', label: '-- None (0%) --' }, ...(materials || []).map(m => ({
+                      value: m.id,
+                      label: getShortMaterialName(m),
+                      badge: m.material_code,
+                      sublabel: m.grade || m.category || ''
+                    }))]}
+                    placeholder="-- None (0%) --"
+                    searchPlaceholder="🔍 Type color masterbatch..."
+                    allowClear
+                  />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ratio:</span>
                     <input

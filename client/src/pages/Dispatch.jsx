@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useFifoBag } from '../useFifoBag';
@@ -157,39 +158,46 @@ export default function Dispatch() {
         <div className="panel">
           <div className="field">
             <label htmlFor="part">{t('common.part')}</label>
-            <select id="part" value={partId} onChange={(e) => selectPart(e.target.value)}>
-              <option value="" disabled>{t('common.selectPart')}</option>
-              {parts.map((p) => {
-                const ready = Number(p.ready_bag_count || 0);
-                const active = Number(p.active_bag_count || 0);
-                const badge = ready > 0 ? `🟢 [${ready} Ready] ` : active > 0 ? `🟡 ` : '';
-                return (
-                  <option key={p.id} value={p.id}>
-                    {badge}{p.shrp_part_code || p.part_code} — {p.part_name}
-                  </option>
-                );
-              })}
-            </select>
+            <SearchableSelect
+            id="part"
+            value={partId}
+            onChange={(e) => selectPart(e.target.value)}
+            options={parts.map((p) => {
+              const ready = Number(p.ready_bag_count || 0);
+              const active = Number(p.active_bag_count || 0);
+              const badge = ready > 0 ? ('🟢 [' + ready + ' Ready]') : active > 0 ? '🟡 Active' : '';
+              return {
+                value: p.id,
+                label: p.part_name,
+                badge: p.shrp_part_code || p.part_code,
+                sublabel: [p.customer_part_no ? ('Cust: ' + p.customer_part_no) : '', badge].filter(Boolean).join(' · '),
+                searchTerms: (p.shrp_part_code || '') + ' ' + (p.part_code || '') + ' ' + (p.part_name || '') + ' ' + (p.customer_part_no || '')
+              };
+            })}
+            placeholder={t('common.selectPart')}
+            searchPlaceholder="🔍 Type part code, name, customer no..."
+          />
           </div>
 
           {batchBags.length > 0 && (
             <div className="field">
               <label htmlFor="bag_pick">Select Ready Bag (FIFO Ordered)</label>
-              <select
+              <SearchableSelect
                 id="bag_pick"
                 value={bag?.id || ''}
                 onChange={(e) => {
                   const b = batchBags.find((x) => String(x.id) === e.target.value);
                   selectSpecificBag(b);
                 }}
-              >
-                <option value="" disabled>Select bag…</option>
-                {batchBags.map((b, idx) => (
-                  <option key={b.id} value={b.id}>
-                    {idx === 0 ? '⭐ [FIFO Next] ' : ''}{b.bag_code} ({b.base_weight_kg} kg · {b.status})
-                  </option>
-                ))}
-              </select>
+                options={batchBags.map((b, idx) => ({
+                  value: b.id,
+                  label: b.bag_code,
+                  badge: idx === 0 ? '⭐ FIFO Next' : '',
+                  sublabel: b.base_weight_kg + ' kg · ' + b.status
+                }))}
+                placeholder="Select bag…"
+                searchPlaceholder="🔍 Type bag barcode / number..."
+              />
             </div>
           )}
         </div>

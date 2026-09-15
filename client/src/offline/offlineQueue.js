@@ -3,10 +3,27 @@
 const QUEUE_KEY = 'shrp_offline_queue';
 let isSyncing = false;
 
+function sanitizeQueue(rawQueue) {
+  if (!Array.isArray(rawQueue)) return [];
+  // Discard any stale user/admin/delete requests that were accidentally queued
+  return rawQueue.filter((item) => {
+    if (!item || !item.path) return false;
+    if (item.method === 'DELETE') return false;
+    if (item.path.startsWith('/users') || item.path.startsWith('/masters') || item.path.startsWith('/auth')) return false;
+    return true;
+  });
+}
+
 function readQueue() {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const clean = sanitizeQueue(parsed);
+    if (clean.length !== parsed.length) {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(clean));
+    }
+    return clean;
   } catch {
     return [];
   }
@@ -58,7 +75,7 @@ export const offlineQueue = {
     return isSyncing;
   },
 
-  async syncQueue(requestFn) {
+    async syncQueue(requestFn) {
     if (isSyncing) return { inProgress: true };
     const queue = readQueue();
     if (queue.length === 0) return { synced: 0, remaining: 0 };
@@ -71,7 +88,6 @@ export const offlineQueue = {
     window.dispatchEvent(new CustomEvent('shrp:offline-sync-started', { detail: { count: queue.length } }));
 
     let syncedCount = 0;
-    const remaining = [...queue];
 
     for (const item of queue) {
       try {
@@ -80,32 +96,22 @@ export const offlineQueue = {
           body: item.body,
           isOfflineReplay: true,
         });
-        // Success: remove from local queue
         offlineQueue.remove(item.id);
         syncedCount++;
       } catch (err) {
         console.warn('Sync failed for item:', item, err);
-        // If it's a network error, stop syncing and retry later
+        // If network is completely dropped, stop loop
         if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
           break;
         }
-        // If it's a permanent HTTP validation error (4xx), remove it or archive to prevent blocking the queue
-        if (err.status && err.status >= 400 && err.status < 500) {
-          console.error(`Discarding invalid offline action (${err.status}):`, item, err);
-          offlineQueue.remove(item.id);
-        } else {
-          // 5xx error, server might be temporarily down; stop processing for now
-          break;
-        }
+        // If the server rejected it (4xx or permanent error), remove from queue so it never hangs
+        offlineQueue.remove(item.id);
       }
     }
 
     isSyncing = false;
-    const remainingCount = readQueue().length;
-    window.dispatchEvent(new CustomEvent('shrp:offline-sync-completed', {
-      detail: { syncedCount, remainingCount },
-    }));
-
-    return { synced: syncedCount, remaining: remainingCount };
+    const finalQueue = readQueue();
+    window.dispatchEvent(new CustomEvent('shrp:offline-queue-updated', { detail: { count: finalQueue.length } }));
+    return { synced: syncedCount, remaining: finalQueue.length };
   },
 };

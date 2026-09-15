@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
 import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
@@ -95,12 +96,17 @@ export default function MouldSetup() {
       <form onSubmit={handleSubmit} className="panel">
         <div className="field">
           <label htmlFor="machine">{t('common.machine')}</label>
-          <select id="machine" value={machineId} onChange={(e) => setMachineId(e.target.value)} required>
-            <option value="" disabled>{t('common.selectMachine')}</option>
-            {machines.map((m) => (
-              <option key={m.id} value={m.id}>{m.machine_code}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            id="machine"
+            value={machineId}
+            onChange={(e) => setMachineId(e.target.value)}
+            options={machines}
+            placeholder={t('common.selectMachine')}
+            searchPlaceholder="🔍 Type machine code..."
+            getOptionValue={(m) => m.id}
+            getOptionLabel={(m) => m.machine_code}
+            required
+          />
         </div>
 
         {machineId && (
@@ -118,14 +124,19 @@ export default function MouldSetup() {
 
         <div className="field">
           <label htmlFor="part">{t('mouldSetup.newPart')}</label>
-          <select id="part" value={partId} onChange={(e) => setPartId(e.target.value)} required>
-            <option value="" disabled>{t('common.selectPart')}</option>
-            {parts.map((p) => (
-              <option key={p.id} value={p.id}>
-                [{p.shrp_part_code || p.part_code}] {p.part_name} — {p.customer_part_no || p.part_code}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            id="part"
+            value={partId}
+            onChange={(e) => setPartId(e.target.value)}
+            options={parts}
+            placeholder={t('common.selectPart')}
+            searchPlaceholder="🔍 Type part code, name, customer no..."
+            getOptionValue={(p) => p.id}
+            getOptionLabel={(p) => p.part_name}
+            getOptionBadge={(p) => p.shrp_part_code || p.part_code}
+            getOptionSublabel={(p) => p.customer_part_no ? ('Cust: ' + p.customer_part_no) : p.part_code}
+            required
+          />
         </div>
 
         {partId && (() => {

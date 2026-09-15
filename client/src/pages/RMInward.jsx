@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -494,19 +495,18 @@ export default function RMInward() {
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
                   Select Raw Material Grade *
                 </label>
-                <select
+                <SearchableSelect
                   value={form.material_id}
                   onChange={(e) => setForm({ ...form, material_id: e.target.value })}
+                  options={materials}
+                  placeholder="-- Choose Material Grade --"
+                  searchPlaceholder="🔍 Type material name, grade..."
+                  getOptionValue={(m) => m.id}
+                  getOptionLabel={(m) => m.material_name}
+                  getOptionBadge={(m) => m.material_code}
+                  getOptionSublabel={(m) => m.grade_code || m.category || ''}
                   required
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 13 }}
-                >
-                  <option value="">-- Choose Material Grade --</option>
-                  {materials.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.material_name} ({m.material_code} - {m.grade_code || m.category})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
