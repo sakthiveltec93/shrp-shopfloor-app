@@ -308,11 +308,8 @@ export default function Reports() {
   return (
     <div className="screen">
       {/* Header Title */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <h1 className="screen-title" style={{ margin: 0 }}>📊 360° Analytics & Reports</h1>
-          <p className="screen-sub" style={{ margin: '4px 0 0' }}>Comprehensive Shopfloor History, Cycle Times & Traceability</p>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <h1 className="screen-title" style={{ margin: 0 }}>Reports</h1>
       </div>
 
       {/* Main Navigation Tabs */}
@@ -447,25 +444,25 @@ export default function Reports() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 16 }}>
                 <div className="readout" style={{ padding: 10 }}>
                   <div className="readout-label" style={{ fontSize: 10 }}>Total Produced</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--amber)' }}>{dailyData.kpis.total_production_qty}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--amber)' }}>{dailyData.kpis?.production_qty ?? dailyData.kpis?.total_production_qty ?? 0}</div>
                 </div>
                 <div className="readout" style={{ padding: 10 }}>
                   <div className="readout-label" style={{ fontSize: 10 }}>Good Qty</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>{dailyData.kpis.total_ok_qty}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>{dailyData.kpis?.ok_qty ?? dailyData.kpis?.total_ok_qty ?? 0}</div>
                 </div>
                 <div className="readout" style={{ padding: 10 }}>
-                  <div className="readout-label" style={{ fontSize: 10 }}>Rejection %</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: Number(dailyData.kpis.reject_pct) > 2 ? 'var(--red)' : 'var(--text)' }}>
-                    {dailyData.kpis.reject_pct}%
+                  <div className="readout-label" style={{ fontSize: 10 }}>Rejection Qty</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: (dailyData.kpis?.total_rejection_qty || 0) > 0 ? 'var(--red)' : 'var(--text)' }}>
+                    {dailyData.kpis?.total_rejection_qty ?? 0}
                   </div>
                 </div>
                 <div className="readout" style={{ padding: 10 }}>
-                  <div className="readout-label" style={{ fontSize: 10 }}>Machine Hours</div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>{dailyData.kpis.actual_run_time_hrs} hrs</div>
+                  <div className="readout-label" style={{ fontSize: 10 }}>Run Time</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{dailyData.kpis?.total_run_time_str ?? '0:00'}</div>
                 </div>
                 <div className="readout" style={{ padding: 10 }}>
-                  <div className="readout-label" style={{ fontSize: 10 }}>Overall OEE</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--amber)' }}>{dailyData.kpis.oee_pct}%</div>
+                  <div className="readout-label" style={{ fontSize: 10 }}>Efficiency</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--amber)' }}>{dailyData.kpis?.efficiency_pct ?? 0}%</div>
                 </div>
               </div>
 
@@ -476,26 +473,29 @@ export default function Reports() {
                   <thead>
                     <tr>
                       <th>Machine</th>
-                      <th>Part</th>
-                      <th>Gross</th>
+                      <th>Parts</th>
+                      <th>Shots</th>
                       <th>Good</th>
                       <th>Rej</th>
-                      <th>Scrap %</th>
-                      <th>Operator</th>
+                      <th>Eff %</th>
+                      <th>Idle (min)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dailyData.entries.map((e, idx) => (
+                    {(dailyData.machine_performance || []).map((e, idx) => (
                       <tr key={idx}>
                         <td><strong>{e.machine_code}</strong></td>
-                        <td>{e.shrp_part_code || e.part_code} ({e.part_name})</td>
-                        <td>{e.end_count - e.start_count}</td>
-                        <td style={{ color: 'var(--green)' }}>{e.good_qty}</td>
-                        <td style={{ color: e.reject_qty > 0 ? 'var(--red)' : 'inherit' }}>{e.reject_qty}</td>
-                        <td>{((e.reject_qty / Math.max(1, (e.end_count - e.start_count))) * 100).toFixed(1)}%</td>
-                        <td>{e.operator_name}</td>
+                        <td>{e.parts || '—'}</td>
+                        <td>{e.shots || 0}</td>
+                        <td style={{ color: 'var(--green)' }}>{e.ok_qty || 0}</td>
+                        <td style={{ color: (e.reject_qty || 0) > 0 ? 'var(--red)' : 'inherit' }}>{e.reject_qty || 0}</td>
+                        <td>{e.efficiency_pct ?? 0}%</td>
+                        <td>{e.idle_time_str || '0:00'}</td>
                       </tr>
                     ))}
+                    {(!dailyData.machine_performance || dailyData.machine_performance.length === 0) && (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No production entries for this date/shift.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

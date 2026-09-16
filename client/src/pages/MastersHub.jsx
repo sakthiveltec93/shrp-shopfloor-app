@@ -5,14 +5,14 @@ import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const TABS = [
-  { key: 'parts', label: '📋 Parts Master', icon: '📋' },
-  { key: 'raw_materials', label: '🧪 Raw Materials', icon: '🧪' },
-  { key: 'gauges', label: '📏 Gauges & Instruments', icon: '📏' },
-  { key: 'suppliers', label: '🏭 Suppliers & Vendors', icon: '🏭' },
-  { key: 'customers', label: '🏢 Customers Master', icon: '🏢' },
-  { key: 'machines', label: '🖥️ Machines TPM', icon: '🖥️' },
-  { key: 'moulds', label: '⚙️ Moulds & Tool Life', icon: '⚙️' },
-  { key: 'defaults', label: '📑 Checksheets & Defaults', icon: '📑' },
+  { key: 'parts', label: 'Parts', icon: '📋' },
+  { key: 'raw_materials', label: 'Raw Materials', icon: '🧪' },
+  { key: 'gauges', label: 'Gauges', icon: '📏' },
+  { key: 'suppliers', label: 'Suppliers', icon: '🏭' },
+  { key: 'customers', label: 'Customers', icon: '🏢' },
+  { key: 'machines', label: 'Machines', icon: '🖥️' },
+  { key: 'moulds', label: 'Moulds', icon: '⚙️' },
+  { key: 'defaults', label: 'Checksheets', icon: '📑' },
 ];
 
 export default function MastersHub() {
@@ -400,39 +400,10 @@ export default function MastersHub() {
 
   return (
     <div className="screen" style={{ paddingBottom: 32 }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(0, 0, 0, 0.4))',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          borderLeft: '4px solid var(--amber)',
-          borderRadius: 8,
-          padding: '14px 18px',
-          marginBottom: 16,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            IATF-16949 Master Data Center
-          </div>
-          <h1 style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>
-            🗂️ Item &amp; Masters Hub
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-            Centralized repository for parts, raw materials, gauges, tooling, vendors &amp; quality checksheets
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--line)', color: 'var(--text-muted)' }}>
-            🔒 Supervisor &amp; Admin Gated
-          </span>
-        </div>
-      </div>
+      {/* Header */}
+      <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>
+        Item Master
+      </h1>
 
       {error && (
         <div className="error-banner" style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 6 }}>

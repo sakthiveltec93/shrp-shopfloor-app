@@ -197,6 +197,13 @@ export default function MachinesDashboard() {
       return (a.machine_code || '').localeCompare(b.machine_code || '');
     });
 
+  // KPI summary computations
+  const totalMachines = machines.length;
+  const runningMachines = machines.filter((m) => m.status === 'RUNNING').length;
+  const idleMachines = machines.filter((m) => m.status === 'IDLE' || m.status === 'STARTED').length;
+  const totalOkToday = machines.reduce((sum, m) => sum + (m.today?.ok_qty || 0), 0);
+  const totalDowntimeToday = machines.reduce((sum, m) => sum + (m.today?.downtime_minutes || 0), 0);
+
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '16px' }}>
       {/* Top Header */}
@@ -210,12 +217,8 @@ export default function MachinesDashboard() {
               ← Home
             </button>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-              🖥️ Machine Management &amp; TPM
+              🖥️ Machines
             </h1>
-          </div>
-          <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-            IATF 16949 Clause 8.5.1.5 · Total Productive Maintenance, Machine Capacity &amp; Specifications
-          </p>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
