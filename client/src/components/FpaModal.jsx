@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import CameraScanner from './CameraScanner';
 
@@ -6,7 +6,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [submittedFpa, setSubmittedFpa] = useState(null);
 
   // Master pre-loaded data
@@ -53,7 +52,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
   });
 
   // Multi-cavity Dimension Readings
-  // array of { parameter_name, spec, nominal, lsl, usl, gauge_code, cavities: [val1, val2, ...] }
   const [dimensionReadings, setDimensionReadings] = useState([]);
 
   // Sign-offs & Approval
@@ -76,15 +74,12 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
         const res = await api.fpa.getData(machine.id, part.id, mould?.id);
         setFpaData(res);
 
-        // Pre-populate raw material from recipe if available
         if (res.recipe && res.recipe.material_id) {
           setRawMaterialId(res.recipe.material_id);
         }
 
-        // Initialize cavities based on part cavity count
         const cavityCount = Math.max(1, Number(res.part?.cavity_count) || 1);
 
-        // Set default dimensional parameters if none exist
         const defaultDims = [
           { parameter_name: 'Outer Diameter (OD)', spec: '25.0 ± 0.2 mm', nominal: 25.0, lsl: 24.8, usl: 25.2, gauge_code: '', cavities: Array(cavityCount).fill('') },
           { parameter_name: 'Wall Thickness', spec: '2.5 ± 0.1 mm', nominal: 2.5, lsl: 2.4, usl: 2.6, gauge_code: '', cavities: Array(cavityCount).fill('') },
@@ -92,7 +87,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
           { parameter_name: 'Inner Diameter (ID)', spec: '15.0 ± 0.15 mm', nominal: 15.0, lsl: 14.85, usl: 15.15, gauge_code: '', cavities: Array(cavityCount).fill('') },
         ];
 
-        // Check if there is saved draft in localStorage
         const savedDraft = localStorage.getItem(draftKey);
         if (savedDraft) {
           try {
@@ -169,11 +163,9 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
 
   const handleScanResult = (code) => {
     setShowScanner(false);
-    // Code could be LOT:XYZ or direct lot number or RM code
     setRawMaterialLotNo(code.trim());
   };
 
-  // Check if dimensional reading is within tolerance
   const isWithinTol = (val, lsl, usl) => {
     if (val === '' || val == null) return null;
     const num = Number(val);
@@ -181,7 +173,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
     return num >= Number(lsl) && num <= Number(usl);
   };
 
-  // Validation before submission
   const validateForm = () => {
     if (!rawMaterialLotNo) {
       return 'Raw Material Lot / Heat No is required.';
@@ -222,7 +213,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
 
       const res = await api.fpa.submit(payload);
       setSubmittedFpa(res.submission);
-      setSuccessMsg(`FPA Successfully Approved & Recorded (Inspection #${res.submission.inspection_no})`);
       localStorage.removeItem(draftKey);
       if (onSuccess) onSuccess(res.submission);
     } catch (err) {
@@ -237,102 +227,115 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
   const isRegrindExceeded = Number(regrindPercentage) > maxRegrind;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[92vh] flex flex-col overflow-hidden">
-        
-        {/* Top Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="p-2 bg-white/10 rounded-lg text-xl">🛡️</span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">IATF 16949 First-Piece Approval (FPA)</h2>
-                <span className="px-2 py-0.5 text-xs font-semibold bg-blue-500/30 border border-white/20 rounded">Clause 8.5.1.1</span>
-              </div>
-              <p className="text-xs text-blue-100">
-                Machine: <span className="font-semibold text-white">{machine?.machine_code}</span> | Part: <span className="font-semibold text-white">{part?.shrp_part_code || part?.part_code}</span> ({part?.part_name})
-              </p>
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
+      zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 14,
+    }}>
+      <div style={{
+        background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12,
+        width: '100%', maxWidth: 840, maxHeight: '92vh', overflowY: 'auto',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Modal Header */}
+        <div style={{
+          padding: '14px 18px', borderBottom: '2px solid var(--amber)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: 'rgba(245, 158, 11, 0.08)',
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>🛡️</span>
+              <strong style={{ fontSize: 16, color: 'var(--amber)' }}>IATF 16949 First-Piece Approval (FPA)</strong>
+              <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(255,255,255,0.1)', borderRadius: 4, color: 'var(--text-muted)' }}>
+                Clause 8.5.1.1
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              Machine: <strong style={{ color: '#fff' }}>{machine?.machine_code}</strong> · Part: <span className="shrp-code-pill" style={{ fontSize: 11, marginLeft: 4 }}>{part?.shrp_part_code || part?.part_code}</span> {part?.part_name}
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition"
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}
           >
             ✕
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6 text-slate-800 dark:text-slate-100 text-sm">
+        <div style={{ padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {loading ? (
-            <div className="py-16 text-center text-slate-500">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div>
-              <p>Loading master process parameters & dimensional standards...</p>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+              Loading master process standards and dimensional specs...
             </div>
           ) : submittedFpa ? (
-            /* Success & PDF Download Screen */
-            <div className="py-8 text-center space-y-4">
-              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
+            /* Success Screen with PDF Download */
+            <div style={{ padding: '30px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '2px solid var(--green)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
                 ✓
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                FPA Approved Successfully!
+              <h3 style={{ margin: 0, fontSize: 18, color: '#fff' }}>
+                FPA Approved & Verified!
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                Inspection Report <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">#{submittedFpa.inspection_no}</span> is now active. The machine session can now be started safely.
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', maxWidth: 440 }}>
+                Inspection Report <strong style={{ color: 'var(--amber)' }}>#{submittedFpa.inspection_no}</strong> is active. Machine session is cleared for production.
               </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 }}>
                 <a
                   href={api.fpa.downloadPdfUrl(submittedFpa.id)}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow inline-flex items-center gap-2"
+                  className="btn btn-primary"
+                  style={{ padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <span>📄</span> Download IATF Setup Approval Report (PDF)
+                  <span>📄</span>
+                  <span>Download IATF Setup Report (PDF)</span>
                 </a>
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-medium rounded-xl"
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: 13 }}
                 >
                   Done & Start Production
                 </button>
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {error && (
-                <div className="p-4 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-xl flex items-center gap-3">
-                  <span className="text-lg">⚠️</span>
-                  <span>{error}</span>
+                <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>
+                  ⚠ {error}
                 </div>
               )}
 
-              {/* SECTION A: Raw Material & Lot Verification */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-xs">A</span>
+              {/* SECTION A: Raw Material & Lot */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
+                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                     Section A: Raw Material & Lot Verification
-                  </h3>
+                  </strong>
                   <button
                     type="button"
                     onClick={() => setShowScanner(true)}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
+                    className="btn btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <span>📷</span> Scan RM Lot Barcode
+                    <span>📷</span>
+                    <span>Scan RM Barcode</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      Raw Material Grade
-                    </label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Material Grade</label>
                     <select
                       value={rawMaterialId}
                       onChange={(e) => setRawMaterialId(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
                     >
                       <option value="">-- Select Material Grade --</option>
                       {fpaData.raw_materials?.map((rm) => (
@@ -344,25 +347,21 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      RM Lot / Heat Number <span className="text-rose-500">*</span>
-                    </label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>RM Lot / Heat Number *</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. LOT-2026-SEP-0048"
                       value={rawMaterialLotNo}
                       onChange={(e) => setRawMaterialLotNo(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12, fontFamily: 'var(--font-num)' }}
                     />
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                        Regrind % Used
-                      </label>
-                      <span className="text-xs text-slate-400">Max allowed: {maxRegrind}%</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      <span>Regrind % Used</span>
+                      <span>Max allowed: {maxRegrind}%</span>
                     </div>
                     <input
                       type="number"
@@ -371,27 +370,27 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                       step="0.5"
                       value={regrindPercentage}
                       onChange={(e) => setRegrindPercentage(e.target.value)}
-                      className={`w-full px-3 py-2 bg-white dark:bg-slate-900 border rounded-lg text-sm ${
-                        isRegrindExceeded ? 'border-rose-500 bg-rose-50/50 text-rose-600' : 'border-slate-300 dark:border-slate-700'
-                      }`}
+                      style={{
+                        width: '100%', padding: '7px 10px', borderRadius: 6,
+                        background: isRegrindExceeded ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)',
+                        border: isRegrindExceeded ? '1px solid var(--red)' : '1px solid var(--line)',
+                        color: isRegrindExceeded ? 'var(--red)' : 'var(--text)',
+                        fontSize: 12, fontWeight: 600,
+                      }}
                     />
-                    {isRegrindExceeded && (
-                      <p className="text-xs text-rose-500 mt-1">⚠️ Exceeds max allowed regrind ({maxRegrind}%)!</p>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {/* SECTION B: Visual Inspection Standards */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                <div className="border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-xs">B</span>
+              {/* SECTION B: Visual Inspection */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
+                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                     Section B: Visual Inspection & Workmanship Standard
-                  </h3>
+                  </strong>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
                   {[
                     { id: 'no_flash', label: 'No Parting Line Flash' },
                     { id: 'no_sink_marks', label: 'No Sink Marks / Voids' },
@@ -403,158 +402,139 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                   ].map((chk) => (
                     <label
                       key={chk.id}
-                      className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6,
+                        cursor: 'pointer', fontSize: 11,
+                      }}
                     >
                       <input
                         type="checkbox"
                         checked={visualChecks[chk.id]}
                         onChange={(e) => setVisualChecks({ ...visualChecks, [chk.id]: e.target.checked })}
-                        className="rounded text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{chk.label}</span>
+                      <span>{chk.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               {/* SECTION C: Critical Process Parameters */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                <div className="border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-xs">C</span>
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
+                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                     Section C: Injection Molding Process Parameter Verification
-                  </h3>
+                  </strong>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Zone 1 Temp (°C)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 1 Temp (°C)</label>
                     <input
                       type="number"
                       placeholder="e.g. 190"
                       value={processParameters.zone1_temp}
                       onChange={(e) => setProcessParameters({ ...processParameters, zone1_temp: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Zone 2 Temp (°C)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 2 Temp (°C)</label>
                     <input
                       type="number"
                       placeholder="e.g. 200"
                       value={processParameters.zone2_temp}
                       onChange={(e) => setProcessParameters({ ...processParameters, zone2_temp: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Zone 3 Temp (°C)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 3 Temp (°C)</label>
                     <input
                       type="number"
                       placeholder="e.g. 210"
                       value={processParameters.zone3_temp}
                       onChange={(e) => setProcessParameters({ ...processParameters, zone3_temp: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Nozzle Temp (°C)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Nozzle Temp (°C)</label>
                     <input
                       type="number"
                       placeholder="e.g. 215"
                       value={processParameters.nozzle_temp}
                       onChange={(e) => setProcessParameters({ ...processParameters, nozzle_temp: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Inj Pressure (bar)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Inj Pressure (bar)</label>
                     <input
                       type="number"
                       placeholder="e.g. 95"
                       value={processParameters.injection_pressure}
                       onChange={(e) => setProcessParameters({ ...processParameters, injection_pressure: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Clamping Force (T)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 150"
-                      value={processParameters.clamping_force}
-                      onChange={(e) => setProcessParameters({ ...processParameters, clamping_force: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Cooling Time (sec)</label>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Cooling Time (s)</label>
                     <input
                       type="number"
                       placeholder="e.g. 18"
                       value={processParameters.cooling_time_sec}
                       onChange={(e) => setProcessParameters({ ...processParameters, cooling_time_sec: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Total Cycle Time (sec)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 32"
-                      value={processParameters.cycle_time_sec}
-                      onChange={(e) => setProcessParameters({ ...processParameters, cycle_time_sec: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono"
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* SECTION D: Multi-Cavity Dimensional Inspection */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
                   <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-xs">D</span>
+                    <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                       Section D: Multi-Cavity Dimensional Tolerance Inspection
-                    </h3>
-                    <p className="text-xs text-slate-500">Mould Cavities: {cavityCount} | Auto Pass/Fail vs LSL & USL</p>
+                    </strong>
+                    <div className="muted" style={{ fontSize: 11 }}>Cavities: {cavityCount} · Auto Tolerance Check</div>
                   </div>
                   <button
                     type="button"
                     onClick={addDimensionRow}
-                    className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg"
+                    className="btn btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: 11 }}
                   >
                     + Add Parameter
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-200/70 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 uppercase font-semibold">
-                      <tr>
-                        <th className="p-2">Param Name & Spec</th>
-                        <th className="p-2 text-center">Nominal</th>
-                        <th className="p-2 text-center">LSL</th>
-                        <th className="p-2 text-center">USL</th>
-                        <th className="p-2">Gauge Code</th>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--line)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '6px 8px' }}>Param & Spec</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Nominal</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>LSL</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>USL</th>
+                        <th style={{ padding: '6px 8px', width: 110 }}>Gauge</th>
                         {Array.from({ length: cavityCount }).map((_, cIdx) => (
-                          <th key={cIdx} className="p-2 text-center">Cav #{cIdx + 1}</th>
+                          <th key={cIdx} style={{ padding: '6px 8px', textAlign: 'center', width: 70 }}>Cav #{cIdx + 1}</th>
                         ))}
-                        <th className="p-2 text-center">Status</th>
-                        <th className="p-2 text-center"></th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Status</th>
+                        <th style={{ padding: '6px 8px', width: 30 }}></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tbody>
                       {dimensionReadings.map((dim, dIdx) => {
-                        // Check overall row status
                         const hasValues = dim.cavities.some((c) => c !== '');
                         const allPass = hasValues && dim.cavities.every((c) => c === '' || isWithinTol(c, dim.lsl, dim.usl));
                         const anyFail = hasValues && dim.cavities.some((c) => c !== '' && !isWithinTol(c, dim.lsl, dim.usl));
 
                         return (
-                          <tr key={dIdx} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/50">
-                            <td className="p-2">
+                          <tr key={dIdx} style={{ borderBottom: '1px solid var(--line)' }}>
+                            <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="text"
                                 placeholder="Parameter name"
@@ -564,21 +544,21 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                                   updated[dIdx].parameter_name = e.target.value;
                                   setDimensionReadings(updated);
                                 }}
-                                className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-medium mb-1"
+                                style={{ width: '100%', padding: '4px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, marginBottom: 2 }}
                               />
                               <input
                                 type="text"
-                                placeholder="Spec (e.g. 25 ± 0.2)"
+                                placeholder="Spec (25 ± 0.2)"
                                 value={dim.spec}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
                                   updated[dIdx].spec = e.target.value;
                                   setDimensionReadings(updated);
                                 }}
-                                className="w-full px-2 py-0.5 text-[11px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-500"
+                                style={{ width: '100%', padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', color: 'var(--text-muted)', fontSize: 10 }}
                               />
                             </td>
-                            <td className="p-2 w-16">
+                            <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="number"
                                 step="any"
@@ -588,10 +568,10 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                                   updated[dIdx].nominal = Number(e.target.value);
                                   setDimensionReadings(updated);
                                 }}
-                                className="w-full px-1.5 py-1 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono"
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                               />
                             </td>
-                            <td className="p-2 w-16">
+                            <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="number"
                                 step="any"
@@ -601,10 +581,10 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                                   updated[dIdx].lsl = Number(e.target.value);
                                   setDimensionReadings(updated);
                                 }}
-                                className="w-full px-1.5 py-1 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono text-blue-600"
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
                               />
                             </td>
-                            <td className="p-2 w-16">
+                            <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="number"
                                 step="any"
@@ -614,60 +594,58 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                                   updated[dIdx].usl = Number(e.target.value);
                                   setDimensionReadings(updated);
                                 }}
-                                className="w-full px-1.5 py-1 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded font-mono text-blue-600"
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
                               />
                             </td>
-                            <td className="p-2 w-28">
+                            <td style={{ padding: '6px 8px' }}>
                               <select
                                 value={dim.gauge_code || ''}
                                 onChange={(e) => handleGaugeChange(dIdx, e.target.value)}
-                                className="w-full px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-xs"
+                                style={{ width: '100%', padding: '4px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 10 }}
                               >
-                                <option value="">Select Gauge</option>
+                                <option value="">Gauge</option>
                                 {fpaData.gauges?.map((g) => (
-                                  <option key={g.id} value={g.gauge_code}>
-                                    {g.gauge_code} ({g.gauge_name})
-                                  </option>
+                                  <option key={g.id} value={g.gauge_code}>{g.gauge_code}</option>
                                 ))}
                               </select>
                             </td>
 
-                            {/* Cavity Readings */}
                             {Array.from({ length: cavityCount }).map((_, cIdx) => {
                               const val = dim.cavities[cIdx];
                               const ok = isWithinTol(val, dim.lsl, dim.usl);
-                              let borderCls = 'border-slate-300 dark:border-slate-700';
-                              if (val !== '' && ok === true) borderCls = 'border-emerald-500 bg-emerald-50/40 text-emerald-700 dark:text-emerald-300';
-                              if (val !== '' && ok === false) borderCls = 'border-rose-500 bg-rose-50/40 text-rose-700 dark:text-rose-300 font-bold';
+                              let borderCol = 'var(--line)';
+                              let bgCol = 'rgba(255,255,255,0.04)';
+                              if (val !== '' && ok === true) { borderCol = 'var(--green)'; bgCol = 'rgba(34,197,94,0.1)'; }
+                              if (val !== '' && ok === false) { borderCol = 'var(--red)'; bgCol = 'rgba(239,68,68,0.15)'; }
 
                               return (
-                                <td key={cIdx} className="p-2 w-20">
+                                <td key={cIdx} style={{ padding: '6px 8px' }}>
                                   <input
                                     type="number"
                                     step="any"
-                                    placeholder={`Cav ${cIdx + 1}`}
+                                    placeholder={`#${cIdx + 1}`}
                                     value={val}
                                     onChange={(e) => handleDimensionChange(dIdx, cIdx, e.target.value)}
-                                    className={`w-full px-1.5 py-1 text-center bg-white dark:bg-slate-900 border rounded font-mono ${borderCls}`}
+                                    style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: bgCol, border: `1px solid ${borderCol}`, color: 'var(--text)', fontSize: 11, fontFamily: 'var(--font-num)' }}
                                   />
                                 </td>
                               );
                             })}
 
-                            <td className="p-2 text-center">
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               {anyFail ? (
-                                <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 rounded-full font-bold">FAIL</span>
+                                <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.2)', color: '#f87171', fontWeight: 700, fontSize: 10 }}>FAIL</span>
                               ) : allPass ? (
-                                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-full font-bold">PASS</span>
+                                <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.2)', color: 'var(--green)', fontWeight: 700, fontSize: 10 }}>PASS</span>
                               ) : (
-                                <span className="text-slate-400">-</span>
+                                <span className="muted">-</span>
                               )}
                             </td>
-                            <td className="p-2 text-center">
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                               <button
                                 type="button"
                                 onClick={() => removeDimensionRow(dIdx)}
-                                className="text-slate-400 hover:text-rose-500 p-1"
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                               >
                                 ✕
                               </button>
@@ -681,75 +659,68 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
               </div>
 
               {/* SECTION E: Digital Sign-off & Overall Decision */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <div className="border-b border-slate-200 dark:border-slate-700 pb-2">
-                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white inline-flex items-center justify-center text-xs">E</span>
-                    Section E: Multi-Tier Digital Sign-Off & Status Determination
-                  </h3>
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
+                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
+                    Section E: Multi-Tier Digital Sign-Off & Status
+                  </strong>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 cursor-pointer">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 14 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={signoffs.technician_signed}
                       onChange={(e) => setSignoffs({ ...signoffs, technician_signed: e.target.checked })}
-                      className="rounded text-blue-600 h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-xs text-slate-900 dark:text-white">1. Mould Setup Technician</div>
-                      <div className="text-[11px] text-slate-500">Mould clamping & heat verification</div>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>1. Setup Technician</div>
+                      <div className="muted" style={{ fontSize: 10 }}>Mould clamping & heat</div>
                     </div>
                   </label>
 
-                  <label className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 cursor-pointer">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={signoffs.qa_signed}
                       onChange={(e) => setSignoffs({ ...signoffs, qa_signed: e.target.checked })}
-                      className="rounded text-blue-600 h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-xs text-slate-900 dark:text-white">2. Quality Inspector (QA)</div>
-                      <div className="text-[11px] text-slate-500">Visual & dimensional tolerance check</div>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>2. Quality Inspector (QA)</div>
+                      <div className="muted" style={{ fontSize: 10 }}>Visual & dimension check</div>
                     </div>
                   </label>
 
-                  <label className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3 cursor-pointer">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={signoffs.supervisor_signed}
                       onChange={(e) => setSignoffs({ ...signoffs, supervisor_signed: e.target.checked })}
-                      className="rounded text-blue-600 h-4 w-4"
                     />
                     <div>
-                      <div className="font-semibold text-xs text-slate-900 dark:text-white">3. Production Supervisor</div>
-                      <div className="text-[11px] text-slate-500">Final production authorization</div>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>3. Production Supervisor</div>
+                      <div className="muted" style={{ fontSize: 10 }}>Final authorization</div>
                     </div>
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Final Approval Decision
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      Approval Decision *
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                       {['APPROVED', 'CONDITIONAL', 'REJECTED'].map((st) => (
                         <button
                           key={st}
                           type="button"
                           onClick={() => setApprovalStatus(st)}
-                          className={`py-2 text-xs font-bold rounded-lg border transition ${
-                            approvalStatus === st
-                              ? st === 'APPROVED'
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow'
-                                : st === 'CONDITIONAL'
-                                ? 'bg-amber-600 text-white border-amber-600 shadow'
-                                : 'bg-rose-600 text-white border-rose-600 shadow'
-                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                          }`}
+                          className={approvalStatus === st ? 'btn btn-primary' : 'btn btn-secondary'}
+                          style={{
+                            padding: '6px 0', fontSize: 11, fontWeight: 700,
+                            background: approvalStatus === st && st === 'APPROVED' ? 'var(--green)' : undefined,
+                            borderColor: approvalStatus === st && st === 'APPROVED' ? 'var(--green)' : undefined,
+                          }}
                         >
                           {st}
                         </button>
@@ -758,38 +729,39 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Inspector Remarks & Notes
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      Inspector Remarks
                     </label>
                     <input
                       type="text"
-                      placeholder="Notes on visual finish, tool condition, or conditional clearance"
+                      placeholder="Notes on finish, tool condition, or clearance"
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
-                <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Auto-draft saved locally
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+                <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>●</span> Auto-draft saved locally
                 </div>
-                <div className="flex items-center gap-3">
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold"
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 14px', fontSize: 12 }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting || isRegrindExceeded}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg disabled:opacity-50 flex items-center gap-2"
+                    className="btn btn-primary"
+                    style={{ padding: '8px 20px', fontSize: 12, fontWeight: 700 }}
                   >
                     {submitting ? 'Submitting...' : 'Sign & Submit FPA Approval'}
                   </button>
@@ -798,7 +770,6 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
             </form>
           )}
         </div>
-
       </div>
 
       {/* Embedded Barcode Scanner Camera Modal */}
