@@ -145,13 +145,13 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
 
       if (receiptsColIdx !== -1 && row[receiptsColIdx] !== '') {
         receiptsTarget = parseInt(row[receiptsColIdx], 10) || 0;
+      } else {
+        receiptsTarget = grossDemand;
       }
 
-      // If only one metric is populated, align them unless distinct demand is specified
+      // If demand wasn't in separate column but receipts target is set, set demand
       if (grossDemand === 0 && receiptsTarget > 0) {
         grossDemand = receiptsTarget;
-      } else if (receiptsTarget === 0 && grossDemand > 0) {
-        receiptsTarget = grossDemand;
       }
 
       if (grossDemand === 0 && receiptsTarget === 0) continue;
