@@ -247,23 +247,33 @@ export default function MouldsDashboard() {
   }
 
   // Filter logic
-  const filteredMoulds = moulds.filter((m) => {
-    const q = search.trim().toLowerCase();
-    const matchSearch =
-      !q ||
-      m.mould_code?.toLowerCase().includes(q) ||
-      m.mould_name?.toLowerCase().includes(q) ||
-      m.customer_name?.toLowerCase().includes(q) ||
-      m.tool_maker?.toLowerCase().includes(q) ||
-      m.storage_location?.toLowerCase().includes(q) ||
-      (m.linked_parts && m.linked_parts.some((p) => p.shrp_part_code?.toLowerCase().includes(q) || p.part_name?.toLowerCase().includes(q)));
+  const [sortBy, setSortBy] = useState('pm_urgency'); // 'pm_urgency' | 'code' | 'total_shots' | 'shots_since_pm'
+  const [expandedMouldId, setExpandedMouldId] = useState(null);
 
-    if (!matchSearch) return false;
-    if (filterStatus === 'ok') return m.pm_status === 'ok';
-    if (filterStatus === 'due_soon') return m.pm_status === 'due_soon';
-    if (filterStatus === 'overdue') return m.pm_status === 'overdue';
-    return true;
-  });
+  const filteredMoulds = moulds
+    .filter((m) => {
+      const q = search.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        m.mould_code?.toLowerCase().includes(q) ||
+        m.mould_name?.toLowerCase().includes(q) ||
+        m.customer_name?.toLowerCase().includes(q) ||
+        m.tool_maker?.toLowerCase().includes(q) ||
+        m.storage_location?.toLowerCase().includes(q) ||
+        (m.linked_parts && m.linked_parts.some((p) => p.shrp_part_code?.toLowerCase().includes(q) || p.part_name?.toLowerCase().includes(q)));
+
+      if (!matchSearch) return false;
+      if (filterStatus === 'ok') return m.pm_status === 'ok';
+      if (filterStatus === 'due_soon') return m.pm_status === 'due_soon';
+      if (filterStatus === 'overdue') return m.pm_status === 'overdue';
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'pm_urgency') return (b.pm_progress_pct || 0) - (a.pm_progress_pct || 0);
+      if (sortBy === 'total_shots') return (b.cumulative_shots || 0) - (a.cumulative_shots || 0);
+      if (sortBy === 'shots_since_pm') return (b.shots_since_pm || 0) - (a.shots_since_pm || 0);
+      return (a.mould_code || '').localeCompare(b.mould_code || '');
+    });
 
   // KPI calculations
   const totalCount = moulds.length;
@@ -284,21 +294,15 @@ export default function MouldsDashboard() {
               ← Home
             </button>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-              ⚙️ Mould Management & Tool Master
+              ⚙️ Mould Management &amp; Tool Master
             </h1>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-            IATF 16949 Clause 8.5.1.5 · Tool History, 3D CAD Drawings, Maintenance & Shot Accumulation
+            IATF 16949 Clause 8.5.1.5 · Tool History, Maintenance &amp; Shot Accumulation
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => navigate('/machines')}
-            style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#60a5fa', padding: '8px 14px', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
-          >
-            🖥️ View Machines Fleet →
-          </button>
           <button
             onClick={openAddMouldModal}
             style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
@@ -308,111 +312,136 @@ export default function MouldsDashboard() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Tooling Bank</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', marginTop: 4 }}>{totalCount} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Moulds</span></div>
+      {/* KPI Cards — Compact 2-4 per row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 12 }}>
+        <div
+          onClick={() => setFilterStatus('ALL')}
+          style={{ background: 'var(--surface)', border: `1px solid ${filterStatus === 'ALL' ? 'var(--amber)' : 'var(--line)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
+        >
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Bank</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{totalCount} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>Moulds</span></div>
         </div>
         <div
           onClick={() => setFilterStatus('ok')}
-          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'ok' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}
+          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'ok' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
         >
-          <div style={{ fontSize: 12, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Healthy Tool Life</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#34d399', marginTop: 4 }}>{okCount}</div>
+          <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase', fontWeight: 600 }}>🟢 Healthy</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#34d399', marginTop: 2 }}>{okCount}</div>
         </div>
         <div
           onClick={() => setFilterStatus('due_soon')}
-          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'due_soon' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}
+          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'due_soon' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
         >
-          <div style={{ fontSize: 12, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Due Soon (≥80%)</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', marginTop: 4 }}>{dueSoonCount}</div>
+          <div style={{ fontSize: 10, color: '#fbbf24', textTransform: 'uppercase', fontWeight: 600 }}>🟡 Due Soon (≥80%)</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fbbf24', marginTop: 2 }}>{dueSoonCount}</div>
         </div>
         <div
           onClick={() => setFilterStatus('overdue')}
-          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'overdue' ? '#ef4444' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}
+          style={{ background: 'var(--surface)', border: `1.5px solid ${filterStatus === 'overdue' ? '#ef4444' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
         >
-          <div style={{ fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PM Overdue (≥100%)</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: overdueCount > 0 ? '#f87171' : 'var(--text-muted)', marginTop: 4 }}>{overdueCount}</div>
+          <div style={{ fontSize: 10, color: '#f87171', textTransform: 'uppercase', fontWeight: 600 }}>🔴 Overdue (≥100%)</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: overdueCount > 0 ? '#f87171' : 'var(--text-muted)', marginTop: 2 }}>{overdueCount}</div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+      {/* Filter, Search & Sort Bar */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
         <input
           type="text"
-          placeholder="🔍 Search mould code, part name, tool maker, or rack location..."
+          placeholder="🔍 Search mould code, part name, location..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: '1 1 300px', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 8, fontSize: 13 }}
+          style={{ flex: '1 1 240px', padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
         />
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Filter:</span>
           {['ALL', 'ok', 'due_soon', 'overdue'].map((st) => (
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
               style={{
-                padding: '8px 12px',
-                borderRadius: 6,
+                padding: '5px 10px',
+                borderRadius: 20,
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
-                background: filterStatus === st ? 'var(--line)' : 'var(--surface)',
-                color: filterStatus === st ? 'var(--text)' : 'var(--text-muted)',
-                border: '1px solid var(--line)',
+                background: filterStatus === st ? (st === 'ok' ? '#10b981' : st === 'due_soon' ? '#f59e0b' : st === 'overdue' ? '#ef4444' : 'var(--amber)') : 'transparent',
+                color: filterStatus === st ? '#fff' : 'var(--text-muted)',
+                borderColor: filterStatus === st ? 'transparent' : 'var(--line)',
+                borderWidth: 1,
+                borderStyle: 'solid',
               }}
             >
-              {st === 'ALL' ? 'Show All' : st === 'ok' ? '🟢 Healthy' : st === 'due_soon' ? '🟡 Due Soon' : '🔴 Overdue'}
+              {st === 'ALL' ? 'All' : st === 'ok' ? '🟢 Healthy' : st === 'due_soon' ? '🟡 Due Soon' : '🔴 Overdue'}
             </button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{ padding: '5px 10px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6 }}
+          >
+            <option value="pm_urgency">PM Urgency (% used) ↓</option>
+            <option value="code">Mould Code A-Z</option>
+            <option value="shots_since_pm">Shots Since PM ↓</option>
+            <option value="total_shots">Total Life Shots ↓</option>
+          </select>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            ({filteredMoulds.length})
+          </span>
+        </div>
       </div>
 
-      {/* Moulds Grid */}
+      {/* Moulds Grid — Compact Cards */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading mould database...</div>
+      ) : filteredMoulds.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No moulds match your search/filter.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {filteredMoulds.map((m) => {
             const isOverdue = m.pm_status === 'overdue';
             const isDueSoon = m.pm_status === 'due_soon';
             const barColor = isOverdue ? '#ef4444' : isDueSoon ? '#f59e0b' : '#10b981';
             const badgeBg = isOverdue ? 'rgba(239, 68, 68, 0.15)' : isDueSoon ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)';
             const badgeBorder = isOverdue ? '#ef4444' : isDueSoon ? '#f59e0b' : '#10b981';
+            const isExpanded = expandedMouldId === m.id;
 
             return (
               <div
                 key={m.id}
                 style={{
                   background: 'var(--surface)',
-                  border: `1.5px solid ${isOverdue ? '#ef4444' : isDueSoon ? 'rgba(245, 158, 11, 0.4)' : 'var(--line)'}`,
-                  borderRadius: 12,
-                  padding: 16,
+                  border: `1.5px solid ${isOverdue ? 'rgba(239, 68, 68, 0.5)' : isDueSoon ? 'rgba(245, 158, 11, 0.4)' : 'var(--line)'}`,
+                  borderRadius: 10,
+                  padding: 14,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 12,
-                  boxShadow: isOverdue ? '0 0 15px rgba(239, 68, 68, 0.15)' : 'none',
+                  gap: 10,
+                  boxShadow: isOverdue ? '0 0 12px rgba(239, 68, 68, 0.12)' : 'none',
                 }}
               >
-                {/* Header */}
+                {/* Header: Code + Cavities + Status + Edit */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ fontSize: 16, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.02em' }}>
                         {m.mould_code}
                       </span>
-                      <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>
-                        {m.total_cavities}C Tool
+                      <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>
+                        {m.total_cavities}C
                       </span>
                       <button
                         onClick={() => openEditMouldModal(m)}
-                        title="Edit Mould Master & Tooling Details"
+                        title="Edit Mould Master"
                         style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: 0 }}
                       >
                         ✏️
                       </button>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
                       {m.mould_name}
                     </div>
                   </div>
@@ -423,45 +452,50 @@ export default function MouldsDashboard() {
                   </span>
                 </div>
 
-                {/* Tool Details Pill Bar */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', fontSize: 11, color: 'var(--text-muted)', background: 'rgba(0,0,0,0.15)', padding: '6px 8px', borderRadius: 6 }}>
-                  <div>Type: <strong style={{ color: 'var(--text)' }}>{m.tool_type || 'Cold Runner'}</strong></div>
-                  <div>Rack: <strong style={{ color: '#fbbf24' }}>{m.storage_location || 'Rack A-01'}</strong></div>
-                  <div>Maker: <strong style={{ color: 'var(--text)' }}>{m.tool_maker || 'SHRP In-House'}</strong></div>
-                  <div>Machines: <strong style={{ color: '#60a5fa' }}>{m.suitable_machines || 'All'}</strong></div>
-                </div>
-
                 {/* Tool Life Progress Gauge */}
-                <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
-                    <span>PM Interval ({m.pm_interval_shots?.toLocaleString()} shots)</span>
+                <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>
+                    <span>PM Life: <strong style={{ color: 'var(--text)' }}>{(m.shots_since_pm || 0).toLocaleString()}</strong> / {(m.pm_interval_shots || 20000).toLocaleString()} shots</span>
                     <span style={{ fontWeight: 700, color: barColor }}>{m.pm_progress_pct}%</span>
                   </div>
-                  <div style={{ width: '100%', height: 8, background: 'var(--line)', borderRadius: 999, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, m.pm_progress_pct)}%`, height: '100%', background: barColor, borderRadius: 999 }} />
+                  <div style={{ width: '100%', height: 7, background: 'var(--line)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, m.pm_progress_pct || 0)}%`, height: '100%', background: barColor, borderRadius: 999 }} />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-                    <span>Since PM: <strong style={{ color: 'var(--text)' }}>{m.shots_since_pm?.toLocaleString()}</strong> shots</span>
-                    <span>Total Life: <strong style={{ color: 'var(--text)' }}>{m.cumulative_shots?.toLocaleString()}</strong></span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>
+                    <span>Total Lifetime: <strong style={{ color: 'var(--text)' }}>{(m.cumulative_shots || 0).toLocaleString()}</strong></span>
+                    <span>Rack: <strong style={{ color: '#fbbf24' }}>{m.storage_location || 'Rack A-01'}</strong></span>
                   </div>
                 </div>
 
-                {/* Linked Parts & Files Pill */}
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Parts: <strong>{m.linked_parts?.length || 0}</strong> linked</span>
-                    <span>Files/CAD: <strong>{m.files?.length || 0}</strong> attached</span>
-                  </div>
-                  {m.linked_parts && m.linked_parts.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                      {m.linked_parts.map((p) => (
-                        <span key={p.part_id} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '1px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
-                          {p.shrp_part_code || p.part_code} ({p.cavity_count}C)
-                        </span>
-                      ))}
+                {/* Expandable Details Button */}
+                <button
+                  onClick={() => setExpandedMouldId(isExpanded ? null : m.id)}
+                  style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 11, cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600 }}
+                >
+                  {isExpanded ? '▲ Hide details' : `▼ Show details (${m.linked_parts?.length || 0} parts, maker, machine)`}
+                </button>
+
+                {isExpanded && (
+                  <div style={{ background: 'rgba(0,0,0,0.15)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+                      <div>Type: <strong style={{ color: 'var(--text)' }}>{m.tool_type || 'Cold Runner'}</strong></div>
+                      <div>Maker: <strong style={{ color: 'var(--text)' }}>{m.tool_maker || 'SHRP In-House'}</strong></div>
+                      <div style={{ gridColumn: 'span 2' }}>Suitable Machines: <strong style={{ color: '#60a5fa' }}>{m.suitable_machines || 'All'}</strong></div>
                     </div>
-                  )}
-                </div>
+                    {m.linked_parts && m.linked_parts.length > 0 && (
+                      <div style={{ borderTop: '1px dashed var(--line)', paddingTop: 6 }}>
+                        <div style={{ marginBottom: 3, fontWeight: 600 }}>Linked Parts:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {m.linked_parts.map((p) => (
+                            <span key={p.part_id} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>
+                              {p.shrp_part_code || p.part_code} ({p.cavities_for_part || p.cavity_count}C)
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
@@ -495,7 +529,7 @@ export default function MouldsDashboard() {
                       cursor: 'pointer',
                     }}
                   >
-                    🔍 Details & CAD
+                    🔍 Details &amp; CAD
                   </button>
                 </div>
               </div>

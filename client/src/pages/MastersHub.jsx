@@ -112,6 +112,7 @@ export default function MastersHub() {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerModal, setCustomerModal] = useState(null);
+  const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [customerForm, setCustomerForm] = useState({
     customer_code: '',
     name: '',
@@ -224,14 +225,15 @@ export default function MastersHub() {
 
   const loadDefaults = () => {
     Promise.all([
-      api.checkSheetItems ? api.checkSheetItems() : Promise.resolve([]),
-      api.checkItems ? api.checkItems('reject_reason') : Promise.resolve([]),
-      api.checkItems ? api.checkItems('downtime_reason') : Promise.resolve([]),
+      api.checkSheetItems ? api.checkSheetItems().catch(() => []) : Promise.resolve([]),
+      api.checkItems ? api.checkItems('reject_reason').catch(() => []) : Promise.resolve([]),
+      api.checkItems ? api.checkItems('downtime_reason').catch(() => []) : Promise.resolve([]),
     ])
       .then(([ci, rr, dr]) => {
-        setCheckItems(ci || []);
-        setRejectReasons(rr || []);
-        setDowntimeReasons(dr || []);
+        // API returns arrays of row objects; guard against non-array responses
+        setCheckItems(Array.isArray(ci) ? ci : (ci?.items || ci?.rows || []));
+        setRejectReasons(Array.isArray(rr) ? rr : (rr?.items || rr?.rows || []));
+        setDowntimeReasons(Array.isArray(dr) ? dr : (dr?.items || dr?.rows || []));
       })
       .catch((e) => setError(e.message));
   };
@@ -1625,68 +1627,60 @@ export default function MastersHub() {
           ) : customers.length === 0 ? (
             <p className="muted">No customers registered.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Customer Code</th>
-                    <th>Customer / Company</th>
-                    <th>GSTIN &amp; PAN</th>
-                    <th>Contact &amp; Phone</th>
-                    <th>Location &amp; State</th>
-                    <th>Payment Terms</th>
-                    <th>Active Parts</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customers
-                    .filter((c) => {
-                      if (!customerSearch.trim()) return true;
-                      const q = customerSearch.toLowerCase();
-                      return (
-                        (c.customer_name || c.name || '').toLowerCase().includes(q) ||
-                        (c.customer_code || '').toLowerCase().includes(q) ||
-                        (c.gstin || '').toLowerCase().includes(q)
-                      );
-                    })
-                    .map((c, i) => (
-                      <tr key={c.id || i} style={{ opacity: c.active === false ? 0.6 : 1 }}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>
-                          {c.customer_code || `CUST-${String(c.id || i + 1).padStart(3, '0')}`}
-                        </td>
-                        <td>
-                          <strong>{c.name || c.customer_name}</strong>
-                          {c.address && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{c.address}</div>}
-                        </td>
-                        <td>
-                          <div>{c.gstin ? <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>{c.gstin}</span> : '—'}</div>
-                          {c.pan_no && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>PAN: {c.pan_no}</div>}
-                        </td>
-                        <td>
-                          <div>{c.contact_person || '—'}</div>
-                          {c.phone && <a href={`tel:${c.phone}`} style={{ fontSize: 11, color: '#38bdf8' }}>{c.phone}</a>}
-                        </td>
-                        <td>
-                          {[c.city, c.state, c.pincode].filter(Boolean).join(', ') || 'Tamil Nadu'}
-                        </td>
-                        <td>{c.payment_terms || '30 Days'}</td>
-                        <td>
-                          <span style={{ color: 'var(--amber)', fontWeight: 700, background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(245,158,11,0.3)' }}>
-                            {c.active_parts_count != null ? c.active_parts_count : parts.filter((p) => (p.customer_name || '').toLowerCase() === (c.name || '').toLowerCase()).length} parts
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ color: c.active !== false ? '#34d399' : '#f87171', fontWeight: 700 }}>
-                            {c.active !== false ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+              {customers
+                .filter((c) => {
+                  if (!customerSearch.trim()) return true;
+                  const q = customerSearch.toLowerCase();
+                  return (
+                    (c.customer_name || c.name || '').toLowerCase().includes(q) ||
+                    (c.customer_code || '').toLowerCase().includes(q) ||
+                    (c.gstin || '').toLowerCase().includes(q)
+                  );
+                })
+                .map((c, i) => {
+                  const isExpanded = expandedCustomerId === (c.id || i);
+                  const activeParts = c.active_parts_count != null ? c.active_parts_count : parts.filter((p) => (p.customer_name || '').toLowerCase() === (c.name || '').toLowerCase()).length;
+                  const custCode = c.customer_code || `CUST-${String(c.id || i + 1).padStart(3, '0')}`;
+                  const custName = c.name || c.customer_name;
+                  const location = [c.city, c.state].filter(Boolean).join(', ') || 'Tamil Nadu';
+
+                  return (
+                    <div
+                      key={c.id || i}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        opacity: c.active === false ? 0.6 : 1,
+                      }}
+                    >
+                      {/* Top Row: Customer Code + Name + Edit/Delete */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 800, color: 'var(--amber)', fontSize: 13 }}>
+                              {custCode}
+                            </span>
+                            <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {custName}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            📍 {location} · <span style={{ color: c.active !== false ? '#34d399' : '#f87171', fontWeight: 600 }}>{c.active !== false ? 'Active' : 'Inactive'}</span> · <strong style={{ color: 'var(--amber)' }}>{activeParts} parts</strong>
+                          </div>
+                        </div>
+
+                        {/* Action buttons — Always visible on right, no scrolling needed! */}
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
                             onClick={() => {
                               setCustomerForm({
                                 customer_code: c.customer_code || '',
@@ -1712,16 +1706,39 @@ export default function MastersHub() {
                             <button
                               type="button"
                               onClick={() => handleDeleteCustomer(c)}
-                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                              style={{ padding: '3px 7px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                              title="Delete Customer"
                             >
                               🗑️
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+
+                      {/* Expand/Collapse Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCustomerId(isExpanded ? null : (c.id || i))}
+                        style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 11, cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600, marginTop: 2 }}
+                      >
+                        {isExpanded ? '▲ Hide details' : '▼ More details (GSTIN, Contact, Terms)'}
+                      </button>
+
+                      {/* Expanded details section */}
+                      {isExpanded && (
+                        <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', color: 'var(--text-muted)', borderTop: '1px solid var(--line)', marginTop: 4 }}>
+                          <div>GSTIN: <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{c.gstin || '—'}</strong></div>
+                          <div>PAN: <strong style={{ color: 'var(--text)', fontFamily: 'monospace' }}>{c.pan_no || '—'}</strong></div>
+                          <div>Contact: <strong style={{ color: 'var(--text)' }}>{c.contact_person || '—'}</strong></div>
+                          <div>Phone: {c.phone ? <a href={`tel:${c.phone}`} style={{ color: '#38bdf8' }}>{c.phone}</a> : '—'}</div>
+                          <div>Terms: <strong style={{ color: 'var(--text)' }}>{c.payment_terms || '30 Days'}</strong></div>
+                          <div>Email: <strong style={{ color: 'var(--text)' }}>{c.email || '—'}</strong></div>
+                          {c.address && <div style={{ gridColumn: 'span 2' }}>Address: <span style={{ color: 'var(--text)' }}>{c.address}</span></div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
 
@@ -2101,7 +2118,7 @@ export default function MastersHub() {
               ) : (
                 <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
                   {checkItems.map((ci, i) => (
-                    <li key={i}>{ci.item_name || ci.name || ci}</li>
+                    <li key={ci.id || i}>{ci.item_name || ci.check_point || ci.name || String(ci.id || i + 1)}</li>
                   ))}
                 </ul>
               )}
@@ -2115,7 +2132,7 @@ export default function MastersHub() {
               ) : (
                 <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
                   {rejectReasons.map((rr, i) => (
-                    <li key={i}>{rr.reason || rr.name || rr}</li>
+                    <li key={rr.id || i}>{rr.item_name || rr.reason || rr.name || String(rr.code || i + 1)}</li>
                   ))}
                 </ul>
               )}
@@ -2129,7 +2146,7 @@ export default function MastersHub() {
               ) : (
                 <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
                   {downtimeReasons.map((dr, i) => (
-                    <li key={i}>{dr.reason || dr.name || dr}</li>
+                    <li key={dr.id || i}>{dr.item_name || dr.reason || dr.name || String(dr.code || i + 1)}</li>
                   ))}
                 </ul>
               )}

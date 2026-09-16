@@ -178,12 +178,24 @@ export default function MachinesDashboard() {
       .finally(() => setHistoryLoading(false));
   }
 
-  // Plant summary stats
-  const totalMachines = machines.length;
-  const runningMachines = machines.filter((m) => m.status === 'RUNNING').length;
-  const idleMachines = machines.filter((m) => m.status === 'IDLE' || m.status === 'STARTED').length;
-  const totalOkToday = machines.reduce((sum, m) => sum + (m.today?.ok_qty || 0), 0);
-  const totalDowntimeToday = machines.reduce((sum, m) => sum + (m.today?.downtime_minutes || 0), 0);
+  // --- Filter & Sort ---
+  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL | RUNNING | IDLE | BREAKDOWN
+  const [sortBy, setSortBy] = useState('code');            // code | output | shots
+  const [expandedCard, setExpandedCard] = useState(null);  // machine id with expanded specs
+
+  const filteredMachines = machines
+    .filter((m) => {
+      if (filterStatus === 'ALL') return true;
+      if (filterStatus === 'RUNNING') return m.status === 'RUNNING';
+      if (filterStatus === 'IDLE') return m.status === 'IDLE' || m.status === 'STARTED';
+      if (filterStatus === 'BREAKDOWN') return m.status === 'BREAKDOWN' || m.status === 'DOWN';
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'output') return (b.today?.ok_qty || 0) - (a.today?.ok_qty || 0);
+      if (sortBy === 'shots') return (b.today?.shots || 0) - (a.today?.shots || 0);
+      return (a.machine_code || '').localeCompare(b.machine_code || '');
+    });
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '16px' }}>
@@ -198,11 +210,11 @@ export default function MachinesDashboard() {
               ← Home
             </button>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-              🖥️ Machine Management & TPM
+              🖥️ Machine Management &amp; TPM
             </h1>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-            IATF 16949 Clause 8.5.1.5 · Total Productive Maintenance, Machine Capacity & Specifications
+            IATF 16949 Clause 8.5.1.5 · Total Productive Maintenance, Machine Capacity &amp; Specifications
           </p>
         </div>
 
@@ -214,12 +226,6 @@ export default function MachinesDashboard() {
             style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', padding: '8px 12px', borderRadius: 6, fontSize: 13 }}
           />
           <button
-            onClick={() => navigate('/moulds')}
-            style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#60a5fa', padding: '8px 14px', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
-          >
-            ⚙️ View Moulds & Tool Life →
-          </button>
-          <button
             onClick={openAddMachineModal}
             style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
@@ -228,183 +234,170 @@ export default function MachinesDashboard() {
         </div>
       </div>
 
-      {/* KPI Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Fleet</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', marginTop: 4 }}>{totalMachines} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Machines</span></div>
+      {/* KPI Summary Cards — Compact 2-5 per row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Fleet</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{totalMachines} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>M/C</span></div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Running Now</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#34d399', marginTop: 4 }}>{runningMachines} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>Active</span></div>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 8, padding: '8px 10px' }}>
+          <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase', fontWeight: 600 }}>🟢 Running</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#34d399', marginTop: 2 }}>{runningMachines}</div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Idle / In Setup</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', marginTop: 4 }}>{idleMachines}</div>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 10px' }}>
+          <div style={{ fontSize: 10, color: '#fbbf24', textTransform: 'uppercase', fontWeight: 600 }}>🟡 Idle/Setup</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fbbf24', marginTop: 2 }}>{idleMachines}</div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Output Today</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', marginTop: 4 }}>{totalOkToday.toLocaleString()} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span></div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Output Today</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa', marginTop: 2 }}>{totalOkToday.toLocaleString()} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span></div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Downtime</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: totalDowntimeToday > 60 ? '#f87171' : 'var(--text)', marginTop: 4 }}>{totalDowntimeToday} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>min</span></div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Downtime</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: totalDowntimeToday > 60 ? '#f87171' : 'var(--text)', marginTop: 2 }}>{totalDowntimeToday} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>min</span></div>
         </div>
       </div>
 
-      {/* Machines Grid */}
+      {/* Filter & Sort Bar */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Filter:</span>
+        {['ALL', 'RUNNING', 'IDLE', 'BREAKDOWN'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilterStatus(f)}
+            style={{
+              padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid',
+              background: filterStatus === f ? (f === 'RUNNING' ? '#10b981' : f === 'IDLE' ? '#f59e0b' : f === 'BREAKDOWN' ? '#ef4444' : 'var(--amber)') : 'transparent',
+              color: filterStatus === f ? '#fff' : 'var(--text-muted)',
+              borderColor: filterStatus === f ? 'transparent' : 'var(--line)',
+            }}
+          >
+            {f === 'ALL' ? 'All' : f === 'RUNNING' ? '🟢 Running' : f === 'IDLE' ? '🟡 Idle/Setup' : '🔴 Breakdown'}
+          </button>
+        ))}
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 12 }}>Sort:</span>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{ padding: '5px 10px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6 }}
+        >
+          <option value="code">Machine Code</option>
+          <option value="output">Output Today ↓</option>
+          <option value="shots">Shots Today ↓</option>
+        </select>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+          Showing {filteredMachines.length} of {machines.length}
+        </span>
+      </div>
+
+      {/* Machines Grid — Compact Cards */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading machine status...</div>
+      ) : filteredMachines.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No machines match the selected filter.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 16 }}>
-          {machines.map((m) => {
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+          {filteredMachines.map((m) => {
             const isRunning = m.status === 'RUNNING';
             const isStarted = m.status === 'STARTED';
-            const statusColor = isRunning ? '#10b981' : isStarted ? '#f59e0b' : '#6b7280';
-            const statusBg = isRunning ? 'rgba(16, 185, 129, 0.12)' : isStarted ? 'rgba(245, 158, 11, 0.12)' : 'rgba(107, 114, 128, 0.12)';
+            const isBreakdown = m.status === 'BREAKDOWN' || m.status === 'DOWN';
+            const statusColor = isRunning ? '#10b981' : isBreakdown ? '#ef4444' : isStarted ? '#f59e0b' : '#6b7280';
+            const statusBg = isRunning ? 'rgba(16,185,129,0.1)' : isBreakdown ? 'rgba(239,68,68,0.1)' : isStarted ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.08)';
+            const isExpanded = expandedCard === m.id;
 
             return (
               <div
                 key={m.id}
                 style={{
                   background: 'var(--surface)',
-                  border: `1.5px solid ${isRunning ? 'rgba(16, 185, 129, 0.4)' : 'var(--line)'}`,
-                  borderRadius: 12,
-                  padding: 16,
+                  border: `1.5px solid ${isRunning ? 'rgba(16,185,129,0.35)' : isBreakdown ? 'rgba(239,68,68,0.35)' : 'var(--line)'}`,
+                  borderRadius: 10,
+                  padding: 14,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 12,
-                  position: 'relative',
-                  boxShadow: isRunning ? '0 4px 20px rgba(16, 185, 129, 0.08)' : 'none',
+                  gap: 10,
                 }}
               >
-                {/* Machine Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.02em' }}>
-                        {m.machine_code}
-                      </span>
-                      <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>
-                        {m.tonnage}T
-                      </span>
-                      <button
-                        onClick={() => openEditMachineModal(m)}
-                        title="Edit Machine Capacity & Engineering Specs"
-                        style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: 0 }}
-                      >
-                        ✏️
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {m.make_model || 'Injection Moulding Machine'} · {m.motor_type || 'Servo'}
-                    </div>
+                {/* Row 1: Code + Tonnage + Status + Edit */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.02em' }}>{m.machine_code}</span>
+                    <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>{m.tonnage}T</span>
+                    <button onClick={() => openEditMachineModal(m)} title="Edit specs" style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: 0 }}>✏️</button>
                   </div>
-
-                  {/* Status Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: statusBg, color: statusColor, border: `1px solid ${statusColor}44` }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor }} />
-                    {m.status_label}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: statusBg, color: statusColor, border: `1px solid ${statusColor}44` }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
+                    {m.status_label || m.status}
                   </div>
                 </div>
 
-                {/* Technical Engineering Specs Grid */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', color: 'var(--text-muted)' }}>
-                  <div>Tie Bar: <strong style={{ color: 'var(--text)' }}>{m.tie_bar_distance_mm || '-'}</strong> mm</div>
-                  <div>Platen: <strong style={{ color: 'var(--text)' }}>{m.platen_size_mm || '-'}</strong> mm</div>
-                  <div>Mould Ht: <strong style={{ color: 'var(--text)' }}>{m.min_mould_height_mm || 0}-{m.max_mould_height_mm || 0}</strong> mm</div>
-                  <div>Max Daylight: <strong style={{ color: 'var(--text)' }}>{m.max_daylight_mm || '-'}</strong> mm</div>
-                  <div>Max Shot: <strong style={{ color: 'var(--text)' }}>{m.max_shot_weight_g || '-'}</strong> g</div>
-                  <div>Rate: <strong style={{ color: '#34d399' }}>₹{m.hourly_rate_inr || 450}</strong>/hr</div>
-                </div>
-
-                {/* Running Part Card */}
-                <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Active Assignment
-                  </div>
+                {/* Row 2: Current Mould / Part */}
+                <div style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 7, padding: '8px 10px', fontSize: 12 }}>
                   {m.current_part ? (
-                    <div style={{ marginTop: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '2px 6px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>
-                          {m.current_part.shrp_part_code}
-                        </span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {m.current_part.part_name}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Cavities: {m.current_part.cavity_count} · Shot Wt: {m.current_part.unit_weight_g || '-'}g
-                        {m.active_session && (
-                          <span style={{ marginLeft: 8, color: '#34d399' }}>
-                            👤 {m.active_session.operator_name}
-                          </span>
-                        )}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <span style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', padding: '1px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{m.current_part.shrp_part_code}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>{m.current_part.part_name}</span>
+                      {m.active_session && <span style={{ color: '#34d399', fontSize: 11 }}>👤 {m.active_session.operator_name}</span>}
                     </div>
                   ) : (
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
-                      No mould currently assigned.
-                    </div>
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No mould assigned</span>
                   )}
                 </div>
 
-                {/* Today's Production Counters */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: 6 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Today Shots</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>{m.today.shots.toLocaleString()}</div>
+                {/* Row 3: Today's 3-stat row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, textAlign: 'center' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Shots</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{(m.today?.shots || 0).toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>OK Output</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#34d399', marginTop: 2 }}>{m.today.ok_qty.toLocaleString()}</div>
+                  <div style={{ background: 'rgba(16,185,129,0.06)', borderRadius: 6, padding: '6px 4px' }}>
+                    <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase' }}>OK Output</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#34d399' }}>{(m.today?.ok_qty || 0).toLocaleString()}</div>
                   </div>
-                  <div>
+                  <div style={{ background: m.today?.reject_qty > 0 ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rejects</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: m.today.reject_qty > 0 ? '#f87171' : 'var(--text-muted)', marginTop: 2 }}>{m.today.reject_qty}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: m.today?.reject_qty > 0 ? '#f87171' : 'var(--text-muted)' }}>{m.today?.reject_qty || 0}</div>
                   </div>
                 </div>
 
-                {/* TPM Health Metrics */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px dashed var(--line)', paddingTop: 8 }}>
-                  <span>MTBF: <strong style={{ color: 'var(--text)' }}>{m.tpm.mtbf_hours} hrs</strong></span>
-                  <span>MTTR: <strong style={{ color: 'var(--text)' }}>{m.tpm.mttr_minutes} min</strong></span>
-                  <span>Total BDs: <strong style={{ color: m.tpm.total_breakdowns > 0 ? '#fbbf24' : 'var(--text)' }}>{m.tpm.total_breakdowns}</strong></span>
+                {/* Row 4: MTBF / MTTR inline */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
+                  <span>MTBF <strong style={{ color: 'var(--text)' }}>{m.tpm?.mtbf_hours || 0} hrs</strong></span>
+                  <span>MTTR <strong style={{ color: 'var(--text)' }}>{m.tpm?.mttr_minutes || 0} min</strong></span>
+                  <span>Breakdowns <strong style={{ color: m.tpm?.total_breakdowns > 0 ? '#fbbf24' : 'var(--text)' }}>{m.tpm?.total_breakdowns || 0}</strong></span>
                 </div>
+
+                {/* Expandable Specs (collapsed by default) */}
+                <button
+                  onClick={() => setExpandedCard(isExpanded ? null : m.id)}
+                  style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 11, cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600 }}
+                >
+                  {isExpanded ? '▲ Hide specs' : '▼ Show specs (Tie Bar, Platen, Shot Wt…)'}
+                </button>
+                {isExpanded && (
+                  <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', color: 'var(--text-muted)' }}>
+                    <div>Tie Bar: <strong style={{ color: 'var(--text)' }}>{m.tie_bar_distance_mm || '-'}</strong> mm</div>
+                    <div>Platen: <strong style={{ color: 'var(--text)' }}>{m.platen_size_mm || '-'}</strong> mm</div>
+                    <div>Mould Ht: <strong style={{ color: 'var(--text)' }}>{m.min_mould_height_mm || 0}–{m.max_mould_height_mm || 0}</strong> mm</div>
+                    <div>Max Shot: <strong style={{ color: 'var(--text)' }}>{m.max_shot_weight_g || '-'}</strong> g</div>
+                    <div>Motor: <strong style={{ color: 'var(--text)' }}>{m.motor_type || '-'}</strong></div>
+                    <div>Rate: <strong style={{ color: '#34d399' }}>₹{m.hourly_rate_inr || 450}/hr</strong></div>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => openBreakdownModal(m)}
-                    style={{
-                      flex: 1,
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#f87171',
-                      padding: '7px 10px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    style={{ flex: 1, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   >
                     ⚡ Log Breakdown
                   </button>
                   <button
                     onClick={() => openHistoryModal(m)}
-                    style={{
-                      flex: 1,
-                      background: 'var(--line)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: 'var(--text)',
-                      padding: '7px 10px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    style={{ flex: 1, background: 'var(--line)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text)', padding: '7px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                   >
-                    📜 History & TPM
+                    📜 History &amp; TPM
                   </button>
                 </div>
               </div>

@@ -105,7 +105,7 @@ export default function Reports() {
     Promise.all([
       api.parts().catch(() => []),
       api.machines().catch(() => []),
-      api.moulds ? api.moulds().catch(() => []) : Promise.resolve([]),
+      api.moulds?.list ? api.moulds.list().catch(() => []) : Promise.resolve([]),
       api.operators ? api.operators().catch(() => []) : api.users().catch(() => []),
     ]).then(([p, m, mo, ops]) => {
       if (p && p.length) { setPartsList(p); if (!selectedPartId) setSelectedPartId(String(p[0].id)); }
