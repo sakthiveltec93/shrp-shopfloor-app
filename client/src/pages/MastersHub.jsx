@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
 
 const TABS = [
   { key: 'parts', label: 'Parts', icon: '📋' },
@@ -17,7 +18,7 @@ const TABS = [
 
 export default function MastersHub() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('tab') || 'parts';
@@ -2401,72 +2402,79 @@ export default function MastersHub() {
                     <p className="muted" style={{ fontSize: 12 }}>No checksheet items configured.</p>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
-                      {checkItems.map((ci, i) => (
-                        <div
-                          key={ci.id || i}
-                          style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid var(--line)',
-                            borderRadius: 6,
-                            padding: '8px 12px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
-                              {ci.icon ? `${ci.icon} ` : ''}{ci.item_name || ci.check_point}
-                            </div>
-                            {(ci.specification || ci.local_label) && (
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                {ci.specification || ci.local_label}
+                      {checkItems.map((ci, i) => {
+                        const loc = getLocalizedCheckItem(ci, lang);
+                        const iconVal = loc.icon || ci.icon || '';
+                        const isTabler = iconVal.startsWith('ti-') || iconVal.startsWith('ti ');
+                        const tablerClass = iconVal.replace(/^ti\s+/, '');
+                        return (
+                          <div
+                            key={ci.id || i}
+                            style={{
+                              background: 'rgba(255,255,255,0.03)',
+                              border: '1px solid var(--line)',
+                              borderRadius: 6,
+                              padding: '8px 12px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {isTabler ? <i className={`ti ${tablerClass}`} style={{ color: 'var(--accent)', fontSize: 16 }} /> : <span>{iconVal || '📋'}</span>}
+                                <span>{loc.name || ci.item_name || ci.check_point}</span>
                               </div>
-                            )}
+                              {(loc.spec || ci.specification || ci.local_label) && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  {loc.spec || ci.specification || ci.local_label}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                                onClick={() => {
+                                  setCheckItemForm({
+                                    item_name: ci.item_name || ci.check_point || '',
+                                    category: 'daily',
+                                    code: ci.code || '',
+                                    default_disposition: 'OK',
+                                    related_to: ci.category || 'MACHINE',
+                                    local_label: ci.local_label || '',
+                                    specification: ci.specification || '',
+                                    icon: ci.icon || '📋',
+                                    sort_order: ci.sort_order || i + 1,
+                                    active: ci.active !== false,
+                                  });
+                                  setCheckItemModal({ type: 'daily', isEdit: true, data: ci });
+                                }}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCheckItem(ci, 'daily')}
+                                style={{
+                                  padding: '3px 8px',
+                                  fontSize: 11,
+                                  width: 'auto',
+                                  background: 'rgba(239,68,68,0.15)',
+                                  color: '#f87171',
+                                  border: '1px solid rgba(239,68,68,0.4)',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
-                              onClick={() => {
-                                setCheckItemForm({
-                                  item_name: ci.item_name || ci.check_point || '',
-                                  category: 'daily',
-                                  code: ci.code || '',
-                                  default_disposition: 'OK',
-                                  related_to: ci.category || 'MACHINE',
-                                  local_label: ci.local_label || '',
-                                  specification: ci.specification || '',
-                                  icon: ci.icon || '📋',
-                                  sort_order: ci.sort_order || i + 1,
-                                  active: ci.active !== false,
-                                });
-                                setCheckItemModal({ type: 'daily', isEdit: true, data: ci });
-                              }}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCheckItem(ci, 'daily')}
-                              style={{
-                                padding: '3px 8px',
-                                fontSize: 11,
-                                width: 'auto',
-                                background: 'rgba(239,68,68,0.15)',
-                                color: '#f87171',
-                                border: '1px solid rgba(239,68,68,0.4)',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

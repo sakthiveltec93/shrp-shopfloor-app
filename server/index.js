@@ -22,11 +22,22 @@ const rawMaterialRoutes = require('./routes/rawMaterials');
 const gaugeRoutes = require('./routes/gauges');
 const supplierRoutes = require('./routes/suppliers');
 
+const fs = require('fs');
+
 const app = express();
 app.use(cors());
 // Higher limit than Express's 100kb default - photo/SOP/PPAP uploads arrive
 // as base64 JSON, which inflates file size by roughly a third.
 app.use(express.json({ limit: '15mb' }));
+
+// Public Company Profile & Product Catalog Route
+app.get(['/company-profile', '/profile', '/catalog'], (req, res) => {
+  const profilePath = path.join(__dirname, '..', 'SHRP_Company_Profile.html');
+  if (fs.existsSync(profilePath)) {
+    return res.sendFile(profilePath);
+  }
+  res.status(404).send('Company profile document not found.');
+});
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);

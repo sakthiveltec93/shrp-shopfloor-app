@@ -5,7 +5,7 @@ const STORAGE_KEY = 'shrp_lang';
 export const LANGUAGES = [
   { code: 'en', label: 'EN', name: 'English' },
   { code: 'ta', label: 'தமிழ்', name: 'Tamil' },
-  { code: 'or', label: 'ଓଡ଼ିଆ', name: 'Odia' },
+  { code: 'or', label: 'OD', name: 'English Odia' },
 ];
 
 const LanguageContext = createContext(null);

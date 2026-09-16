@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
 
 const OFF_REASONS = [
   { value: 'operator_change', labelKey: 'entry.offReasons.operator_change', label: '🔄 Change Operator / Shift Handover' },
@@ -18,7 +19,7 @@ export default function ProductionEntry() {
   const [deletingEntry, setDeletingEntry] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [machines, setMachines] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
@@ -352,32 +353,42 @@ export default function ProductionEntry() {
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
               {t('entry.completeCheckSheet', 'Complete shift start check sheet before turning ON machine')}
             </p>
-            {checkSheetItems.map((item) => (
-              <div key={item.id} className="field">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  {item.icon && <i className={`ti ${item.icon}`} style={{ fontSize: 24, color: 'var(--text-secondary)', flexShrink: 0 }} aria-hidden="true" />}
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{item.item_name}</div>
-                    {item.local_label && <div className="muted" style={{ fontSize: 12 }}>{item.local_label}</div>}
+            {checkSheetItems.map((item) => {
+              const loc = getLocalizedCheckItem(item, lang);
+              const iconClass = (loc.icon || 'ti-check').replace(/^ti\s+/, '');
+              return (
+                <div key={item.id} className="field" style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 8, border: '1px solid var(--line)', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                    <i className={`ti ${iconClass}`} style={{ fontSize: 22, color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{loc.name}</div>
+                      {loc.spec && (
+                        <div style={{ fontSize: 12, marginTop: 3, color: '#93c5fd', lineHeight: 1.4 }}>
+                          📌 <strong>{lang === 'ta' ? 'சரிபார்க்க வேண்டியவை:' : lang === 'or' ? 'Kichi check kariba:' : 'What to check:'}</strong> {loc.spec}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  <div className="btn-row" style={{ marginBottom: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {['OK', 'NG', 'NA'].map((s) => (
+                      <button key={s} type="button"
+                        className={checkResponses[item.id]?.status === s ? (s === 'OK' ? 'btn btn-primary' : s === 'NG' ? 'btn btn-danger' : 'btn btn-secondary') : 'btn btn-secondary'}
+                        style={{ padding: '10px 0', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        onClick={() => setCheckResponse(item.id, 'status', s)}>
+                        <i className={`ti ${s === 'OK' ? 'ti-check' : s === 'NG' ? 'ti-x' : 'ti-minus'}`} style={{ fontSize: 18 }} aria-hidden="true" />
+                        <span>{s}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {checkResponses[item.id]?.status === 'NG' && (
+                    <input placeholder={t('entry.remarksNgPlaceholder', 'Remarks for NG')}
+                      value={checkResponses[item.id]?.remarks || ''}
+                      onChange={(e) => setCheckResponse(item.id, 'remarks', e.target.value)}
+                      style={{ marginTop: 6 }} />
+                  )}
                 </div>
-                <div className="btn-row" style={{ marginBottom: 6 }}>
-                  {['OK', 'NG', 'NA'].map((s) => (
-                    <button key={s} type="button"
-                      className={checkResponses[item.id]?.status === s ? 'btn btn-primary' : 'btn btn-secondary'}
-                      style={{ padding: '10px 0' }}
-                      onClick={() => setCheckResponse(item.id, 'status', s)}>
-                      <i className={`ti ${s === 'OK' ? 'ti-check' : s === 'NG' ? 'ti-x' : 'ti-minus'}`} style={{ fontSize: 20 }} aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-                {checkResponses[item.id]?.status === 'NG' && (
-                  <input placeholder={t('entry.remarksNgPlaceholder', 'Remarks for NG')}
-                    value={checkResponses[item.id]?.remarks || ''}
-                    onChange={(e) => setCheckResponse(item.id, 'remarks', e.target.value)} />
-                )}
-              </div>
-            ))}
+              );
+            })}
             <button className="btn btn-primary" type="submit" disabled={submittingCheck}>
               {submittingCheck ? t('entry.submitting', 'Submitting...') : t('entry.submitCheckSheet', 'Submit Check Sheet')}
             </button>
