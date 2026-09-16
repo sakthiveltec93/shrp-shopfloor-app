@@ -296,6 +296,7 @@ export default function MouldsDashboard() {
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
               ⚙️ Moulds
             </h1>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
