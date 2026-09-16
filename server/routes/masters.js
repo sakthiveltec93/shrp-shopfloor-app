@@ -141,6 +141,102 @@ router.get('/check-items', async (req, res) => {
   res.json(rows);
 });
 
+router.post('/check-items', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { item_name, category, code, default_disposition, related_to } = req.body;
+  if (!item_name || !category) return res.status(400).json({ error: 'item_name and category are required' });
+  const { rows } = await pool.query(
+    `INSERT INTO check_items (item_name, category, code, default_disposition, related_to)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (item_name, category) DO UPDATE SET code = EXCLUDED.code, default_disposition = EXCLUDED.default_disposition, related_to = EXCLUDED.related_to
+     RETURNING *`,
+    [item_name, category, code || null, default_disposition || null, related_to || null]
+  );
+  res.status(201).json(rows[0]);
+});
+
+router.put('/check-items/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const { item_name, category, code, default_disposition, related_to } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE check_items SET
+       item_name = COALESCE($1, item_name),
+       category = COALESCE($2, category),
+       code = $3,
+       default_disposition = $4,
+       related_to = $5
+     WHERE id = $6 RETURNING *`,
+    [item_name, category, code, default_disposition, related_to, id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Check item not found' });
+  res.json(rows[0]);
+});
+
+router.delete('/check-items/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM check_items WHERE id = $1 RETURNING *', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Check item not found' });
+    res.json({ ok: true, deleted: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'Cannot delete: this item is referenced in existing production logs.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Daily Check Items (Machine/Shift check sheet points)
+router.get('/daily-check-items', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM daily_check_items ORDER BY sort_order, id');
+  res.json(rows);
+});
+
+router.post('/daily-check-items', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { item_name, local_label, specification, icon, category, sort_order, active } = req.body;
+  if (!item_name) return res.status(400).json({ error: 'item_name is required' });
+  const { rows } = await pool.query(
+    `INSERT INTO daily_check_items (item_name, local_label, specification, icon, category, sort_order, active)
+     VALUES ($1, $2, $3, $4, COALESCE($5, 'MACHINE'), COALESCE($6, 0), COALESCE($7, TRUE))
+     RETURNING *`,
+    [item_name, local_label || null, specification || null, icon || null, category || 'MACHINE', sort_order || 0, active !== false]
+  );
+  res.status(201).json(rows[0]);
+});
+
+router.put('/daily-check-items/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const { item_name, local_label, specification, icon, category, sort_order, active } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE daily_check_items SET
+       item_name = COALESCE($1, item_name),
+       local_label = $2,
+       specification = $3,
+       icon = $4,
+       category = COALESCE($5, category),
+       sort_order = COALESCE($6, sort_order),
+       active = COALESCE($7, active)
+     WHERE id = $8 RETURNING *`,
+    [item_name, local_label, specification, icon, category, sort_order, active, id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Daily check item not found' });
+  res.json(rows[0]);
+});
+
+router.delete('/daily-check-items/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM daily_check_items WHERE id = $1 RETURNING *', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Daily check item not found' });
+    res.json({ ok: true, deleted: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23503') {
+      await pool.query('UPDATE daily_check_items SET active = FALSE WHERE id = $1', [id]);
+      return res.json({ ok: true, message: 'Item linked to submissions; deactivated.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Full detail for the Add/Edit Part screen - part + customer + parameters +
 // dimensions + suitable machines + file metadata (not raw file bytes).
 router.get('/parts/:id/detail', async (req, res) => {

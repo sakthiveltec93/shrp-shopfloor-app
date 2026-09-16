@@ -153,8 +153,25 @@ export const api = {
       delete: (id) => request(`/masters/customers/${id}`, { method: 'DELETE' }),
     }
   ),
-  createCustomer: (name) => request('/masters/customers', { method: 'POST', body: typeof name === 'string' ? { name } : name }),
-  checkItems: (category) => request(`/masters/check-items${category ? `?category=${category}` : ''}`),
+  checkItems: Object.assign(
+    (category) => request(`/masters/check-items${category ? `?category=${category}` : ''}`),
+    {
+      list: (category) => request(`/masters/check-items${category ? `?category=${category}` : ''}`),
+      create: (payload) => request('/masters/check-items', { method: 'POST', body: payload }),
+      update: (id, payload) => request(`/masters/check-items/${id}`, { method: 'PUT', body: payload }),
+      delete: (id) => request(`/masters/check-items/${id}`, { method: 'DELETE' }),
+    }
+  ),
+  dailyCheckItems: {
+    list: () => request('/masters/daily-check-items'),
+    create: (payload) => request('/masters/daily-check-items', { method: 'POST', body: payload }),
+    update: (id, payload) => request(`/masters/daily-check-items/${id}`, { method: 'PUT', body: payload }),
+    delete: (id) => request(`/masters/daily-check-items/${id}`, { method: 'DELETE' }),
+  },
+  createCheckItem: (payload) => request('/masters/check-items', { method: 'POST', body: payload }),
+  updateCheckItem: (id, payload) => request(`/masters/check-items/${id}`, { method: 'PUT', body: payload }),
+  deleteCheckItem: (id) => request(`/masters/check-items/${id}`, { method: 'DELETE' }),
+
 
   // Gauges & Instruments master
   gauges: Object.assign(

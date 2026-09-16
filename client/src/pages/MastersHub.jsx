@@ -143,6 +143,26 @@ export default function MastersHub() {
   const [checkItems, setCheckItems] = useState([]);
   const [rejectReasons, setRejectReasons] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
+  const [expandedChecksheetSection, setExpandedChecksheetSection] = useState('shift'); // 'shift' | 'reject' | 'downtime' | null
+  const [checkItemModal, setCheckItemModal] = useState(null); // { type: 'daily' | 'reject_reason' | 'downtime_reason', isEdit: boolean, data?: obj }
+  const [checkItemForm, setCheckItemForm] = useState({
+    item_name: '',
+    category: 'reject_reason',
+    code: '',
+    default_disposition: 'SCRAP',
+    related_to: 'MACHINE',
+    local_label: '',
+    specification: '',
+    icon: '⚙️',
+    sort_order: 0,
+    active: true,
+  });
+
+  // Expandable card states for all tabs
+  const [expandedPartId, setExpandedPartId] = useState(null);
+  const [expandedRmId, setExpandedRmId] = useState(null);
+  const [expandedGaugeId, setExpandedGaugeId] = useState(null);
+  const [expandedSupplierId, setExpandedSupplierId] = useState(null);
 
   useEffect(() => {
     setError('');
@@ -225,17 +245,90 @@ export default function MastersHub() {
 
   const loadDefaults = () => {
     Promise.all([
-      api.checkSheetItems ? api.checkSheetItems().catch(() => []) : Promise.resolve([]),
+      api.dailyCheckItems?.list ? api.dailyCheckItems.list().catch(() => []) : (api.checkSheetItems ? api.checkSheetItems().catch(() => []) : Promise.resolve([])),
       api.checkItems ? api.checkItems('reject_reason').catch(() => []) : Promise.resolve([]),
       api.checkItems ? api.checkItems('downtime_reason').catch(() => []) : Promise.resolve([]),
     ])
       .then(([ci, rr, dr]) => {
-        // API returns arrays of row objects; guard against non-array responses
         setCheckItems(Array.isArray(ci) ? ci : (ci?.items || ci?.rows || []));
         setRejectReasons(Array.isArray(rr) ? rr : (rr?.items || rr?.rows || []));
         setDowntimeReasons(Array.isArray(dr) ? dr : (dr?.items || dr?.rows || []));
       })
       .catch((e) => setError(e.message));
+  };
+
+  // --- CHECKSHEET & REASON ACTIONS ---
+  const handleSaveCheckItem = async (e) => {
+    e.preventDefault();
+    setError('');
+    const { type, isEdit, data } = checkItemModal || {};
+    try {
+      if (type === 'daily') {
+        if (isEdit) {
+          await api.dailyCheckItems.update(data.id, {
+            item_name: checkItemForm.item_name,
+            local_label: checkItemForm.local_label,
+            specification: checkItemForm.specification,
+            icon: checkItemForm.icon,
+            category: checkItemForm.related_to || 'MACHINE',
+            sort_order: checkItemForm.sort_order,
+            active: checkItemForm.active,
+          });
+          setSuccess(`✅ Shift check item '${checkItemForm.item_name}' updated.`);
+        } else {
+          await api.dailyCheckItems.create({
+            item_name: checkItemForm.item_name,
+            local_label: checkItemForm.local_label,
+            specification: checkItemForm.specification,
+            icon: checkItemForm.icon,
+            category: checkItemForm.related_to || 'MACHINE',
+            sort_order: checkItemForm.sort_order,
+            active: checkItemForm.active,
+          });
+          setSuccess(`✅ Shift check item '${checkItemForm.item_name}' added.`);
+        }
+      } else {
+        // reject_reason or downtime_reason
+        if (isEdit) {
+          await api.checkItems.update(data.id, {
+            item_name: checkItemForm.item_name,
+            category: type,
+            code: checkItemForm.code,
+            default_disposition: checkItemForm.default_disposition,
+            related_to: checkItemForm.related_to,
+          });
+          setSuccess(`✅ Reason '${checkItemForm.item_name}' updated.`);
+        } else {
+          await api.checkItems.create({
+            item_name: checkItemForm.item_name,
+            category: type,
+            code: checkItemForm.code,
+            default_disposition: checkItemForm.default_disposition,
+            related_to: checkItemForm.related_to,
+          });
+          setSuccess(`✅ Reason '${checkItemForm.item_name}' created.`);
+        }
+      }
+      setCheckItemModal(null);
+      loadDefaults();
+    } catch (err) {
+      setError(err.message || 'Failed to save item');
+    }
+  };
+
+  const handleDeleteCheckItem = async (item, type) => {
+    if (!window.confirm(`Are you sure you want to delete '${item.item_name || item.name}'?`)) return;
+    try {
+      if (type === 'daily') {
+        await api.dailyCheckItems.delete(item.id);
+      } else {
+        await api.checkItems.delete(item.id);
+      }
+      setSuccess(`✅ Item '${item.item_name || item.name}' deleted.`);
+      loadDefaults();
+    } catch (err) {
+      setError(err.message || 'Cannot delete item');
+    }
   };
 
   // --- PART ACTIONS ---
@@ -416,45 +509,71 @@ export default function MastersHub() {
         </div>
       )}
 
-      {/* 8-Tab Navigation Switcher */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          overflowX: 'auto',
-          paddingBottom: 8,
-          marginBottom: 16,
-          borderBottom: '1px solid var(--line)',
-        }}
-      >
-        {TABS.map((tItem) => {
-          const isActive = activeTab === tItem.key;
-          return (
-            <button
-              key={tItem.key}
-              type="button"
-              onClick={() => handleTabChange(tItem.key)}
-              style={{
-                padding: '9px 14px',
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 6,
-                border: isActive ? '1px solid var(--amber)' : '1px solid var(--line)',
-                background: isActive ? 'var(--amber)' : 'var(--panel)',
-                color: isActive ? '#1c1500' : 'var(--text-muted)',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span>{tItem.icon}</span>
-              <span>{tItem.label}</span>
-            </button>
-          );
-        })}
+      {/* Tab Navigation Switcher — Dropdown + Wrapped Pills (No horizontal scrolling!) */}
+      <div style={{ marginBottom: 16 }}>
+        {/* Mobile quick dropdown */}
+        <div style={{ marginBottom: 8 }}>
+          <select
+            value={activeTab}
+            onChange={(e) => handleTabChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              fontSize: 14,
+              fontWeight: 700,
+              background: 'var(--panel)',
+              border: '1.5px solid var(--amber)',
+              borderRadius: 8,
+              color: 'var(--text)',
+              cursor: 'pointer',
+            }}
+          >
+            {TABS.map((tItem) => (
+              <option key={tItem.key} value={tItem.key}>
+                {tItem.icon} {tItem.label} Master
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Wrapped flex pills */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            paddingBottom: 8,
+            borderBottom: '1px solid var(--line)',
+          }}
+        >
+          {TABS.map((tItem) => {
+            const isActive = activeTab === tItem.key;
+            return (
+              <button
+                key={tItem.key}
+                type="button"
+                onClick={() => handleTabChange(tItem.key)}
+                style={{
+                  padding: '7px 12px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  border: isActive ? '1px solid var(--amber)' : '1px solid var(--line)',
+                  background: isActive ? 'var(--amber)' : 'var(--panel)',
+                  color: isActive ? '#1c1500' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>{tItem.icon}</span>
+                <span>{tItem.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* TAB 1: PARTS MASTER */}
@@ -488,98 +607,128 @@ export default function MastersHub() {
           ) : filteredParts.length === 0 ? (
             <p className="muted">No parts match search criteria.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Part Code</th>
-                    <th>Part Name</th>
-                    <th>Customer</th>
-                    <th>Mould &amp; Cavities</th>
-                    <th>Cycle Time</th>
-                    <th>Net / Gross Wt</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredParts.map((p) => {
-                    const cycleTime = p.standard_cycle_time_sec || p.cycle_time_seconds;
-                    const netWt = p.unit_weight_g || p.net_weight_grams;
-                    const grossWt = p.part_weight_g || p.gross_weight_grams;
-                    const mouldInfo = p.mould_code
-                      ? `${p.mould_code} (${p.cavities_for_part || p.cavity_count || 1} cav)`
-                      : (p.cavity_count ? `${p.cavity_count} cav (Standard)` : '—');
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+              {filteredParts.map((p) => {
+                const isExpanded = expandedPartId === p.id;
+                const cycleTime = p.standard_cycle_time_sec || p.cycle_time_seconds;
+                const netWt = p.unit_weight_g || p.net_weight_grams;
+                const grossWt = p.part_weight_g || p.gross_weight_grams;
+                const mouldInfo = p.mould_code
+                  ? `${p.mould_code} (${p.cavities_for_part || p.cavity_count || 1} cav)`
+                  : (p.cavity_count ? `${p.cavity_count} cav` : '—');
 
-                    return (
-                      <tr key={p.id} style={{ opacity: p.active === false ? 0.6 : 1 }}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>
-                          <div>{p.shrp_part_code || p.part_code}</div>
-                          {p.customer_part_no && p.customer_part_no !== p.part_code && (
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Cust: {p.customer_part_no}</div>
-                          )}
-                        </td>
-                        <td>
-                          <strong>{p.part_name}</strong>
-                          {p.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.notes}</div>}
-                        </td>
-                        <td>
-                          {p.customer_name ? (
-                            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.customer_name}</span>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                        <td>
-                          {p.mould_code ? (
-                            <span style={{ color: '#38bdf8', fontWeight: 600 }}>{mouldInfo}</span>
-                          ) : (
-                            <span className="muted">{mouldInfo}</span>
-                          )}
-                        </td>
-                        <td>{cycleTime ? `${cycleTime}s` : '—'}</td>
-                        <td>
-                          {netWt ? `${netWt}g` : '—'} {grossWt ? `/ ${grossWt}g` : ''}
-                        </td>
-                        <td>
-                          <span
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      opacity: p.active === false ? 0.6 : 1,
+                    }}
+                  >
+                    {/* Top Row: Part Code + Part Name + Edit/Delete */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: 'var(--amber)', fontSize: 13 }}>
+                            {p.shrp_part_code || p.part_code}
+                          </span>
+                          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.part_name}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          🏢 {p.customer_name || 'Internal / Direct'} · <span style={{ color: p.active !== false ? '#34d399' : '#f87171', fontWeight: 600 }}>{p.active !== false ? 'Active' : 'Inactive'}</span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons — Always visible on right */}
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <Link
+                          to={`/parts/${p.id}/edit`}
+                          className="btn btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                        >
+                          ✏️ Edit
+                        </Link>
+                        {user.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePart(p)}
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              background: p.active !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                              color: p.active !== false ? '#34d399' : '#f87171',
-                              border: `1px solid ${p.active !== false ? '#10b981' : '#ef4444'}`,
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              width: 'auto',
+                              background: 'rgba(239,68,68,0.15)',
+                              color: '#f87171',
+                              border: '1px solid rgba(239,68,68,0.4)',
+                              borderRadius: 4,
+                              cursor: 'pointer',
                             }}
                           >
-                            {p.active !== false ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <Link
-                            to={`/parts/${p.id}/edit`}
-                            className="btn btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
-                          >
-                            ✏️ Edit
-                          </Link>
-                          {user.role === 'admin' && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePart(p)}
-                              style={{ padding: '4px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
-                            >
-                              🗑️
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chips Row: Mould, Cavities, Cycle, Wt */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                      <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#38bdf8' }}>
+                        ⚙️ {mouldInfo}
+                      </span>
+                      {cycleTime && (
+                        <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#fbbf24' }}>
+                          ⏱️ {cycleTime}s
+                        </span>
+                      )}
+                      {netWt && (
+                        <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#34d399' }}>
+                          ⚖️ {netWt}g {grossWt ? `(${grossWt}g gross)` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Click to expand/collapse full details */}
+                    <div
+                      onClick={() => setExpandedPartId(isExpanded ? null : p.id)}
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--amber)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingTop: 4,
+                        borderTop: '1px dashed rgba(255,255,255,0.08)',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <span>{isExpanded ? '▲ Hide Details' : '▼ More Details'}</span>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4, marginTop: 2 }}>
+                        {p.customer_part_no && <div><strong>Cust Part No:</strong> {p.customer_part_no}</div>}
+                        {p.standard_pack_qty && <div><strong>Std Pack Qty:</strong> {p.standard_pack_qty} pcs/packet</div>}
+                        {p.tolerance_pct && <div><strong>Weight Tolerance:</strong> ±{p.tolerance_pct}%</div>}
+                        {p.notes && <div><strong>Notes:</strong> {p.notes}</div>}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, color: 'var(--text-muted)' }}>
+                          <span>Stages:</span>
+                          <span style={{ color: p.trim_required ? '#34d399' : '#888' }}>{p.trim_required ? '✓ Trim' : '✕ No Trim'}</span>
+                          <span style={{ color: p.inspection_required ? '#34d399' : '#888' }}>{p.inspection_required ? '✓ Inspect' : '✕ No Inspect'}</span>
+                          <span style={{ color: p.packing_required !== false ? '#34d399' : '#888' }}>{p.packing_required !== false ? '✓ Pack' : '✕ No Pack'}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -640,81 +789,58 @@ export default function MastersHub() {
           ) : materials.length === 0 ? (
             <p className="muted">No raw materials registered in system.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Material Code</th>
-                    <th>Material Name &amp; Category</th>
-                    <th>Grade &amp; Color</th>
-                    <th>Supplier</th>
-                    <th>Density / MFI</th>
-                    <th>Drying Specs</th>
-                    <th>Stock / Min Stock</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials
-                    .filter((m) => {
-                      if (!rmSearch.trim()) return true;
-                      const q = rmSearch.toLowerCase();
-                      return (
-                        (m.material_code || '').toLowerCase().includes(q) ||
-                        (m.material_name || '').toLowerCase().includes(q) ||
-                        (m.grade_code || '').toLowerCase().includes(q) ||
-                        (m.supplier_name || '').toLowerCase().includes(q)
-                      );
-                    })
-                    .map((m) => (
-                      <tr key={m.id} style={{ opacity: m.active === false ? 0.6 : 1 }}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{m.material_code}</td>
-                        <td>
-                          <strong>{m.material_name}</strong>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                            {m.category ? m.category.replace('_', ' ') : 'VIRGIN POLYMER'}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+              {materials
+                .filter((m) => {
+                  if (!rmSearch.trim()) return true;
+                  const q = rmSearch.toLowerCase();
+                  return (
+                    (m.material_code || '').toLowerCase().includes(q) ||
+                    (m.material_name || '').toLowerCase().includes(q) ||
+                    (m.grade_code || '').toLowerCase().includes(q) ||
+                    (m.supplier_name || '').toLowerCase().includes(q)
+                  );
+                })
+                .map((m) => {
+                  const isExpanded = expandedRmId === m.id;
+                  const isLowStock = Number(m.total_stock_kg || 0) < Number(m.min_stock_kg || 100);
+
+                  return (
+                    <div
+                      key={m.id}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        opacity: m.active === false ? 0.6 : 1,
+                      }}
+                    >
+                      {/* Top Row: Code + Name + Edit/Delete */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 800, color: 'var(--amber)', fontSize: 13 }}>
+                              {m.material_code}
+                            </span>
+                            <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.material_name}
+                            </span>
                           </div>
-                        </td>
-                        <td>
-                          <div>{m.grade_code || '—'}</div>
-                          {m.color && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Color: {m.color}</div>}
-                        </td>
-                        <td>{m.supplier_name || 'Standard Vendor'}</td>
-                        <td>
-                          <div>{m.density_g_cm3 ? `${m.density_g_cm3} g/cm³` : '—'}</div>
-                          {m.mfi_g_10min && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>MFI: {m.mfi_g_10min}</div>}
-                        </td>
-                        <td>
-                          {m.drying_temp_c ? `${m.drying_temp_c}°C / ${m.drying_time_hrs || 4}h` : '80°C / 4h'}
-                        </td>
-                        <td>
-                          <span style={{ color: Number(m.total_stock_kg || 0) < Number(m.min_stock_kg || 100) ? '#f87171' : '#34d399', fontWeight: 700 }}>
-                            {Number(m.total_stock_kg || 0).toLocaleString()} kg
-                          </span>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Min: {m.min_stock_kg || 100} kg</div>
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              background: m.active !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                              color: m.active !== false ? '#34d399' : '#f87171',
-                              border: `1px solid ${m.active !== false ? '#10b981' : '#ef4444'}`,
-                            }}
-                          >
-                            {m.active !== false ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            🏭 {m.supplier_name || 'Standard Vendor'} · <span style={{ color: m.active !== false ? '#34d399' : '#f87171', fontWeight: 600 }}>{m.active !== false ? 'Active' : 'Inactive'}</span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
                             onClick={() => {
                               setRmForm({
                                 material_code: m.material_code,
@@ -741,16 +867,73 @@ export default function MastersHub() {
                             <button
                               type="button"
                               onClick={() => handleDeleteRM(m)}
-                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
                             >
                               🗑️
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+
+                      {/* Chips Row: Category, Stock, Grade, Color */}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                        <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#38bdf8' }}>
+                          🧪 {m.category ? m.category.replace('_', ' ') : 'VIRGIN POLYMER'}
+                        </span>
+                        <span style={{ background: isLowStock ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', padding: '2px 6px', borderRadius: 4, color: isLowStock ? '#f87171' : '#34d399', fontWeight: 700 }}>
+                          📦 {Number(m.total_stock_kg || 0).toLocaleString()} kg
+                        </span>
+                        {m.grade_code && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: 'var(--text)' }}>
+                            Grade: {m.grade_code}
+                          </span>
+                        )}
+                        {m.color && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#fbbf24' }}>
+                            {m.color}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expand/collapse button */}
+                      <div
+                        onClick={() => setExpandedRmId(isExpanded ? null : m.id)}
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--amber)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingTop: 4,
+                          borderTop: '1px dashed rgba(255,255,255,0.08)',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <span>{isExpanded ? '▲ Hide Specs' : '▼ Technical Specs & Drying'}</span>
+                      </div>
+
+                      {isExpanded && (
+                        <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4, marginTop: 2 }}>
+                          <div><strong>Drying:</strong> {m.drying_temp_c ? `${m.drying_temp_c}°C / ${m.drying_time_hrs || 4}h` : '80°C / 4h'}</div>
+                          {m.density_g_cm3 && <div><strong>Density:</strong> {m.density_g_cm3} g/cm³</div>}
+                          {m.mfi_g_10min && <div><strong>MFI:</strong> {m.mfi_g_10min} g/10min</div>}
+                          {m.melt_temp_c && <div><strong>Melt Temp:</strong> {m.melt_temp_c}°C</div>}
+                          <div><strong>Safety Stock / Bag Wt:</strong> Min {m.min_stock_kg || 100} kg · {m.standard_bag_wt_kg || 25} kg/bag</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
 
@@ -989,91 +1172,131 @@ export default function MastersHub() {
           ) : gauges.length === 0 ? (
             <p className="muted">No instruments found.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Instrument Name</th>
-                    <th>Type &amp; Range</th>
-                    <th>Accuracy</th>
-                    <th>Location</th>
-                    <th>Last Calibrated</th>
-                    <th>Next Due / Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gauges.map((g) => {
-                    const isOverdue = g.calib_status === 'overdue' || g.calibration_status === 'OVERDUE';
-                    const isDueSoon = g.calib_status === 'due_soon' || g.calibration_status === 'DUE_SOON';
-                    const badgeColor = isOverdue ? '#ef4444' : isDueSoon ? '#f59e0b' : '#10b981';
-                    const badgeText = isOverdue ? '🔴 Overdue' : isDueSoon ? '🟡 Due Soon' : '🟢 Valid';
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+              {gauges.map((g) => {
+                const isOverdue = g.calib_status === 'overdue' || g.calibration_status === 'OVERDUE';
+                const isDueSoon = g.calib_status === 'due_soon' || g.calibration_status === 'DUE_SOON';
+                const badgeColor = isOverdue ? '#ef4444' : isDueSoon ? '#f59e0b' : '#10b981';
+                const badgeText = isOverdue ? '🔴 Overdue' : isDueSoon ? '🟡 Due Soon' : '🟢 Valid';
+                const isExpanded = expandedGaugeId === g.id;
 
-                    return (
-                      <tr key={g.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{g.gauge_code}</td>
-                        <td>
-                          <strong>{g.gauge_name}</strong>
-                          {g.calibration_cert_no && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Cert: {g.calibration_cert_no}</div>}
-                        </td>
-                        <td>{g.gauge_type} {g.range_spec ? `(${g.range_spec})` : ''}</td>
-                        <td>{g.accuracy || '—'}</td>
-                        <td>{g.location || 'QA Lab'}</td>
-                        <td>{g.last_calibrated_at ? new Date(g.last_calibrated_at).toLocaleDateString() : 'Never'}</td>
-                        <td>
-                          <span
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              background: `${badgeColor}22`,
-                              color: badgeColor,
-                              border: `1px solid ${badgeColor}`,
-                            }}
-                          >
-                            {badgeText} {g.days_remaining != null ? `(${g.days_remaining}d)` : ''}
+                return (
+                  <div
+                    key={g.id}
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    {/* Top Row: Code + Name + Edit/Delete */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: 'var(--amber)', fontSize: 13 }}>
+                            {g.gauge_code}
                           </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {g.gauge_name}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          📍 {g.location || 'QA Lab'} · <span style={{ color: badgeColor, fontWeight: 700 }}>{badgeText} {g.days_remaining != null ? `(${g.days_remaining}d)` : ''}</span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                          onClick={() => {
+                            setGaugeForm({
+                              gauge_code: g.gauge_code,
+                              gauge_name: g.gauge_name,
+                              gauge_type: g.gauge_type || '',
+                              range_spec: g.range_spec || '',
+                              accuracy: g.accuracy || '',
+                              location: g.location || '',
+                              calibration_interval_days: g.calibration_interval_days || 365,
+                              last_calibrated_at: g.last_calibrated_at ? String(g.last_calibrated_at).slice(0, 10) : '',
+                              calibration_cert_no: g.calibration_cert_no || '',
+                              status: g.status || 'active',
+                            });
+                            setGaugeModal({ isEdit: true, data: g });
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        {user.role === 'admin' && (
                           <button
                             type="button"
-                            className="btn btn-secondary"
-                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
-                            onClick={() => {
-                              setGaugeForm({
-                                gauge_code: g.gauge_code,
-                                gauge_name: g.gauge_name,
-                                gauge_type: g.gauge_type || '',
-                                range_spec: g.range_spec || '',
-                                accuracy: g.accuracy || '',
-                                location: g.location || '',
-                                calibration_interval_days: g.calibration_interval_days || 365,
-                                last_calibrated_at: g.last_calibrated_at ? String(g.last_calibrated_at).slice(0, 10) : '',
-                                calibration_cert_no: g.calibration_cert_no || '',
-                                status: g.status || 'active',
-                              });
-                              setGaugeModal({ isEdit: true, data: g });
+                            onClick={() => handleDeleteGauge(g)}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              width: 'auto',
+                              background: 'rgba(239,68,68,0.15)',
+                              color: '#f87171',
+                              border: '1px solid rgba(239,68,68,0.4)',
+                              borderRadius: 4,
+                              cursor: 'pointer',
                             }}
                           >
-                            ✏️ Edit
+                            🗑️
                           </button>
-                          {user.role === 'admin' && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteGauge(g)}
-                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
-                            >
-                              🗑️
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chips Row: Type, Range, Accuracy, Last Calibrated */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                      <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#38bdf8' }}>
+                        📏 {g.gauge_type} {g.range_spec ? `(${g.range_spec})` : ''}
+                      </span>
+                      {g.accuracy && (
+                        <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: 'var(--text)' }}>
+                          Acc: {g.accuracy}
+                        </span>
+                      )}
+                      <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#fbbf24' }}>
+                        Cal: {g.last_calibrated_at ? new Date(g.last_calibrated_at).toLocaleDateString() : 'Never'}
+                      </span>
+                    </div>
+
+                    {/* Expand/collapse button */}
+                    <div
+                      onClick={() => setExpandedGaugeId(isExpanded ? null : g.id)}
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--amber)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingTop: 4,
+                        borderTop: '1px dashed rgba(255,255,255,0.08)',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <span>{isExpanded ? '▲ Hide Certificate' : '▼ Certificate & Interval Details'}</span>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4, marginTop: 2 }}>
+                        {g.calibration_cert_no && <div><strong>Cert No:</strong> {g.calibration_cert_no}</div>}
+                        <div><strong>Calib Interval:</strong> {g.calibration_interval_days || 365} days</div>
+                        <div><strong>Status:</strong> {g.status || 'Active'}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -1244,86 +1467,58 @@ export default function MastersHub() {
           ) : suppliers.length === 0 ? (
             <p className="muted">No suppliers registered.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="log-table" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Supplier / Company</th>
-                    <th>GSTIN &amp; PAN</th>
-                    <th>Contact &amp; Phone</th>
-                    <th>Materials Supplied</th>
-                    <th>Terms &amp; Lead Time</th>
-                    <th>IATF Quality</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suppliers
-                    .filter((s) => {
-                      if (!supplierSearch.trim()) return true;
-                      const q = supplierSearch.toLowerCase();
-                      return (
-                        (s.supplier_code || '').toLowerCase().includes(q) ||
-                        (s.supplier_name || '').toLowerCase().includes(q) ||
-                        (s.gstin || '').toLowerCase().includes(q) ||
-                        (s.materials_supplied || '').toLowerCase().includes(q)
-                      );
-                    })
-                    .map((s) => (
-                      <tr key={s.id} style={{ opacity: s.active === false ? 0.6 : 1 }}>
-                        <td style={{ fontWeight: 700, color: 'var(--amber)' }}>{s.supplier_code}</td>
-                        <td>
-                          <strong>{s.supplier_name}</strong>
-                          {(s.city || s.state) && (
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              {[s.city, s.state, s.pincode].filter(Boolean).join(', ')}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div>{s.gstin ? <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>{s.gstin}</span> : '—'}</div>
-                          {s.pan_no && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>PAN: {s.pan_no}</div>}
-                        </td>
-                        <td>
-                          <div>{s.contact_person || '—'}</div>
-                          {s.phone && <a href={`tel:${s.phone}`} style={{ fontSize: 11, color: '#38bdf8' }}>{s.phone}</a>}
-                        </td>
-                        <td>{s.materials_supplied || 'Polymer / Pigments'}</td>
-                        <td>
-                          <div>{s.payment_terms || '30 Days'}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Lead: {s.lead_time_days || 7} days</div>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 700, color: '#34d399' }}>
-                            Score: {s.vendor_rating || 100}%
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+              {suppliers
+                .filter((s) => {
+                  if (!supplierSearch.trim()) return true;
+                  const q = supplierSearch.toLowerCase();
+                  return (
+                    (s.supplier_code || '').toLowerCase().includes(q) ||
+                    (s.supplier_name || '').toLowerCase().includes(q) ||
+                    (s.gstin || '').toLowerCase().includes(q) ||
+                    (s.materials_supplied || '').toLowerCase().includes(q)
+                  );
+                })
+                .map((s) => {
+                  const isExpanded = expandedSupplierId === s.id;
+                  const location = [s.city, s.state].filter(Boolean).join(', ') || 'Tamil Nadu';
+
+                  return (
+                    <div
+                      key={s.id}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        opacity: s.active === false ? 0.6 : 1,
+                      }}
+                    >
+                      {/* Top Row: Code + Name + Edit/Delete */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 800, color: 'var(--amber)', fontSize: 13 }}>
+                              {s.supplier_code}
+                            </span>
+                            <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {s.supplier_name}
+                            </span>
                           </div>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '1px 6px',
-                              borderRadius: 4,
-                              fontSize: 9,
-                              fontWeight: 700,
-                              background: s.iso_iatf_certified !== false ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
-                              color: s.iso_iatf_certified !== false ? '#34d399' : 'var(--text-muted)',
-                              border: `1px solid ${s.iso_iatf_certified !== false ? '#10b981' : 'var(--line)'}`,
-                            }}
-                          >
-                            {s.iso_iatf_certified !== false ? 'IATF/ISO Certified' : 'Uncertified'}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ color: s.active !== false ? '#34d399' : '#f87171', fontWeight: 700 }}>
-                            {s.active !== false ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            📍 {location} · <span style={{ color: s.active !== false ? '#34d399' : '#f87171', fontWeight: 600 }}>{s.active !== false ? 'Active' : 'Inactive'}</span> · <strong style={{ color: '#34d399' }}>Rating: {s.vendor_rating || 100}%</strong>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto', display: 'inline-block', marginRight: 6 }}
+                            style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
                             onClick={() => {
                               setSupplierForm({
                                 supplier_code: s.supplier_code,
@@ -1353,16 +1548,72 @@ export default function MastersHub() {
                             <button
                               type="button"
                               onClick={() => handleDeleteSupplier(s)}
-                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, cursor: 'pointer' }}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
                             >
                               🗑️
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+
+                      {/* Chips Row: GSTIN, Contact, Materials, IATF */}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                        {s.gstin && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', color: '#38bdf8' }}>
+                            GST: {s.gstin}
+                          </span>
+                        )}
+                        {s.contact_person && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: 'var(--text)' }}>
+                            👤 {s.contact_person} {s.phone ? `(${s.phone})` : ''}
+                          </span>
+                        )}
+                        {s.materials_supplied && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, color: '#fbbf24' }}>
+                            📦 {s.materials_supplied}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expand/collapse button */}
+                      <div
+                        onClick={() => setExpandedSupplierId(isExpanded ? null : s.id)}
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--amber)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingTop: 4,
+                          borderTop: '1px dashed rgba(255,255,255,0.08)',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <span>{isExpanded ? '▲ Hide Details' : '▼ Payment & Address Details'}</span>
+                      </div>
+
+                      {isExpanded && (
+                        <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4, marginTop: 2 }}>
+                          {s.pan_no && <div><strong>PAN:</strong> {s.pan_no}</div>}
+                          {s.email && <div><strong>Email:</strong> <a href={`mailto:${s.email}`} style={{ color: '#38bdf8' }}>{s.email}</a></div>}
+                          {s.address && <div><strong>Address:</strong> {s.address}</div>}
+                          <div><strong>Terms:</strong> {s.payment_terms || '30 Days'} · Lead Time: {s.lead_time_days || 7} days</div>
+                          <div><strong>Certification:</strong> {s.iso_iatf_certified !== false ? '✓ IATF/ISO Certified' : '✕ Uncertified'}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           )}
 
@@ -2079,50 +2330,491 @@ export default function MastersHub() {
       {/* TAB 8: DEFAULTS & QUALITY CHECKSHEETS */}
       {activeTab === 'defaults' && (
         <div className="panel" style={{ padding: 16 }}>
-          <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700 }}>IATF Quality Checksheet Items &amp; Standard Codes</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-            {/* Checksheet items */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 8, border: '1px solid var(--line)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--amber)' }}>📋 Shift Checksheet Items</h4>
-              {checkItems.length === 0 ? (
-                <p className="muted" style={{ fontSize: 12 }}>Standard 7 IATF Checksheet Points active.</p>
-              ) : (
-                <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
-                  {checkItems.map((ci, i) => (
-                    <li key={ci.id || i}>{ci.item_name || ci.check_point || ci.name || String(ci.id || i + 1)}</li>
-                  ))}
-                </ul>
+          <div style={{ marginBottom: 14 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Checksheets &amp; Defect / Downtime Reasons</h3>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              Click any section below to view, add, edit, or remove inspection checkpoints and master reason codes.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gap: 12 }}>
+            {/* 1. SHIFT CHECKSHEET ITEMS */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--line)', overflow: 'hidden' }}>
+              <div
+                onClick={() => setExpandedChecksheetSection(expandedChecksheetSection === 'shift' ? null : 'shift')}
+                style={{
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  background: expandedChecksheetSection === 'shift' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                  borderBottom: expandedChecksheetSection === 'shift' ? '1px solid var(--line)' : 'none',
+                  userSelect: 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>📋</span>
+                  <div>
+                    <strong style={{ fontSize: 14, color: 'var(--amber)' }}>Shift &amp; Machine Checksheet Points</strong>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Daily pre-operational machine safety &amp; 5S checks</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(245, 158, 11, 0.2)', color: 'var(--amber)' }}>
+                    {checkItems.length} Points
+                  </span>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                    {expandedChecksheetSection === 'shift' ? '▲' : '▼'}
+                  </span>
+                </div>
+              </div>
+
+              {expandedChecksheetSection === 'shift' && (
+                <div style={{ padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
+                      onClick={() => {
+                        setCheckItemForm({
+                          item_name: '',
+                          category: 'daily',
+                          code: '',
+                          default_disposition: 'OK',
+                          related_to: 'MACHINE',
+                          local_label: '',
+                          specification: '',
+                          icon: '📋',
+                          sort_order: checkItems.length + 1,
+                          active: true,
+                        });
+                        setCheckItemModal({ type: 'daily', isEdit: false });
+                      }}
+                    >
+                      ➕ Add Checksheet Item
+                    </button>
+                  </div>
+
+                  {checkItems.length === 0 ? (
+                    <p className="muted" style={{ fontSize: 12 }}>No checksheet items configured.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+                      {checkItems.map((ci, i) => (
+                        <div
+                          key={ci.id || i}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid var(--line)',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
+                              {ci.icon ? `${ci.icon} ` : ''}{ci.item_name || ci.check_point}
+                            </div>
+                            {(ci.specification || ci.local_label) && (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                {ci.specification || ci.local_label}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                              onClick={() => {
+                                setCheckItemForm({
+                                  item_name: ci.item_name || ci.check_point || '',
+                                  category: 'daily',
+                                  code: ci.code || '',
+                                  default_disposition: 'OK',
+                                  related_to: ci.category || 'MACHINE',
+                                  local_label: ci.local_label || '',
+                                  specification: ci.specification || '',
+                                  icon: ci.icon || '📋',
+                                  sort_order: ci.sort_order || i + 1,
+                                  active: ci.active !== false,
+                                });
+                                setCheckItemModal({ type: 'daily', isEdit: true, data: ci });
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCheckItem(ci, 'daily')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Standard Reject Reasons */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 8, border: '1px solid var(--line)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 13, color: '#f87171' }}>🚫 Standard Reject Reasons</h4>
-              {rejectReasons.length === 0 ? (
-                <p className="muted" style={{ fontSize: 12 }}>Short Shot, Flash, Silver Streak, Sink Mark, Flow Lines, Burn Mark, Warpage.</p>
-              ) : (
-                <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
-                  {rejectReasons.map((rr, i) => (
-                    <li key={rr.id || i}>{rr.item_name || rr.reason || rr.name || String(rr.code || i + 1)}</li>
-                  ))}
-                </ul>
+            {/* 2. REJECTION REASONS (DEFECTS) */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--line)', overflow: 'hidden' }}>
+              <div
+                onClick={() => setExpandedChecksheetSection(expandedChecksheetSection === 'reject' ? null : 'reject')}
+                style={{
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  background: expandedChecksheetSection === 'reject' ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
+                  borderBottom: expandedChecksheetSection === 'reject' ? '1px solid var(--line)' : 'none',
+                  userSelect: 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>🚫</span>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#f87171' }}>Standard Rejection Reasons (Defects)</strong>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Moulding defect classification &amp; scrap disposal codes</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
+                    {rejectReasons.length} Defects
+                  </span>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                    {expandedChecksheetSection === 'reject' ? '▲' : '▼'}
+                  </span>
+                </div>
+              </div>
+
+              {expandedChecksheetSection === 'reject' && (
+                <div style={{ padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
+                      onClick={() => {
+                        setCheckItemForm({
+                          item_name: '',
+                          category: 'reject_reason',
+                          code: '',
+                          default_disposition: 'SCRAP',
+                          related_to: 'QUALITY',
+                          local_label: '',
+                          specification: '',
+                          icon: '🚫',
+                          sort_order: rejectReasons.length + 1,
+                          active: true,
+                        });
+                        setCheckItemModal({ type: 'reject_reason', isEdit: false });
+                      }}
+                    >
+                      ➕ Add Reject Reason
+                    </button>
+                  </div>
+
+                  {rejectReasons.length === 0 ? (
+                    <p className="muted" style={{ fontSize: 12 }}>No reject reasons registered.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+                      {rejectReasons.map((rr, i) => (
+                        <div
+                          key={rr.id || i}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid var(--line)',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#f87171' }}>
+                              {rr.code ? `[${rr.code}] ` : ''}{rr.item_name || rr.reason}
+                            </div>
+                            {rr.default_disposition && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                                Disposition: {rr.default_disposition}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                              onClick={() => {
+                                setCheckItemForm({
+                                  item_name: rr.item_name || rr.reason || '',
+                                  category: 'reject_reason',
+                                  code: rr.code || '',
+                                  default_disposition: rr.default_disposition || 'SCRAP',
+                                  related_to: rr.related_to || 'QUALITY',
+                                  local_label: '',
+                                  specification: '',
+                                  icon: '🚫',
+                                  sort_order: i + 1,
+                                  active: true,
+                                });
+                                setCheckItemModal({ type: 'reject_reason', isEdit: true, data: rr });
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCheckItem(rr, 'reject_reason')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Downtime breakdown reasons */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 8, border: '1px solid var(--line)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 13, color: '#fbbf24' }}>⏱️ Downtime Breakdown Reasons</h4>
-              {downtimeReasons.length === 0 ? (
-                <p className="muted" style={{ fontSize: 12 }}>Mould Change, Heater Breakdown, Hydraulic Leak, No Raw Material, Power Cut.</p>
-              ) : (
-                <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12, lineHeight: 1.8 }}>
-                  {downtimeReasons.map((dr, i) => (
-                    <li key={dr.id || i}>{dr.item_name || dr.reason || dr.name || String(dr.code || i + 1)}</li>
-                  ))}
-                </ul>
+            {/* 3. DOWNTIME BREAKDOWN REASONS */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--line)', overflow: 'hidden' }}>
+              <div
+                onClick={() => setExpandedChecksheetSection(expandedChecksheetSection === 'downtime' ? null : 'downtime')}
+                style={{
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  background: expandedChecksheetSection === 'downtime' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                  borderBottom: expandedChecksheetSection === 'downtime' ? '1px solid var(--line)' : 'none',
+                  userSelect: 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>⏱️</span>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#fbbf24' }}>Downtime &amp; Breakdown Reasons</strong>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Machine stoppage, mould change &amp; maintenance causes</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
+                    {downtimeReasons.length} Reasons
+                  </span>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                    {expandedChecksheetSection === 'downtime' ? '▲' : '▼'}
+                  </span>
+                </div>
+              </div>
+
+              {expandedChecksheetSection === 'downtime' && (
+                <div style={{ padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
+                      onClick={() => {
+                        setCheckItemForm({
+                          item_name: '',
+                          category: 'downtime_reason',
+                          code: '',
+                          default_disposition: '',
+                          related_to: 'MACHINE',
+                          local_label: '',
+                          specification: '',
+                          icon: '⏱️',
+                          sort_order: downtimeReasons.length + 1,
+                          active: true,
+                        });
+                        setCheckItemModal({ type: 'downtime_reason', isEdit: false });
+                      }}
+                    >
+                      ➕ Add Downtime Reason
+                    </button>
+                  </div>
+
+                  {downtimeReasons.length === 0 ? (
+                    <p className="muted" style={{ fontSize: 12 }}>No downtime reasons registered.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+                      {downtimeReasons.map((dr, i) => (
+                        <div
+                          key={dr.id || i}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid var(--line)',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#fbbf24' }}>
+                              {dr.code ? `[${dr.code}] ` : ''}{dr.item_name || dr.reason}
+                            </div>
+                            {dr.related_to && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                                Related to: {dr.related_to}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                              onClick={() => {
+                                setCheckItemForm({
+                                  item_name: dr.item_name || dr.reason || '',
+                                  category: 'downtime_reason',
+                                  code: dr.code || '',
+                                  default_disposition: '',
+                                  related_to: dr.related_to || 'MACHINE',
+                                  local_label: '',
+                                  specification: '',
+                                  icon: '⏱️',
+                                  sort_order: i + 1,
+                                  active: true,
+                                });
+                                setCheckItemModal({ type: 'downtime_reason', isEdit: true, data: dr });
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCheckItem(dr, 'downtime_reason')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
+
+          {/* Add / Edit Check Item & Reason Modal */}
+          {checkItemModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 440, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20 }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
+                  {checkItemModal.isEdit ? '✏️ Edit Item / Reason' : '➕ Add Master Item / Reason'}
+                </h3>
+                <form onSubmit={handleSaveCheckItem} style={{ display: 'grid', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700 }}>Item / Reason Name *</label>
+                    <input
+                      required
+                      value={checkItemForm.item_name}
+                      onChange={(e) => setCheckItemForm({ ...checkItemForm, item_name: e.target.value })}
+                      placeholder={checkItemModal.type === 'daily' ? 'e.g. Oil Level Check' : checkItemModal.type === 'reject_reason' ? 'e.g. Short Shot' : 'e.g. Mould Changeover'}
+                      style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                    />
+                  </div>
+
+                  {checkItemModal.type !== 'daily' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700 }}>Code (Optional)</label>
+                        <input
+                          value={checkItemForm.code}
+                          onChange={(e) => setCheckItemForm({ ...checkItemForm, code: e.target.value })}
+                          placeholder="e.g. R-01 or DT-05"
+                          style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700 }}>Related To / Category</label>
+                        <select
+                          value={checkItemForm.related_to}
+                          onChange={(e) => setCheckItemForm({ ...checkItemForm, related_to: e.target.value })}
+                          style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                        >
+                          <option value="MACHINE">Machine</option>
+                          <option value="MOULD">Mould / Tooling</option>
+                          <option value="QUALITY">Quality / Process</option>
+                          <option value="RAW_MATERIAL">Raw Material</option>
+                          <option value="MANPOWER">Manpower / Planned</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {checkItemModal.type === 'daily' && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700 }}>Specification / Acceptance Standard</label>
+                      <input
+                        value={checkItemForm.specification}
+                        onChange={(e) => setCheckItemForm({ ...checkItemForm, specification: e.target.value })}
+                        placeholder="e.g. Level between MIN and MAX marks"
+                        style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                    <button type="button" className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => setCheckItemModal(null)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" style={{ width: 'auto', padding: '8px 16px' }}>
+                      Save Item
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
