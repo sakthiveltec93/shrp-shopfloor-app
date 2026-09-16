@@ -4,10 +4,13 @@ const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const PDFDocument = require('pdfkit');
 
+// Require authentication for all FPA routes
+router.use(requireAuth);
+
 // -------------------------------------------------------------
 // 1. GET FPA INITIAL DATA OR EXISTING SUBMISSION FOR ASSIGNMENT
 // -------------------------------------------------------------
-router.get('/:assignmentId', requireAuth, async (req, res) => {
+router.get('/:assignmentId', async (req, res) => {
   try {
     const { assignmentId } = req.params;
 

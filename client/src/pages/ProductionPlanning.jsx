@@ -86,17 +86,21 @@ export default function ProductionPlanning() {
     try {
       if (activeTab === 'mps') {
         const res = await api.planning.getMps(selectedMonth);
-        setMpsList(Array.isArray(res) ? res : []);
+        const list = Array.isArray(res) ? res : (res?.records || res?.imported || []);
+        setMpsList(list);
       } else if (activeTab === 'milestones') {
         const res = await api.planning.getMilestones('', selectedMonth);
-        setMilestones(Array.isArray(res) ? res : []);
+        const list = Array.isArray(res) ? res : (res?.milestones || res?.records || []);
+        setMilestones(list);
       } else if (activeTab === 'daily') {
         const today = new Date().toISOString().slice(0, 10);
         const res = await api.planning.getDailySchedules(today);
-        setDailySchedules(Array.isArray(res) ? res : []);
+        const list = Array.isArray(res) ? res : (res?.schedules || res?.plans || res?.records || []);
+        setDailySchedules(list);
       } else if (activeTab === 'plan_vs_actual') {
         const res = await api.planning.getPlanVsActual(selectedMonth);
-        setPlanVsActual(Array.isArray(res) ? res : []);
+        const list = Array.isArray(res) ? res : (res?.records || []);
+        setPlanVsActual(list);
       }
     } catch (err) {
       setError(err.message || 'Failed to load planning data');
@@ -117,11 +121,14 @@ export default function ProductionPlanning() {
       try {
         const base64 = reader.result.split(',')[1];
         const res = await api.planning.uploadMps({
+          fileData: base64,
           excel_base64: base64,
+          scheduleMonth: selectedMonth,
           month_year: selectedMonth,
+          fileName: uploadFile.name,
         });
 
-        const highVariances = res.imported?.filter((item) => item.is_high_variance);
+        const highVariances = (res.imported || res.records || []).filter((item) => item.is_high_variance || Math.abs(Number(item.variance_pct) || 0) > 15);
         if (highVariances && highVariances.length > 0) {
           setVarianceAlert({
             mps_ids: highVariances.map((h) => h.id),
@@ -130,7 +137,7 @@ export default function ProductionPlanning() {
           });
         }
 
-        setSuccessMsg(`Successfully imported ${res.imported_count || res.imported?.length || 0} MPS schedules for ${selectedMonth}!`);
+        setSuccessMsg(`Successfully imported ${res.imported_count || res.totalRows || res.imported?.length || 0} MPS schedules for ${selectedMonth}!`);
         setShowUploadModal(false);
         setUploadFile(null);
         loadTabData();
@@ -193,8 +200,8 @@ export default function ProductionPlanning() {
   };
 
   // Aggregations
-  const totalDemand = mpsList.reduce((sum, item) => sum + Number(item.gross_demand_qty || 0), 0);
-  const totalTarget = mpsList.reduce((sum, item) => sum + Number(item.net_production_target_qty || 0), 0);
+  const totalDemand = mpsList.reduce((sum, item) => sum + Number(item.gross_demand_qty || item.gross_demand || 0), 0);
+  const totalTarget = mpsList.reduce((sum, item) => sum + Number(item.net_production_target_qty || item.receipts_target || 0), 0);
   const totalRMKg = mpsList.reduce((sum, item) => sum + Number(item.required_rm_kg || 0), 0);
 
   return (

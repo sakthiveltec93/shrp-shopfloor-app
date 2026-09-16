@@ -4,17 +4,35 @@ const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const XLSX = require('xlsx');
 
+// Ensure authentication for all planning routes
+router.use(requireAuth);
+
 // -------------------------------------------------------------
-// 1. UPLOAD & PARSE MPS / CUSTOMER DELIVERY SCHEDULE EXCEL
+// 1. UPLOAD, PARSE & IMPORT MPS EXCEL
 // -------------------------------------------------------------
 router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { fileData, fileName, scheduleMonth, customerId } = req.body;
-    if (!fileData) {
-      return res.status(400).json({ error: 'fileData (base64) is required.' });
+    const rawData = req.body.fileData || req.body.excel_base64;
+    const fileName = req.body.fileName || 'MPS_Schedule.xlsx';
+    let scheduleMonth = req.body.scheduleMonth || req.body.month_year || new Date().toISOString().slice(0, 7);
+    let customerId = req.body.customerId;
+
+    if (!rawData) {
+      return res.status(400).json({ error: 'Excel file data (base64) is required.' });
     }
 
-    const buffer = Buffer.from(fileData, 'base64');
+    if (scheduleMonth.length === 7) {
+      scheduleMonth = `${scheduleMonth}-01`;
+    }
+
+    // Default customer if none specified
+    if (!customerId) {
+      const defaultCust = await pool.query('SELECT id FROM customers ORDER BY id ASC LIMIT 1');
+      customerId = defaultCust.rows[0]?.id || 1;
+    }
+
+    const buffer = Buffer.from(rawData, 'base64');
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
@@ -24,7 +42,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       return res.status(400).json({ error: 'Uploaded Excel sheet is empty or invalid.' });
     }
 
-    // Load parts and customers dictionary
+    // Load parts and customers
     const [partsRes, customersRes] = await Promise.all([
       pool.query('SELECT id, part_code, shrp_part_code, customer_part_no, part_name, standard_cycle_time_sec, cavity_count, unit_weight_g FROM parts WHERE active = true'),
       pool.query('SELECT id, name, customer_code, plant_location, transit_lead_days FROM customers WHERE active = true'),
@@ -39,7 +57,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
     let headerRowIndex = -1;
     for (let r = 0; r < Math.min(rows.length, 20); r++) {
       const rowStr = rows[r].map(c => String(c).toLowerCase()).join(' ');
-      if (rowStr.includes('part number') || rowStr.includes('part no') || (rowStr.includes('description') && rowStr.includes('unit'))) {
+      if (rowStr.includes('part number') || rowStr.includes('part no') || (rowStr.includes('description') && rowStr.includes('unit')) || rowStr.includes('program') || rowStr.includes('shrp')) {
         headerRowIndex = r;
         break;
       }
@@ -52,7 +70,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
     const headers = rows[headerRowIndex].map(h => String(h).trim());
     
     let partColIdx = headers.findIndex(h => /part\s*(no|number|code)/i.test(h));
-    let descColIdx = headers.findIndex(h => /desc|item/i.test(h));
+    let descColIdx = headers.findIndex(h => /desc|item|name/i.test(h));
     let programColIdx = headers.findIndex(h => /program|model/i.test(h));
     let commodityColIdx = headers.findIndex(h => /commodity/i.test(h));
     let receiptsColIdx = headers.findIndex(h => /receipt|recipt|target|firm/i.test(h));
@@ -70,6 +88,8 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       }
     });
 
+    await client.query('BEGIN');
+
     for (let r = headerRowIndex + 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
@@ -85,7 +105,9 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
         return pCode === cleanCode || pShrp === cleanCode || pCust === cleanCode || cleanCode.includes(pCode) || pCode.includes(cleanCode);
       });
 
-      const description = String(row[descColIdx] || (matchedPart ? matchedPart.part_name : '')).trim();
+      if (!matchedPart) continue;
+
+      const description = String(row[descColIdx] || matchedPart.part_name).trim();
       const program = programColIdx !== -1 ? String(row[programColIdx] || '').trim() : '';
       const commodity = commodityColIdx !== -1 ? String(row[commodityColIdx] || '').trim() : '';
 
@@ -116,21 +138,77 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       const variancePct = maxVal > 0 ? Number((((maxVal - minVal) / maxVal) * 100).toFixed(1)) : 0;
       const hasHighVariance = variancePct > 15.0;
 
+      // Update part program / commodity if present
+      if (program || commodity) {
+        await client.query(
+          `UPDATE parts 
+           SET program = COALESCE(NULLIF($1, ''), program), commodity = COALESCE(NULLIF($2, ''), commodity) 
+           WHERE id = $3`,
+          [program || null, commodity || null, matchedPart.id]
+        );
+      }
+
+      // Insert or update master_production_schedules
+      const mpsRes = await client.query(
+        `INSERT INTO master_production_schedules (
+          customer_id, part_id, schedule_month, working_days,
+          gross_demand, receipts_target, variance_pct,
+          is_variance_override, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE')
+        ON CONFLICT (customer_id, part_id, schedule_month) DO UPDATE SET
+          gross_demand = EXCLUDED.gross_demand,
+          receipts_target = EXCLUDED.receipts_target,
+          variance_pct = EXCLUDED.variance_pct,
+          working_days = EXCLUDED.working_days,
+          status = 'ACTIVE'
+        RETURNING id`,
+        [
+          customerId,
+          matchedPart.id,
+          scheduleMonth,
+          26,
+          grossDemand,
+          receiptsTarget,
+          variancePct,
+          false,
+        ]
+      );
+
+      const mpsId = mpsRes.rows[0].id;
+
+      // Insert rolling forecast horizons
+      if (forecastPeriods.length > 0) {
+        for (const fp of forecastPeriods) {
+          const fMonthDate = scheduleMonth; // fallback horizon
+          await client.query(
+            `INSERT INTO mps_forecast_periods (mps_id, forecast_month, forecast_qty)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (mps_id, forecast_month) DO UPDATE SET
+               forecast_qty = EXCLUDED.forecast_qty`,
+            [mpsId, fMonthDate, fp.qty]
+          );
+        }
+      }
+
+      const reqRMKg = Number((((Number(matchedPart.unit_weight_g) || 50) * receiptsTarget) / 1000).toFixed(1));
+
       const lineItem = {
+        id: mpsId,
         rowNumber: r + 1,
-        rawPartCode,
-        partId: matchedPart ? matchedPart.id : null,
-        partCode: matchedPart ? matchedPart.part_code : rawPartCode,
-        partName: matchedPart ? matchedPart.part_name : description,
-        shrpPartCode: matchedPart ? matchedPart.shrp_part_code : '',
-        customerPartNo: matchedPart ? matchedPart.customer_part_no : rawPartCode,
-        program,
-        commodity,
-        grossDemand,
-        receiptsTarget,
-        variancePct,
+        part_id: matchedPart.id,
+        part_code: matchedPart.part_code,
+        shrp_part_code: matchedPart.shrp_part_code,
+        customer_part_no: matchedPart.customer_part_no,
+        part_name: matchedPart.part_name,
+        program: program || matchedPart.program || 'Standard',
+        commodity: commodity || matchedPart.commodity || 'Injection',
+        gross_demand_qty: grossDemand,
+        net_production_target_qty: receiptsTarget,
+        required_rm_kg: reqRMKg,
+        variance_pct: variancePct,
+        is_high_variance: hasHighVariance,
         hasHighVariance,
-        forecastPeriods,
+        forecast_periods: forecastPeriods.map((f, idx) => ({ id: idx, period_label: f.monthLabel, quantity: f.qty })),
       };
 
       parsedLines.push(lineItem);
@@ -139,112 +217,51 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       }
     }
 
+    await client.query('COMMIT');
+
     res.json({
       success: true,
       fileName,
       totalRows: parsedLines.length,
+      imported_count: parsedLines.length,
+      imported: parsedLines,
       highVarianceCount: varianceAlerts.length,
       varianceAlerts,
-      parsedLines,
     });
   } catch (err) {
-    console.error('Error parsing MPS Excel:', err);
+    await client.query('ROLLBACK');
+    console.error('Error parsing/saving MPS Excel:', err);
     res.status(500).json({ error: 'Failed to parse MPS file: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
 // -------------------------------------------------------------
-// 2. CONFIRM & SAVE MPS IMPORT (WITH AUDIT TRAIL)
+// 2. CONFIRM & AUDIT VARIANCE OVERRIDE
 // -------------------------------------------------------------
-router.post('/mps/confirm-import', requireRole('admin', 'supervisor'), async (req, res) => {
-  const client = await pool.connect();
+router.post('/mps/confirm-variance', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
-    const {
-      customerId,
-      scheduleMonth,
-      workingDays = 26,
-      items,
-    } = req.body;
-
-    if (!customerId || !scheduleMonth || !items || items.length === 0) {
-      return res.status(400).json({ error: 'customerId, scheduleMonth and items array are required.' });
+    const { mps_id, confirm_reason } = req.body;
+    if (!mps_id) {
+      return res.status(400).json({ error: 'mps_id is required' });
     }
 
-    await client.query('BEGIN');
+    const { rows } = await pool.query(
+      `UPDATE master_production_schedules
+       SET is_variance_override = true,
+           variance_confirmed_by = $1,
+           variance_confirmed_at = now(),
+           variance_confirm_reason = $2
+       WHERE id = $3
+       RETURNING *`,
+      [req.user.id, confirm_reason || 'Verified demand tolerance', mps_id]
+    );
 
-    const savedRecords = [];
-
-    for (const item of items) {
-      if (!item.partId) continue;
-
-      if (item.program || item.commodity) {
-        await client.query(
-          `UPDATE parts 
-           SET program = COALESCE($1, program), commodity = COALESCE($2, commodity) 
-           WHERE id = $3`,
-          [item.program || null, item.commodity || null, item.partId]
-        );
-      }
-
-      const mpsRes = await client.query(
-        `INSERT INTO master_production_schedules (
-          customer_id, part_id, schedule_month, working_days,
-          gross_demand, receipts_target, variance_pct,
-          is_variance_override, variance_confirmed_by, variance_confirmed_at, variance_confirm_reason,
-          status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ACTIVE')
-        ON CONFLICT (customer_id, part_id, schedule_month) DO UPDATE SET
-          gross_demand = EXCLUDED.gross_demand,
-          receipts_target = EXCLUDED.receipts_target,
-          variance_pct = EXCLUDED.variance_pct,
-          is_variance_override = EXCLUDED.is_variance_override,
-          variance_confirmed_by = EXCLUDED.variance_confirmed_by,
-          variance_confirmed_at = EXCLUDED.variance_confirmed_at,
-          variance_confirm_reason = EXCLUDED.variance_confirm_reason,
-          working_days = EXCLUDED.working_days,
-          status = 'ACTIVE'
-        RETURNING id`,
-        [
-          customerId,
-          item.partId,
-          scheduleMonth,
-          workingDays,
-          item.grossDemand || 0,
-          item.receiptsTarget || item.grossDemand || 0,
-          item.variancePct || 0,
-          Boolean(item.isOverride),
-          item.isOverride ? req.user.id : null,
-          item.isOverride ? new Date() : null,
-          item.overrideReason || null,
-        ]
-      );
-
-      const mpsId = mpsRes.rows[0].id;
-
-      if (item.forecastPeriods && Array.isArray(item.forecastPeriods)) {
-        for (const fp of item.forecastPeriods) {
-          if (!fp.monthDate || fp.qty === undefined) continue;
-          await client.query(
-            `INSERT INTO mps_forecast_periods (mps_id, forecast_month, forecast_qty)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (mps_id, forecast_month) DO UPDATE SET
-               forecast_qty = EXCLUDED.forecast_qty`,
-            [mpsId, fp.monthDate, fp.qty]
-          );
-        }
-      }
-
-      savedRecords.push({ mpsId, partId: item.partId });
-    }
-
-    await client.query('COMMIT');
-    res.json({ success: true, savedCount: savedRecords.length, scheduleMonth });
+    res.json({ success: true, updated: rows[0] });
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error confirming MPS import:', err);
-    res.status(500).json({ error: 'Failed to save MPS schedule: ' + err.message });
-  } finally {
-    client.release();
+    console.error('Error confirming variance:', err);
+    res.status(500).json({ error: 'Failed to confirm variance: ' + err.message });
   }
 });
 
@@ -253,8 +270,11 @@ router.post('/mps/confirm-import', requireRole('admin', 'supervisor'), async (re
 // -------------------------------------------------------------
 router.get('/mps', requireAuth, async (req, res) => {
   try {
-    const { month, customerId } = req.query;
-    const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
+    const { month, month_year, customerId, customer_id } = req.query;
+    let targetMonth = month || month_year || new Date().toISOString().slice(0, 7);
+    if (targetMonth.length === 7) {
+      targetMonth = `${targetMonth}-01`;
+    }
 
     let query = `
       SELECT 
@@ -288,13 +308,14 @@ router.get('/mps', requireAuth, async (req, res) => {
       JOIN customers c ON mps.customer_id = c.id
       JOIN parts p ON mps.part_id = p.id
       LEFT JOIN users u ON mps.variance_confirmed_by = u.id
-      WHERE mps.schedule_month = $1
+      WHERE (to_char(mps.schedule_month, 'YYYY-MM') = to_char($1::date, 'YYYY-MM') OR mps.schedule_month = $1::date)
     `;
     const params = [targetMonth];
 
-    if (customerId) {
-      params.push(customerId);
-      query += ` AND mps.customer_id = $2`;
+    const targetCust = customerId || customer_id;
+    if (targetCust) {
+      params.push(targetCust);
+      query += ` AND mps.customer_id = $${params.length}`;
     }
 
     query += ` ORDER BY p.part_name ASC`;
@@ -325,17 +346,27 @@ router.get('/mps', requireAuth, async (req, res) => {
       const cycleTime = Number(row.standard_cycle_time_sec) || 20;
       const dailyShots = Math.ceil(dailyReqPcs / cavities);
       const dailyHours = Number(((dailyShots * cycleTime) / 3600).toFixed(1));
+      const reqRMKg = Number((((Number(row.unit_weight_g) || 50) * row.receipts_target) / 1000).toFixed(1));
 
       return {
         ...row,
+        gross_demand_qty: row.gross_demand,
+        net_production_target_qty: row.receipts_target,
+        required_rm_kg: reqRMKg,
         dailyReqPcs,
         dailyShots,
         dailyHours,
+        is_high_variance: Math.abs(Number(row.variance_pct) || 0) > 15,
         forecastPeriods: forecastsMap[row.id] || [],
+        forecast_periods: (forecastsMap[row.id] || []).map((f, idx) => ({
+          id: idx,
+          period_label: f.forecast_month,
+          quantity: f.forecast_qty
+        })),
       };
     });
 
-    res.json({ month: targetMonth, total: records.length, records });
+    res.json({ month: targetMonth, total: records.length, records, imported: records });
   } catch (err) {
     console.error('Error fetching MPS:', err);
     res.status(500).json({ error: 'Failed to fetch MPS: ' + err.message });
@@ -347,8 +378,11 @@ router.get('/mps', requireAuth, async (req, res) => {
 // -------------------------------------------------------------
 router.get('/plan-vs-actual', requireAuth, async (req, res) => {
   try {
-    const { month } = req.query;
-    const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
+    const { month, month_year } = req.query;
+    let targetMonth = month || month_year || new Date().toISOString().slice(0, 7);
+    if (targetMonth.length === 7) {
+      targetMonth = `${targetMonth}-01`;
+    }
 
     const sql = `
       WITH mps_data AS (
@@ -367,7 +401,8 @@ router.get('/plan-vs-actual', requireAuth, async (req, res) => {
         FROM master_production_schedules mps
         JOIN customers c ON mps.customer_id = c.id
         JOIN parts p ON mps.part_id = p.id
-        WHERE mps.schedule_month = $1 AND mps.status = 'ACTIVE'
+        WHERE (to_char(mps.schedule_month, 'YYYY-MM') = to_char($1::date, 'YYYY-MM') OR mps.schedule_month = $1::date)
+          AND mps.status = 'ACTIVE'
         GROUP BY mps.part_id, mps.customer_id, c.name, p.part_code, p.shrp_part_code, p.customer_part_no, p.part_name, p.program, p.commodity
       ),
       prod_actuals AS (
@@ -408,10 +443,14 @@ router.get('/plan-vs-actual', requireAuth, async (req, res) => {
         m.commodity,
         m.planned_gross,
         m.planned_target,
+        m.planned_target AS customer_plan_qty,
         COALESCE(pa.total_produced_qty, 0) AS actual_produced_qty,
+        COALESCE(pa.total_produced_qty, 0) AS produced_qty,
         COALESCE(pa.total_reject_qty, 0) AS actual_reject_qty,
         COALESCE(da.total_dispatched_qty, 0) AS actual_dispatched_qty,
+        COALESCE(da.total_dispatched_qty, 0) AS dispatched_qty,
         COALESCE(fg.fg_stock_qty, 0) AS current_fg_stock_qty,
+        COALESCE(fg.fg_stock_qty, 0) AS fg_stock_qty,
         CASE 
           WHEN m.planned_target > 0 THEN 
             ROUND((COALESCE(da.total_dispatched_qty, 0)::numeric / m.planned_target::numeric) * 100, 1)
@@ -430,7 +469,7 @@ router.get('/plan-vs-actual', requireAuth, async (req, res) => {
     `;
 
     const result = await pool.query(sql, [targetMonth]);
-    res.json({ month: targetMonth, records: result.rows });
+    res.json({ month: targetMonth, records: result.rows, total: result.rows.length });
   } catch (err) {
     console.error('Error fetching Plan vs Actual matrix:', err);
     res.status(500).json({ error: 'Failed to fetch Plan vs Actual: ' + err.message });
@@ -442,7 +481,10 @@ router.get('/plan-vs-actual', requireAuth, async (req, res) => {
 // -------------------------------------------------------------
 router.get('/milestones', requireAuth, async (req, res) => {
   try {
-    const { status, customerId, dateFrom, dateTo } = req.query;
+    const { status, customerId, customer_id, dateFrom, dateTo, month_year, month } = req.query;
+    const targetCust = customerId || customer_id;
+    const targetMonth = month_year || month;
+
     let query = `
       SELECT 
         cdm.id,
@@ -459,9 +501,12 @@ router.get('/milestones', requireAuth, async (req, res) => {
         p.standard_cycle_time_sec,
         p.cavity_count,
         cdm.delivery_date,
+        cdm.delivery_date AS milestone_date,
         cdm.target_dispatch_date,
         cdm.target_production_date,
+        cdm.target_production_date AS scheduled_prod_date,
         cdm.scheduled_qty,
+        cdm.scheduled_qty AS quantity,
         cdm.dispatched_qty,
         cdm.status,
         cdm.notes,
@@ -479,9 +524,13 @@ router.get('/milestones', requireAuth, async (req, res) => {
       params.push(status);
       query += ` AND cdm.status = $${params.length}`;
     }
-    if (customerId) {
-      params.push(customerId);
+    if (targetCust) {
+      params.push(targetCust);
       query += ` AND cdm.customer_id = $${params.length}`;
+    }
+    if (targetMonth) {
+      params.push(targetMonth);
+      query += ` AND to_char(cdm.delivery_date, 'YYYY-MM') = $${params.length}`;
     }
     if (dateFrom) {
       params.push(dateFrom);
@@ -568,8 +617,9 @@ router.post('/milestones', requireRole('admin', 'supervisor'), async (req, res) 
 // -------------------------------------------------------------
 router.get('/daily-schedules', requireAuth, async (req, res) => {
   try {
-    const { date, machineId, shift } = req.query;
+    const { date, machineId, machine_id, shift } = req.query;
     const targetDate = date || new Date().toISOString().slice(0, 10);
+    const mach = machineId || machine_id;
 
     let query = `
       SELECT 
@@ -583,10 +633,12 @@ router.get('/daily-schedules', requireAuth, async (req, res) => {
         p.shrp_part_code,
         p.customer_part_no,
         p.part_name,
+        p.cavity_count,
         pp.mould_id,
         mo.mould_code,
         mo.mould_name,
         pp.target_qty,
+        pp.target_qty AS planned_qty,
         pp.cycle_time_sec,
         pp.planned_hours,
         pp.required_rm_details,
@@ -614,8 +666,8 @@ router.get('/daily-schedules', requireAuth, async (req, res) => {
     `;
     const params = [targetDate];
 
-    if (machineId) {
-      params.push(machineId);
+    if (mach) {
+      params.push(mach);
       query += ` AND pp.machine_id = $${params.length}`;
     }
     if (shift && shift !== 'ALL') {
@@ -625,14 +677,22 @@ router.get('/daily-schedules', requireAuth, async (req, res) => {
 
     query += `
       GROUP BY pp.id, pp.plan_date, pp.shift, pp.machine_id, m.machine_code,
-               pp.part_id, p.part_code, p.shrp_part_code, p.customer_part_no, p.part_name,
+               pp.part_id, p.part_code, p.shrp_part_code, p.customer_part_no, p.part_name, p.cavity_count,
                pp.mould_id, mo.mould_code, mo.mould_name, pp.target_qty, pp.cycle_time_sec,
                pp.planned_hours, pp.required_rm_details, pp.rm_status, pp.priority, pp.status, pp.notes
       ORDER BY m.machine_code, pp.shift
     `;
 
     const result = await pool.query(query, params);
-    res.json({ date: targetDate, plans: result.rows });
+    const plans = result.rows.map(r => {
+      const cav = Number(r.cavity_count) || 1;
+      const plannedShots = Math.ceil(Number(r.target_qty || 0) / cav);
+      return {
+        ...r,
+        planned_shots: plannedShots,
+      };
+    });
+    res.json({ date: targetDate, plans, schedules: plans, records: plans });
   } catch (err) {
     console.error('Error fetching daily schedules:', err);
     res.status(500).json({ error: 'Failed to fetch daily schedules: ' + err.message });
@@ -713,7 +773,9 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
         materialName: recipe.primary_name,
         role: 'PRIMARY_POLYMER',
         requiredKg: primReqKg,
+        required_kg: primReqKg,
         availableNetKg: primNet,
+        available_kg: primNet,
         status: primStatus,
       });
 
@@ -733,7 +795,9 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
           materialName: recipe.masterbatch_name,
           role: 'MASTERBATCH',
           requiredKg: mbReqKg,
+          required_kg: mbReqKg,
           availableNetKg: mbNet,
+          available_kg: mbNet,
           status: mbStatus,
         });
       }
@@ -743,7 +807,9 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
         materialName: 'Virgin Polymer (Standard)',
         role: 'PRIMARY_POLYMER',
         requiredKg: Number(totalResinKg.toFixed(2)),
+        required_kg: Number(totalResinKg.toFixed(2)),
         availableNetKg: 9999,
+        available_kg: 9999,
         status: 'OK',
       });
     }
@@ -785,11 +851,12 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
 // -------------------------------------------------------------
 // 7. ACTIVE PLAN TARGET FOR PRODUCTION ENTRY
 // -------------------------------------------------------------
-router.get('/active-target', requireAuth, async (req, res) => {
+const handleActiveTarget = async (req, res) => {
   try {
-    const { machineId, date, shift } = req.query;
-    if (!machineId) {
-      return res.status(400).json({ error: 'machineId is required.' });
+    const { machineId, machine_id, date, shift } = req.query;
+    const mach = machineId || machine_id;
+    if (!mach) {
+      return res.status(400).json({ error: 'machineId / machine_id is required.' });
     }
 
     const targetDate = date || new Date().toISOString().slice(0, 10);
@@ -811,7 +878,7 @@ router.get('/active-target', requireAuth, async (req, res) => {
          AND pp.status != 'CANCELLED'
        ORDER BY pp.created_at DESC
        LIMIT 1`,
-      [machineId, targetDate, targetShift]
+      [mach, targetDate, targetShift]
     );
 
     res.json(result.rows[0] || null);
@@ -819,6 +886,10 @@ router.get('/active-target', requireAuth, async (req, res) => {
     console.error('Error fetching active target:', err);
     res.status(500).json({ error: 'Failed to fetch active target: ' + err.message });
   }
-});
+};
+
+router.get('/daily-schedules/active-target', requireAuth, handleActiveTarget);
+router.get('/active-target', requireAuth, handleActiveTarget);
 
 module.exports = router;
+
