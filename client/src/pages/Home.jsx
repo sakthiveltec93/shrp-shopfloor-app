@@ -13,6 +13,7 @@ const ERP_SECTIONS = [
     accentColor: '#f59e0b', // amber
     badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
+      { key: 'planning', to: '/planning', icon: '📊', supervisorOnly: true },
       { key: 'mould_setup', to: '/mould-setup', icon: '⚙', supervisorOnly: true },
       { key: 'entry', to: '/entry', icon: '📝' },
       { key: 'bag_entry', to: '/bag-entry', icon: '◧' },

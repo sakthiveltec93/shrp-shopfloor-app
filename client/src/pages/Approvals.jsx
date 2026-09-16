@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 
 export default function Approvals() {
-  const [activeTab, setActiveTab] = useState('moulds'); // 'moulds' | 'deletions'
+  const [activeTab, setActiveTab] = useState('moulds'); // 'moulds' | 'deletions' | 'fpa'
   const [pending, setPending] = useState([]);
   const [pendingDeletions, setPendingDeletions] = useState([]);
+  const [fpas, setFpas] = useState([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [rejectNoteId, setRejectNoteId] = useState(null);
@@ -12,12 +13,14 @@ export default function Approvals() {
 
   async function load() {
     try {
-      const [moulds, dels] = await Promise.all([
+      const [moulds, dels, fpaList] = await Promise.all([
         api.pendingAssignments(),
         api.deletions.pending().catch(() => []),
+        api.fpa.getHistory().catch(() => []),
       ]);
       setPending(moulds);
       setPendingDeletions(dels);
+      setFpas(Array.isArray(fpaList) ? fpaList : []);
     } catch (err) {
       setError(err.message);
     }
@@ -88,7 +91,15 @@ export default function Approvals() {
           style={{ width: 'auto', flex: 1, padding: '8px 12px', fontSize: 13 }}
           onClick={() => setActiveTab('deletions')}
         >
-          🗑️ Deletion Requests ({pendingDeletions.length})
+          🗑️ Deletions ({pendingDeletions.length})
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === 'fpa' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ width: 'auto', flex: 1.2, padding: '8px 12px', fontSize: 13 }}
+          onClick={() => setActiveTab('fpa')}
+        >
+          🛡️ IATF FPA ({fpas.length})
         </button>
       </div>
 
@@ -231,6 +242,91 @@ export default function Approvals() {
                     </button>
                   </div>
                 )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Tab 3: IATF First-Piece Approvals */}
+      {activeTab === 'fpa' && (
+        <>
+          {fpas.length === 0 && <p className="muted">No First-Piece Approvals logged yet.</p>}
+
+          {fpas.map((fpa) => {
+            const isApproved = fpa.approval_status === 'APPROVED';
+            const isCond = fpa.approval_status === 'CONDITIONAL';
+
+            return (
+              <div key={fpa.id} className="panel" style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: 16 }}>{fpa.machine_code}</strong>
+                    <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+                      Inspection #{fpa.inspection_no}
+                    </span>
+                  </div>
+                  <span
+                    className={`status-pill ${
+                      isApproved ? 'status-approved' : isCond ? 'status-pending' : 'status-rejected'
+                    }`}
+                    style={
+                      isApproved
+                        ? { background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }
+                        : isCond
+                        ? { background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }
+                        : { background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }
+                    }
+                  >
+                    {fpa.approval_status}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span className="shrp-code-pill">{fpa.shrp_part_code || fpa.part_code}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{fpa.part_name}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>({fpa.customer_part_no || fpa.part_code})</span>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--line)', marginBottom: 10, fontSize: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 6 }}>
+                    <div>• RM Lot: <strong>{fpa.raw_material_lot_no}</strong> ({fpa.material_name || 'Standard'})</div>
+                    <div>• Regrind: <strong>{fpa.regrind_percentage}%</strong> (max allowed per recipe)</div>
+                    <div>• Visual Inspection: <strong style={{ color: fpa.visual_check_passed ? '#34d399' : '#f87171' }}>{fpa.visual_check_passed ? 'PASS' : 'FAIL'}</strong></div>
+                    <div>• Inspector: <strong>{fpa.inspector_name}</strong></div>
+                  </div>
+                  {fpa.remarks && (
+                    <div style={{ marginTop: 6, color: 'var(--text-muted)' }}>
+                      Remarks: "{fpa.remarks}"
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    Submitted {new Date(fpa.created_at).toLocaleString()}
+                  </div>
+                  <a
+                    href={api.fpa.downloadPdfUrl(fpa.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary"
+                    style={{
+                      width: 'auto',
+                      padding: '6px 14px',
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      borderColor: 'rgba(99, 102, 241, 0.35)',
+                      color: '#a5b4fc',
+                      fontWeight: 600
+                    }}
+                  >
+                    📄 Download IATF Setup Report (PDF)
+                  </a>
+                </div>
               </div>
             );
           })}

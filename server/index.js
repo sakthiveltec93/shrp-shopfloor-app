@@ -21,6 +21,8 @@ const mouldRoutes = require('./routes/moulds');
 const rawMaterialRoutes = require('./routes/rawMaterials');
 const gaugeRoutes = require('./routes/gauges');
 const supplierRoutes = require('./routes/suppliers');
+const planningRoutes = require('./routes/planning');
+const fpaRoutes = require('./routes/fpa');
 
 const fs = require('fs');
 
@@ -58,6 +60,8 @@ app.use('/api/moulds', mouldRoutes);
 app.use('/api/raw-materials', rawMaterialRoutes);
 app.use('/api/gauges', gaugeRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/planning', planningRoutes);
+app.use('/api/fpa', fpaRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

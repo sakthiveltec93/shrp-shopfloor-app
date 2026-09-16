@@ -85,11 +85,30 @@ router.post('/start', async (req, res) => {
   }
 
   const assignment = await pool.query(
-    `SELECT part_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
+    `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
     [machine_id]
   );
   if (!assignment.rows[0]) {
     return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
+  }
+
+  // Hard IATF 16949 Gate: Check if FPA has been approved for this machine & part
+  const fpaCheck = await pool.query(
+    `SELECT id, approval_status, inspection_no 
+     FROM fpa_submissions 
+     WHERE machine_id = $1 AND part_id = $2 
+     ORDER BY created_at DESC LIMIT 1`,
+    [machine_id, assignment.rows[0].part_id]
+  );
+  if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+    return res.status(403).json({
+      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED by QA / Supervisor before starting production session.',
+      code: 'fpa_required',
+      fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
+      part_id: assignment.rows[0].part_id,
+      machine_id: Number(machine_id),
+      mould_id: assignment.rows[0].mould_id
+    });
   }
 
   try {

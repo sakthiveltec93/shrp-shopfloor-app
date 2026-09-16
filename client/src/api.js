@@ -353,6 +353,25 @@ export const api = {
   linkPartMould: (partId, mouldId, cavities) =>
     request(`/masters/parts/${partId}/mould`, { method: 'PUT', body: { mould_id: mouldId, cavities_for_part: cavities } }),
 
+  planning: {
+    uploadMps: (payload) => request('/planning/mps/upload', { method: 'POST', body: payload }),
+    confirmMpsVariance: (payload) => request('/planning/mps/confirm-variance', { method: 'POST', body: payload }),
+    getMps: (monthYear) => request(`/planning/mps${monthYear ? `?month_year=${monthYear}` : ''}`),
+    getPlanVsActual: (monthYear) => request(`/planning/plan-vs-actual${monthYear ? `?month_year=${monthYear}` : ''}`),
+    getMilestones: (customerId, monthYear) => request(`/planning/milestones?customer_id=${customerId || ''}&month_year=${monthYear || ''}`),
+    createMilestone: (payload) => request('/planning/milestones', { method: 'POST', body: payload }),
+    getDailySchedules: (date, shift) => request(`/planning/daily-schedules?date=${date || ''}&shift=${shift || ''}`),
+    createDailySchedule: (payload) => request('/planning/daily-schedules', { method: 'POST', body: payload }),
+    getActiveTarget: (machineId, date, shift) => request(`/planning/daily-schedules/active-target?machine_id=${machineId}&date=${date || ''}&shift=${shift || ''}`),
+  },
+
+  fpa: {
+    getData: (machineId, partId, mouldId) => request(`/fpa/data?machine_id=${machineId}&part_id=${partId}&mould_id=${mouldId || ''}`),
+    submit: (payload) => request('/fpa/submit', { method: 'POST', body: payload }),
+    getHistory: (machineId, partId, status) => request(`/fpa/history?machine_id=${machineId || ''}&part_id=${partId || ''}&status=${status || ''}`),
+    downloadPdfUrl: (id) => `${BASE}/fpa/pdf/${id}`,
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

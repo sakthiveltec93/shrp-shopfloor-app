@@ -32,6 +32,7 @@ import RMStockRegister from './pages/RMStockRegister'
 import PartRecipes from './pages/PartRecipes'
 import Profile from './pages/Profile'
 import MastersHub from './pages/MastersHub'
+import ProductionPlanning from './pages/ProductionPlanning'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function HeartbeatTracker() {
@@ -69,6 +70,8 @@ export default function App() {
           <Route path="/rm-inward" element={<ProtectedRoute roles={['admin', 'supervisor']}><RMInward /></ProtectedRoute>} />
           <Route path="/rm-stock" element={<ProtectedRoute roles={['admin', 'supervisor']}><RMStockRegister /></ProtectedRoute>} />
           <Route path="/recipes" element={<ProtectedRoute roles={['admin', 'supervisor']}><PartRecipes /></ProtectedRoute>} />
+          <Route path="/planning" element={<ProtectedRoute roles={['admin', 'supervisor']}><ProductionPlanning /></ProtectedRoute>} />
+          <Route path="/production-planning" element={<ProtectedRoute roles={['admin', 'supervisor']}><ProductionPlanning /></ProtectedRoute>} />
           <Route path="/mould-setup" element={<ProtectedRoute roles={['admin', 'supervisor']} page="mould_setup"><MouldSetup /></ProtectedRoute>} />
           <Route path="/masters" element={<ProtectedRoute roles={['admin', 'supervisor']}><MastersHub /></ProtectedRoute>} />
           <Route

@@ -996,3 +996,149 @@ ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS cert_valid_upto DATE;
 ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS drying_temp_c NUMERIC DEFAULT 80;
 ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS drying_time_hrs NUMERIC DEFAULT 4;
 ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS melt_temp_c NUMERIC;
+
+-- ============================================================
+-- PRODUCTION PLANNING & IATF 16949 FIRST-PIECE APPROVAL (FPA)
+-- ============================================================
+
+-- 1. Extend Roles with Quality Inspector
+DO $$
+BEGIN
+  ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+  ALTER TABLE users ADD CONSTRAINT users_role_check 
+    CHECK (role IN ('operator', 'supervisor', 'admin', 'quality_inspector'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- 2. Authoritative mould_id on machine_assignments
+ALTER TABLE machine_assignments ADD COLUMN IF NOT EXISTS mould_id INTEGER REFERENCES moulds(id);
+
+-- 3. Extend Parts with Program, Commodity, Velocity & Buffer Days
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS program TEXT;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS commodity TEXT;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS velocity_class TEXT DEFAULT 'FAST_MOVING' CHECK (velocity_class IN ('FAST_MOVING', 'SLOW_MOVING'));
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS buffer_stock_days INTEGER DEFAULT 7;
+
+-- 4. Extend Customers with Plant Location & Transit Lead Times
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS plant_location TEXT DEFAULT 'Chennai';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS transit_lead_days INTEGER DEFAULT 1;
+
+-- 5. Master Production Schedules (MPS)
+CREATE TABLE IF NOT EXISTS master_production_schedules (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  schedule_month DATE NOT NULL, -- First of month, e.g. '2026-09-01'
+  working_days INTEGER NOT NULL DEFAULT 26,
+  gross_demand INTEGER NOT NULL,
+  net_demand INTEGER,
+  receipts_target INTEGER NOT NULL,
+  variance_pct NUMERIC NOT NULL DEFAULT 0,
+  is_variance_override BOOLEAN NOT NULL DEFAULT FALSE,
+  variance_confirmed_by INTEGER REFERENCES users(id),
+  variance_confirmed_at TIMESTAMPTZ,
+  variance_confirm_reason TEXT,
+  prev_month_forecast INTEGER,
+  consumption_variance_kg NUMERIC DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED', 'CANCELLED')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(customer_id, part_id, schedule_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mps_customer_month ON master_production_schedules(customer_id, schedule_month);
+CREATE INDEX IF NOT EXISTS idx_mps_part_month ON master_production_schedules(part_id, schedule_month);
+
+-- 6. Dynamic Rolling Forecast Child Table
+CREATE TABLE IF NOT EXISTS mps_forecast_periods (
+  id SERIAL PRIMARY KEY,
+  mps_id INTEGER NOT NULL REFERENCES master_production_schedules(id) ON DELETE CASCADE,
+  forecast_month DATE NOT NULL,
+  forecast_qty INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(mps_id, forecast_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mps_forecast_mps ON mps_forecast_periods(mps_id);
+
+-- 7. Customer Delivery Milestones (Weekly Dispatches with Lead-Time Offset)
+CREATE TABLE IF NOT EXISTS customer_delivery_milestones (
+  id SERIAL PRIMARY KEY,
+  mps_id INTEGER REFERENCES master_production_schedules(id) ON DELETE CASCADE,
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  delivery_date DATE NOT NULL,
+  target_dispatch_date DATE NOT NULL,
+  target_production_date DATE NOT NULL,
+  scheduled_qty INTEGER NOT NULL,
+  dispatched_qty INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PRODUCED', 'DISPATCHED', 'OVERDUE', 'CANCELLED')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_milestones_part_delivery ON customer_delivery_milestones(part_id, delivery_date);
+CREATE INDEX IF NOT EXISTS idx_milestones_status ON customer_delivery_milestones(status);
+
+-- 8. Production Plans (Daily Shift Machine Schedules)
+CREATE TABLE IF NOT EXISTS production_plans (
+  id SERIAL PRIMARY KEY,
+  plan_date DATE NOT NULL,
+  shift TEXT NOT NULL CHECK (shift IN ('A', 'B', 'ALL')),
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  mould_id INTEGER REFERENCES moulds(id),
+  target_qty INTEGER NOT NULL,
+  cycle_time_sec NUMERIC NOT NULL,
+  planned_hours NUMERIC NOT NULL,
+  required_rm_details JSONB NOT NULL DEFAULT '[]', -- Array of {material_id, material_name, required_kg, available_kg, status}
+  rm_status TEXT NOT NULL DEFAULT 'AVAILABLE',
+  priority TEXT NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
+  status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (status IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
+  notes TEXT,
+  created_by_user_id INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_plans_date_machine ON production_plans(plan_date, machine_id, shift);
+
+-- 9. First-Piece Approval Submissions (IATF 16949 Cl. 8.5.1.1)
+CREATE TABLE IF NOT EXISTS fpa_submissions (
+  id SERIAL PRIMARY KEY,
+  assignment_id INTEGER NOT NULL REFERENCES machine_assignments(id) ON DELETE CASCADE,
+  machine_id INTEGER NOT NULL REFERENCES machines(id),
+  part_id INTEGER NOT NULL REFERENCES parts(id),
+  mould_id INTEGER REFERENCES moulds(id),
+  setup_reason TEXT NOT NULL DEFAULT 'Mould Change',
+  raw_material_id INTEGER REFERENCES raw_materials(id),
+  rm_lot_no TEXT,
+  dryer_temp_c NUMERIC,
+  dryer_time_hrs NUMERIC,
+  regrind_pct NUMERIC DEFAULT 0,
+  regrind_approved BOOLEAN DEFAULT TRUE,
+  regrind_exceeded_allowed BOOLEAN DEFAULT FALSE,
+  mould_pm_overdue BOOLEAN DEFAULT FALSE,
+  process_parameters JSONB NOT NULL DEFAULT '{}',
+  visual_checks JSONB NOT NULL DEFAULT '{}',
+  dimension_readings JSONB NOT NULL DEFAULT '{"dimensions":[],"overall_dimension_status":"PENDING"}',
+  technician_user_id INTEGER REFERENCES users(id),
+  quality_inspector_user_id INTEGER REFERENCES users(id),
+  supervisor_user_id INTEGER REFERENCES users(id),
+  approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (approval_status IN ('PENDING', 'APPROVED', 'CONDITIONAL', 'REJECTED')),
+  deviation_no TEXT,
+  remarks TEXT,
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fpa_assignment ON fpa_submissions(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_fpa_status ON fpa_submissions(approval_status);
+
+-- 10. Update Deletion Requests Governance Check Constraint
+DO $$
+BEGIN
+  ALTER TABLE deletion_requests DROP CONSTRAINT IF EXISTS deletion_requests_entity_type_check;
+  ALTER TABLE deletion_requests ADD CONSTRAINT deletion_requests_entity_type_check
+    CHECK (entity_type IN ('part', 'production_entry', 'bag', 'trim_entry', 'inspection_entry', 'packing_entry', 'dispatch_entry', 'fpa_submission', 'production_plan', 'master_production_schedule', 'machine_assignment'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+

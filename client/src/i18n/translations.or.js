@@ -89,6 +89,7 @@ export const or = {
       profile: { label: "Mora Profile & HR", hint: "Bank details, chhuti & time" },
       attendance_menu: { label: "Upasthiti", hint: "Shift check-in / out" },
       change_pin_menu: { label: "PIN Paribartan", hint: "Nua PIN set karantu" },
+      planning: { label: "Utpadana Yojana (MPS)", hint: "Masika plan & shift targets" },
       mould_setup: { label: "Mould Setup", hint: "Machine re part allocation" },
       entry: { label: "Utpadana Entry", hint: "Prati ghantara count entry" },
       bag_entry: { label: "Bag Entry", hint: "Batch bipakhare bag entry" },

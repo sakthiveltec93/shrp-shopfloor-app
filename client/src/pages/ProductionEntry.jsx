@@ -1,4 +1,5 @@
 import SearchableSelect from '../components/SearchableSelect';
+import FpaModal from '../components/FpaModal';
 import { useEffect, useState } from 'react';
 import { api, getToken } from '../api';
 import { useAuth } from '../AuthContext';
@@ -55,6 +56,10 @@ export default function ProductionEntry() {
   const [changeOpForm, setChangeOpForm] = useState({ off_count: '', new_operator_user_id: '', remarks: '' });
   const [changingOp, setChangingOp] = useState(false);
 
+  const [showFpaModal, setShowFpaModal] = useState(false);
+  const [fpaBlockedInfo, setFpaBlockedInfo] = useState(null);
+  const [activeTarget, setActiveTarget] = useState(null);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -104,9 +109,11 @@ export default function ProductionEntry() {
     setShowOff(false);
     setShowChangeOp(false);
     setLastEntry(null);
+    setFpaBlockedInfo(null);
     if (!id) return;
     const active = await api.activeSession(id);
     setSession(active);
+    api.planning.getActiveTarget(id).then((tgt) => setActiveTarget(tgt)).catch(() => setActiveTarget(null));
     if (!active) {
       const [{ suggested_start_count }, todayCheck] = await Promise.all([
         api.suggestedStartCount(id),
@@ -167,9 +174,13 @@ export default function ProductionEntry() {
         operator_user_id: targetOperatorId,
       });
       setSession(s);
+      setFpaBlockedInfo(null);
       const opName = operators.find((o) => o.id === targetOperatorId)?.full_name || s.operator_name || user?.full_name;
       setSuccess(`⚡ Machine switched ON for operator ${opName} at count ${s.start_count}!`);
     } catch (err) {
+      if (err.data?.code === 'fpa_required') {
+        setFpaBlockedInfo(err.data);
+      }
       setError(err.message);
     } finally {
       setStarting(false);
@@ -435,6 +446,24 @@ export default function ProductionEntry() {
                 value={startCount} onChange={(e) => setStartCount(e.target.value)} />
             </div>
 
+            {fpaBlockedInfo && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', borderRadius: 8, padding: 12 }}>
+                <div style={{ color: '#f87171', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🛡️ IATF 16949 Clause 8.5.1.1 First-Piece Approval Required
+                </div>
+                <div style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>
+                  Machine startup is blocked. Initial setup, visual workmanship, and multi-cavity dimensional inspection must be approved.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFpaModal(true)}
+                  style={{ marginTop: 8, padding: '8px 14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  📝 Open Digital FPA Sheet & Submit QA Approval
+                </button>
+              </div>
+            )}
+
             <button className="btn btn-primary" type="submit" disabled={starting} style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
               {starting ? t('entry.starting', 'Starting machine...') : '⚡ Switch ON Machine & Assign Operator'}
             </button>
@@ -486,6 +515,19 @@ export default function ProductionEntry() {
               </div>
             </div>
           </div>
+
+          {activeTarget && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <span style={{ fontSize: 11, color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700 }}>📅 MPS Planned Shift Target: </span>
+                <strong style={{ color: '#fff', fontSize: 14 }}>{Number(activeTarget.planned_qty).toLocaleString()} pcs</strong>
+                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}> ({Number(activeTarget.planned_shots).toLocaleString()} shots)</span>
+              </div>
+              <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', padding: '3px 10px', borderRadius: 12, fontWeight: 600 }}>
+                ✓ BOM Material Allocated
+              </span>
+            </div>
+          )}
 
           {belowTargetPrompt ? (
             <div style={{
@@ -1082,6 +1124,20 @@ export default function ProductionEntry() {
             </form>
           </div>
         </div>
+      )}
+
+      {showFpaModal && (
+        <FpaModal
+          machine={machines.find((m) => String(m.id) === String(machineId))}
+          part={assigned ? { id: assigned.part_id, part_code: assigned.part_code, shrp_part_code: assigned.shrp_part_code, part_name: assigned.part_name, cavity_count: assigned.cavity_count } : null}
+          mould={assigned?.mould_id ? { id: assigned.mould_id } : null}
+          onClose={() => setShowFpaModal(false)}
+          onSuccess={() => {
+            setShowFpaModal(false);
+            setFpaBlockedInfo(null);
+            setSuccess('✅ FPA Approved! You can now start the machine session.');
+          }}
+        />
       )}
     </div>
   );

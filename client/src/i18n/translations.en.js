@@ -89,6 +89,7 @@ export const en = {
       profile: { label: "My Profile & HR", hint: "Bank details, leave request & stats" },
       attendance_menu: { label: "Attendance", hint: "Shift check-in / check-out" },
       change_pin_menu: { label: "Change PIN", hint: "Security PIN update" },
+      planning: { label: "Production Planning", hint: "Monthly MPS, transit schedule & shift targets" },
       mould_setup: { label: "Mould Setup", hint: "Assign part to machine" },
       entry: { label: "Hourly Production Entry", hint: "Log hourly count & scrap" },
       bag_entry: { label: "Bag Entry", hint: "Log bag against batch" },

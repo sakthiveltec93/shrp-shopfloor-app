@@ -89,6 +89,7 @@ export const ta = {
       profile: { label: "எனது சுயவிவரம் & HR", hint: "வங்கி விவரம், விடுப்பு & நேரம்" },
       attendance_menu: { label: "வருகைப்பதிவு", hint: "ஷிப்ட் இன் / அவுட்" },
       change_pin_menu: { label: "PIN மாற்றம்", hint: "ரகசிய குறியீடு மாற்றம்" },
+      planning: { label: "உற்பத்தி திட்டமிடல்", hint: "மாதாந்திர MPS & ஷிப்ட் இலக்குகள்" },
       mould_setup: { label: "மோல்டு செட்டப்", hint: "மெஷினுக்கு பார்ட் ஒதுக்கு" },
       entry: { label: "புரொடக்ஷன் பதிவு", hint: "ஒவ்வொரு மணி நேர கவுன்ட் பதிவு" },
       bag_entry: { label: "பேக் பதிவு", hint: "பேட்சிற்கு பேக் பதிவு செய்" },
