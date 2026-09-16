@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { requireAuth, requireSupervisorOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const PDFDocument = require('pdfkit');
 
 // -------------------------------------------------------------

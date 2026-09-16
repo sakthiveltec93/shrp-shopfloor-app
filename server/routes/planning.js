@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { requireAuth, requireSupervisorOrAdmin } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const XLSX = require('xlsx');
 
 // -------------------------------------------------------------
 // 1. UPLOAD & PARSE MPS / CUSTOMER DELIVERY SCHEDULE EXCEL
 // -------------------------------------------------------------
-router.post('/mps/upload', requireSupervisorOrAdmin, async (req, res) => {
+router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
     const { fileData, fileName, scheduleMonth, customerId } = req.body;
     if (!fileData) {
@@ -156,7 +156,7 @@ router.post('/mps/upload', requireSupervisorOrAdmin, async (req, res) => {
 // -------------------------------------------------------------
 // 2. CONFIRM & SAVE MPS IMPORT (WITH AUDIT TRAIL)
 // -------------------------------------------------------------
-router.post('/mps/confirm-import', requireSupervisorOrAdmin, async (req, res) => {
+router.post('/mps/confirm-import', requireRole('admin', 'supervisor'), async (req, res) => {
   const client = await pool.connect();
   try {
     const {
@@ -502,7 +502,7 @@ router.get('/milestones', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/milestones', requireSupervisorOrAdmin, async (req, res) => {
+router.post('/milestones', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
     const {
       mpsId,
@@ -639,7 +639,7 @@ router.get('/daily-schedules', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/daily-schedules', requireSupervisorOrAdmin, async (req, res) => {
+router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
     const {
       planDate,
