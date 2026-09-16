@@ -30,6 +30,9 @@ export default function ProductionPlanning() {
   const [varianceAlert, setVarianceAlert] = useState(null);
   const [confirmReason, setConfirmReason] = useState('');
 
+  // Unmatched Parts Modal
+  const [unmatchedAlert, setUnmatchedAlert] = useState(null);
+
   // New Milestone Modal
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [milestoneForm, setMilestoneForm] = useState({
@@ -128,7 +131,7 @@ export default function ProductionPlanning() {
           fileName: uploadFile.name,
         });
 
-        const highVariances = (res.imported || res.records || []).filter((item) => item.is_high_variance || Math.abs(Number(item.variance_pct) || 0) > 15);
+        const highVariances = (res.imported || res.records || []).filter((item) => item.is_high_variance || (Math.abs(Number(item.variance_pct) || 0) > 15 && Number(item.net_production_target_qty) > 0));
         if (highVariances && highVariances.length > 0) {
           setVarianceAlert({
             mps_ids: highVariances.map((h) => h.id),
@@ -137,7 +140,21 @@ export default function ProductionPlanning() {
           });
         }
 
-        setSuccessMsg(`Successfully imported ${res.imported_count || res.totalRows || res.imported?.length || 0} MPS schedules for ${selectedMonth}!`);
+        if (res.unmatchedParts && res.unmatchedParts.length > 0) {
+          setUnmatchedAlert({
+            count: res.unmatchedCount || res.unmatchedParts.length,
+            items: res.unmatchedParts,
+            warning: res.unmatchedWarning,
+          });
+        } else {
+          setUnmatchedAlert(null);
+        }
+
+        const msg = res.unmatchedCount > 0
+          ? `Imported ${res.imported_count || res.imported?.length || 0} Part Master schedules for ${selectedMonth}. (${res.unmatchedCount} parts were not in Part Master and were not considered)`
+          : `Successfully imported all ${res.imported_count || res.imported?.length || 0} Part Master schedules for ${selectedMonth}!`;
+
+        setSuccessMsg(msg);
         setShowUploadModal(false);
         setUploadFile(null);
         loadTabData();
@@ -961,6 +978,58 @@ export default function ProductionPlanning() {
                 style={{ padding: '8px 16px', fontSize: 12, fontWeight: 700 }}
               >
                 Confirm & Save Audit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: UNMATCHED PARTS (NOT IN PART MASTER) */}
+      {/* ============================================================ */}
+      {unmatchedAlert && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+          zIndex: 95, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 14,
+        }}>
+          <div style={{
+            background: 'var(--panel)', border: '1px solid #f97316', borderRadius: 12,
+            width: '100%', maxWidth: 540, padding: 20, boxShadow: '0 16px 40px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 22 }}>⚠️</span>
+              <strong style={{ fontSize: 16, color: '#f97316' }}>
+                {unmatchedAlert.count} Parts Not in Master (Not Considered)
+              </strong>
+            </div>
+
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+              These {unmatchedAlert.count} part code(s) in the uploaded Excel schedule are <strong>not available in our Part Master</strong>, hence were not considered:
+            </p>
+
+            <div style={{ maxHeight: 220, overflowY: 'auto', background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 6, border: '1px solid var(--line)', marginBottom: 14 }}>
+              {unmatchedAlert.items?.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div>
+                    <strong style={{ color: '#fca5a5' }}>{item.partCode}</strong>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>{item.description} {item.program ? `(${item.program})` : ''}</div>
+                  </div>
+                  <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontSize: 10, border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                    Row {item.rowNumber}: Not in Master
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setUnmatchedAlert(null)}
+                className="btn btn-primary"
+                style={{ padding: '8px 16px', fontSize: 12, fontWeight: 700 }}
+              >
+                Acknowledge & Close
               </button>
             </div>
           </div>

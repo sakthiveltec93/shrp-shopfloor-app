@@ -74,6 +74,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
 
     const parsedLines = [];
     const varianceAlerts = [];
+    const unmatchedParts = [];
 
     let headerRowIndex = -1;
     for (let r = 0; r < Math.min(rows.length, 20); r++) {
@@ -118,21 +119,30 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       if (!row || row.length === 0) continue;
 
       const rawPartCode = String(row[partColIdx] || '').trim();
-      if (!rawPartCode || rawPartCode.toLowerCase() === 'part no' || rawPartCode.toLowerCase() === 'total') continue;
+      const rawDesc = String(row[descColIdx] || '').trim();
+      if (!rawPartCode || rawPartCode.toLowerCase() === 'part no' || rawPartCode.toLowerCase() === 'total' || rawPartCode.toLowerCase().includes('supplier')) continue;
 
-      const cleanCode = rawPartCode.replace(/[\s-]/g, '').toUpperCase();
+      const cleanCode = rawPartCode.replace(/[\s\-_/]/g, '').toUpperCase();
+      const cleanDesc = rawDesc.replace(/[\s\-_/]/g, '').toUpperCase();
+
       const matchedPart = parts.find(p => {
-        const pCode = (p.part_code || '').replace(/[\s-]/g, '').toUpperCase();
-        const pShrp = (p.shrp_part_code || '').replace(/[\s-]/g, '').toUpperCase();
-        const pCust = (p.customer_part_no || '').replace(/[\s-]/g, '').toUpperCase();
-        return pCode === cleanCode || pShrp === cleanCode || pCust === cleanCode || cleanCode.includes(pCode) || pCode.includes(cleanCode);
+        const pCode = (p.part_code || '').replace(/[\s\-_/]/g, '').toUpperCase();
+        const pShrp = (p.shrp_part_code || '').replace(/[\s\-_/]/g, '').toUpperCase();
+        const pCust = (p.customer_part_no || '').replace(/[\s\-_/]/g, '').toUpperCase();
+        const pName = (p.part_name || '').replace(/[\s\-_/]/g, '').toUpperCase();
+        const pBatch = (p.batch_part_code || '').trim().toUpperCase();
+
+        if (!cleanCode) return false;
+        return pCode === cleanCode || 
+               pShrp === cleanCode || 
+               pCust === cleanCode || 
+               pName === cleanCode ||
+               (cleanCode.length >= 4 && (pCode.includes(cleanCode) || cleanCode.includes(pCode))) ||
+               (cleanCode.length >= 4 && (pShrp.includes(cleanCode) || cleanCode.includes(pShrp))) ||
+               (cleanCode.length >= 4 && (pCust.includes(cleanCode) || cleanCode.includes(pCust))) ||
+               (pBatch && pBatch === cleanCode) ||
+               (cleanDesc && pName && (cleanDesc === pName || pName.includes(cleanDesc) || cleanDesc.includes(pName)));
       });
-
-      if (!matchedPart) continue;
-
-      const description = String(row[descColIdx] || matchedPart.part_name).trim();
-      const program = programColIdx !== -1 ? String(row[programColIdx] || '').trim() : '';
-      const commodity = commodityColIdx !== -1 ? String(row[commodityColIdx] || '').trim() : '';
 
       let grossDemand = 0;
       let receiptsTarget = 0;
@@ -149,12 +159,28 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
         receiptsTarget = grossDemand;
       }
 
-      // If demand wasn't in separate column but receipts target is set, set demand
+      // If demand wasn't in a separate column but receipts target is set, set demand
       if (grossDemand === 0 && receiptsTarget > 0) {
         grossDemand = receiptsTarget;
       }
 
-      if (grossDemand === 0 && receiptsTarget === 0) continue;
+      // If part is NOT in master, capture in unmatched list with reason and do not import
+      if (!matchedPart) {
+        unmatchedParts.push({
+          rowNumber: r + 1,
+          partCode: rawPartCode,
+          description: rawDesc || 'No description in file',
+          program: programColIdx !== -1 ? String(row[programColIdx] || '').trim() : '',
+          grossDemand,
+          receiptsTarget,
+          reason: 'These parts not available in the Part Master hence not considered',
+        });
+        continue;
+      }
+
+      const description = rawDesc || matchedPart.part_name;
+      const program = programColIdx !== -1 ? String(row[programColIdx] || '').trim() : '';
+      const commodity = commodityColIdx !== -1 ? String(row[commodityColIdx] || '').trim() : '';
 
       const forecastPeriods = [];
       if (monthCols.length > 1) {
@@ -167,7 +193,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       const maxVal = Math.max(grossDemand, receiptsTarget);
       const minVal = Math.min(grossDemand, receiptsTarget);
       const variancePct = maxVal > 0 ? Number((((maxVal - minVal) / maxVal) * 100).toFixed(1)) : 0;
-      const hasHighVariance = variancePct > 15.0;
+      const hasHighVariance = variancePct > 15.0 && receiptsTarget > 0;
 
       // Update part program / commodity if present
       if (program || commodity) {
@@ -251,12 +277,19 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
 
     await client.query('COMMIT');
 
+    const unmatchedWarning = unmatchedParts.length > 0
+      ? `${unmatchedParts.length} parts in the Excel sheet were not found in our Part Master and were not considered.`
+      : null;
+
     res.json({
       success: true,
       fileName,
       totalRows: parsedLines.length,
       imported_count: parsedLines.length,
       imported: parsedLines,
+      unmatchedCount: unmatchedParts.length,
+      unmatchedParts,
+      unmatchedWarning,
       highVarianceCount: varianceAlerts.length,
       varianceAlerts,
     });
