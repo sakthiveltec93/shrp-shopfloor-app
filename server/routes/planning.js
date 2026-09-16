@@ -7,6 +7,27 @@ const XLSX = require('xlsx');
 // Ensure authentication for all planning routes
 router.use(requireAuth);
 
+// Helper to compute gross weight per piece (part weight + runner weight per cavity)
+function calculatePartGrossWeightWithRunnerG(part) {
+  const cavities = Math.max(1, Number(part.cavity_count) || 1);
+  const shotWeight = Number(part.unit_weight_g) || 0; // Total shot weight (including runner + all cavities)
+  const netPartWeight = Number(part.part_weight_g) || 0; // Net single part weight
+
+  if (shotWeight > 0) {
+    if (netPartWeight > 0 && shotWeight < (netPartWeight * cavities)) {
+      // If unit_weight_g was recorded per piece including runner
+      return shotWeight;
+    }
+    // Single shot weight / cavities = gross resin needed per piece including runner
+    return shotWeight / cavities;
+  }
+  if (netPartWeight > 0) {
+    // If only net part weight is configured, add standard 5% runner allowance
+    return netPartWeight * 1.05;
+  }
+  return 10.0;
+}
+
 // -------------------------------------------------------------
 // 1. UPLOAD, PARSE & IMPORT MPS EXCEL
 // -------------------------------------------------------------
@@ -44,7 +65,7 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
 
     // Load parts and customers
     const [partsRes, customersRes] = await Promise.all([
-      pool.query('SELECT id, part_code, shrp_part_code, customer_part_no, part_name, standard_cycle_time_sec, cavity_count, unit_weight_g FROM parts WHERE active = true'),
+      pool.query('SELECT id, part_code, shrp_part_code, customer_part_no, part_name, standard_cycle_time_sec, cavity_count, unit_weight_g, part_weight_g FROM parts WHERE active = true'),
       pool.query('SELECT id, name, customer_code, plant_location, transit_lead_days FROM customers WHERE active = true'),
     ]);
 
@@ -74,6 +95,8 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
     let programColIdx = headers.findIndex(h => /program|model/i.test(h));
     let commodityColIdx = headers.findIndex(h => /commodity/i.test(h));
     let receiptsColIdx = headers.findIndex(h => /receipt|recipt|target|firm/i.test(h));
+
+    let demandColIdx = headers.findIndex(h => /gross|demand|cust.*sch|sales|order\s*qty/i.test(h));
 
     if (partColIdx === -1) partColIdx = 2;
     if (descColIdx === -1) descColIdx = 3;
@@ -114,12 +137,20 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
       let grossDemand = 0;
       let receiptsTarget = 0;
 
-      if (monthCols.length > 0) {
+      if (demandColIdx !== -1 && row[demandColIdx] !== '') {
+        grossDemand = parseInt(row[demandColIdx], 10) || 0;
+      } else if (monthCols.length > 0) {
         grossDemand = parseInt(row[monthCols[0].index], 10) || 0;
       }
+
       if (receiptsColIdx !== -1 && row[receiptsColIdx] !== '') {
-        receiptsTarget = parseInt(row[receiptsColIdx], 10) || grossDemand;
-      } else {
+        receiptsTarget = parseInt(row[receiptsColIdx], 10) || 0;
+      }
+
+      // If only one metric is populated, align them unless distinct demand is specified
+      if (grossDemand === 0 && receiptsTarget > 0) {
+        grossDemand = receiptsTarget;
+      } else if (receiptsTarget === 0 && grossDemand > 0) {
         receiptsTarget = grossDemand;
       }
 
@@ -190,7 +221,8 @@ router.post('/mps/upload', requireRole('admin', 'supervisor'), async (req, res) 
         }
       }
 
-      const reqRMKg = Number((((Number(matchedPart.unit_weight_g) || 50) * receiptsTarget) / 1000).toFixed(1));
+      const grossPieceWeightG = calculatePartGrossWeightWithRunnerG(matchedPart);
+      const reqRMKg = Number(((grossPieceWeightG * receiptsTarget) / 1000).toFixed(1));
 
       const lineItem = {
         id: mpsId,
@@ -266,6 +298,92 @@ router.post('/mps/confirm-variance', requireRole('admin', 'supervisor'), async (
 });
 
 // -------------------------------------------------------------
+// DELETE MPS FOR ENTIRE MONTH OR SINGLE RECORD (REMOVE IMPORT FULLY)
+// -------------------------------------------------------------
+router.delete('/mps/month/:month', requireRole('admin', 'supervisor'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    let targetMonth = req.params.month;
+    if (!targetMonth) {
+      return res.status(400).json({ error: 'Month parameter is required (e.g. 2026-09).' });
+    }
+    if (targetMonth.length === 7) {
+      targetMonth = `${targetMonth}-01`;
+    }
+
+    await client.query('BEGIN');
+
+    // 1. Delete forecast periods for schedules in that month
+    await client.query(
+      `DELETE FROM mps_forecast_periods 
+       WHERE mps_id IN (
+         SELECT id FROM master_production_schedules 
+         WHERE (to_char(schedule_month, 'YYYY-MM') = to_char($1::date, 'YYYY-MM') OR schedule_month = $1::date)
+       )`,
+      [targetMonth]
+    );
+
+    // 2. Unlink delivery milestones associated with this month's mps
+    await client.query(
+      `UPDATE customer_delivery_milestones 
+       SET mps_id = NULL 
+       WHERE mps_id IN (
+         SELECT id FROM master_production_schedules 
+         WHERE (to_char(schedule_month, 'YYYY-MM') = to_char($1::date, 'YYYY-MM') OR schedule_month = $1::date)
+       )`,
+      [targetMonth]
+    );
+
+    // 3. Delete master_production_schedules
+    const delRes = await client.query(
+      `DELETE FROM master_production_schedules 
+       WHERE (to_char(schedule_month, 'YYYY-MM') = to_char($1::date, 'YYYY-MM') OR schedule_month = $1::date)
+       RETURNING id`,
+      [targetMonth]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      month: targetMonth,
+      deletedCount: delRes.rowCount,
+      message: `Successfully removed all ${delRes.rowCount} MPS schedule(s) for ${targetMonth.slice(0, 7)}.`,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error clearing month MPS:', err);
+    res.status(500).json({ error: 'Failed to clear MPS import: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete('/mps/item/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    await client.query('DELETE FROM mps_forecast_periods WHERE mps_id = $1', [id]);
+    await client.query('UPDATE customer_delivery_milestones SET mps_id = NULL WHERE mps_id = $1', [id]);
+    const delRes = await client.query('DELETE FROM master_production_schedules WHERE id = $1 RETURNING id', [id]);
+    await client.query('COMMIT');
+
+    if (delRes.rowCount === 0) {
+      return res.status(404).json({ error: 'MPS item not found.' });
+    }
+
+    res.json({ success: true, id, message: 'MPS item deleted successfully.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting MPS item:', err);
+    res.status(500).json({ error: 'Failed to delete MPS item: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// -------------------------------------------------------------
 // 3. GET MONTHLY MASTER PRODUCTION SCHEDULE (MPS)
 // -------------------------------------------------------------
 router.get('/mps', requireAuth, async (req, res) => {
@@ -294,6 +412,7 @@ router.get('/mps', requireAuth, async (req, res) => {
         p.standard_cycle_time_sec,
         p.cavity_count,
         p.unit_weight_g,
+        p.part_weight_g,
         mps.schedule_month,
         mps.working_days,
         mps.gross_demand,
@@ -346,7 +465,8 @@ router.get('/mps', requireAuth, async (req, res) => {
       const cycleTime = Number(row.standard_cycle_time_sec) || 20;
       const dailyShots = Math.ceil(dailyReqPcs / cavities);
       const dailyHours = Number(((dailyShots * cycleTime) / 3600).toFixed(1));
-      const reqRMKg = Number((((Number(row.unit_weight_g) || 50) * row.receipts_target) / 1000).toFixed(1));
+      const grossPieceWeightG = calculatePartGrossWeightWithRunnerG(row);
+      const reqRMKg = Number(((grossPieceWeightG * row.receipts_target) / 1000).toFixed(1));
 
       return {
         ...row,
@@ -737,7 +857,7 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
     const part = partRes.rows[0] || {};
     const cycleTime = Number(part.standard_cycle_time_sec) || 20;
     const cavities = part.cavity_count || 1;
-    const shotWeightG = Number(part.unit_weight_g || (Number(part.part_weight_g || 10) * cavities));
+    const grossPieceWeightG = calculatePartGrossWeightWithRunnerG(part);
 
     const requiredShots = Math.ceil(Number(targetQty) / cavities);
     const plannedHours = Number(((requiredShots * cycleTime) / 3600).toFixed(1));
@@ -752,7 +872,7 @@ router.post('/daily-schedules', requireRole('admin', 'supervisor'), async (req, 
     const wouldExceedCapacity = (currentScheduled + plannedHours) > 20.0;
 
     const recipe = recipeRes.rows[0];
-    const totalResinKg = (Number(targetQty) * (shotWeightG / cavities)) / 1000.0;
+    const totalResinKg = (Number(targetQty) * grossPieceWeightG) / 1000.0;
     const requiredRmDetails = [];
     let overallRmStatus = 'AVAILABLE';
 

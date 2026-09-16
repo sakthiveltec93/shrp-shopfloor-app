@@ -199,6 +199,38 @@ export default function ProductionPlanning() {
     }
   };
 
+  // Clear / Remove Month's MPS Import Completely
+  const handleClearMonthMps = async () => {
+    if (!window.confirm(`Are you sure you want to COMPLETELY REMOVE all MPS schedules for ${selectedMonth}?\n\nThis will delete all imported lines and reset targets for this month.`)) {
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.planning.deleteMonthMps(selectedMonth);
+      setSuccessMsg(res.message || `Successfully removed all MPS records for ${selectedMonth}!`);
+      setMpsList([]);
+      setVarianceAlert(null);
+      loadTabData();
+    } catch (err) {
+      setError(err.message || 'Failed to remove MPS schedules');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete Individual MPS Schedule Item
+  const handleDeleteMpsItem = async (id, partName) => {
+    if (!window.confirm(`Delete MPS schedule for ${partName || 'this part'}?`)) return;
+    try {
+      await api.planning.deleteMpsItem(id);
+      setSuccessMsg(`MPS schedule for ${partName || 'item'} deleted.`);
+      loadTabData();
+    } catch (err) {
+      setError(err.message || 'Failed to delete MPS record');
+    }
+  };
+
   // Aggregations
   const totalDemand = mpsList.reduce((sum, item) => sum + Number(item.gross_demand_qty || item.gross_demand || 0), 0);
   const totalTarget = mpsList.reduce((sum, item) => sum + Number(item.net_production_target_qty || item.receipts_target || 0), 0);
@@ -236,6 +268,30 @@ export default function ProductionPlanning() {
               cursor: 'pointer',
             }}
           />
+          {activeTab === 'mps' && mpsList.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearMonthMps}
+              className="btn"
+              style={{
+                padding: '7px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid var(--red)',
+                color: 'var(--red)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+              title={`Completely remove all MPS schedules for ${selectedMonth}`}
+            >
+              <span>🗑</span>
+              <span>Remove Import Fully</span>
+            </button>
+          )}
           <button
             onClick={() => setShowUploadModal(true)}
             className="btn btn-primary"
@@ -344,18 +400,19 @@ export default function ProductionPlanning() {
                   <th style={{ padding: '10px 12px', textAlign: 'center' }}>Variance %</th>
                   <th style={{ padding: '10px 12px', textAlign: 'center' }}>Audit Status</th>
                   <th style={{ padding: '10px 12px' }}>Rolling Forecast</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="8" style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan="9" style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
                       Loading MPS schedules...
                     </td>
                   </tr>
                 ) : mpsList.length === 0 ? (
                   <tr>
-                    <td colSpan="8" style={{ padding: 36, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan="9" style={{ padding: 36, textAlign: 'center', color: 'var(--text-muted)' }}>
                       <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
                       <div style={{ fontWeight: 600 }}>No MPS loaded for {selectedMonth}.</div>
                       <div style={{ fontSize: 12, marginTop: 4 }}>
@@ -451,6 +508,24 @@ export default function ProductionPlanning() {
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMpsItem(m.id, m.part_name || m.part_code)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--red)',
+                              cursor: 'pointer',
+                              fontSize: 15,
+                              padding: '2px 6px',
+                              opacity: 0.8,
+                            }}
+                            title="Delete this schedule row"
+                          >
+                            🗑
+                          </button>
                         </td>
                       </tr>
                     );
