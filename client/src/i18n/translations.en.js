@@ -38,6 +38,7 @@ export const en = {
       profile: "My Profile & HR Portal",
       staff: "Staff & Logins Management",
       reports: "Daily Reports & Analytics",
+      planning: "Production Planning & MPS",
       attendance: "Attendance & Geofence",
       language: "Language"
     },
@@ -45,6 +46,7 @@ export const en = {
       home: "Home",
       entry: "Entry",
       log: "Shift Log",
+      planning: "Planning",
       masters: "Item Master",
       mouldSetup: "Mould Setup"
     }

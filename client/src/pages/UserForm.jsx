@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 
 const PAGES = [
+  { key: 'planning', label: 'Production Planning (MPS)' },
   { key: 'mould_setup', label: 'Mould Setup' },
   { key: 'entry', label: 'Production Entry' },
   { key: 'bag_entry', label: 'Bag Entry' },
@@ -19,7 +20,7 @@ const PAGES = [
 
 const DEFAULTS_BY_ROLE = {
   operator: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'dispatch', 'log', 'attendance'],
-  supervisor: ['mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'dispatch', 'log', 'approvals', 'parts', 'attendance'],
+  supervisor: ['planning', 'mould_setup', 'entry', 'bag_entry', 'trimming', 'inspection', 'packing', 'dispatch', 'log', 'approvals', 'parts', 'attendance'],
   admin: PAGES.map((p) => p.key),
 };
 

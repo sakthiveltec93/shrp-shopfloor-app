@@ -38,6 +38,7 @@ export const ta = {
       profile: "எனது சுயவிவரம் & HR",
       staff: "பணியாளர்கள் & லாகின் மேலாண்மை",
       reports: "தினசரி அறிக்கைகள்",
+      planning: "உற்பத்தி திட்டமிடல் & MPS",
       attendance: "வருகைப்பதிவு & ஜியோஃபென்ஸ்",
       language: "மொழியை மாற்று"
     },
@@ -45,6 +46,7 @@ export const ta = {
       home: "முகப்பு",
       entry: "பதிவு",
       log: "இன்றைய பதிவு",
+      planning: "திட்டமிடல் (MPS)",
       masters: "மாஸ்டர்",
       mouldSetup: "மோல்டு செட்டப்"
     }

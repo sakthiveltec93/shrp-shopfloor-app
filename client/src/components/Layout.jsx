@@ -6,6 +6,7 @@ import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
 
 const NAV_ITEMS = [
   { to: '/', labelKey: 'layout.nav.home', icon: '⌂', key: null },
+  { to: '/planning', labelKey: 'layout.nav.planning', icon: '📊', key: 'planning', supervisorOnly: true },
   { to: '/entry', labelKey: 'layout.nav.entry', icon: '📝', key: 'entry' },
   { to: '/log', labelKey: 'layout.nav.log', icon: '📋', key: 'log' },
   { to: '/masters', labelKey: 'layout.nav.masters', icon: '🗂️', key: 'masters', supervisorOnly: true },
@@ -342,6 +343,17 @@ export default function Layout({ children }) {
                       >
                         <span>🗂️</span>
                         <span>{t('layout.menu.masters') || 'Item & Masters Hub'}</span>
+                      </button>
+                    )}
+                    {isSupervisorOrAdmin && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', fontSize: 12 }}
+                        onClick={() => { setShowSettings(false); navigate('/planning'); }}
+                      >
+                        <span>📊</span>
+                        <span>{t('layout.menu.planning') || 'Production Planning & MPS'}</span>
                       </button>
                     )}
                     {isAdmin && (

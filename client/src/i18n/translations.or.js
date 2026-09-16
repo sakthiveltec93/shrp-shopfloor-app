@@ -38,6 +38,7 @@ export const or = {
       profile: "Mora Profile & HR",
       staff: "Staff Parichalana",
       reports: "Dainika Report",
+      planning: "Utpadana Yojana & MPS",
       attendance: "Upasthiti & Geofence",
       language: "Bhasa Paribartan (Language)"
     },
@@ -45,6 +46,7 @@ export const or = {
       home: "Home",
       entry: "Entry",
       log: "Shift Log",
+      planning: "Yojana (MPS)",
       masters: "Masters",
       mouldSetup: "Mould Setup"
     }
