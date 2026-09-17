@@ -70,11 +70,6 @@ export default function Home() {
     const hint = (t(`home.tiles.${tile.key}.hint`) || tile.hint || '').toLowerCase();
     return label.includes(q) || hint.includes(q) || tile.key.includes(q);
   };
-    const q = search.toLowerCase();
-    const label = (t(`home.tiles.${tile.key}.label`) || '').toLowerCase();
-    const hint = (t(`home.tiles.${tile.key}.hint`) || '').toLowerCase();
-    return label.includes(q) || hint.includes(q) || tile.key.includes(q);
-  };
 
   return (
     <div className="screen" style={{ paddingBottom: 24 }}>
