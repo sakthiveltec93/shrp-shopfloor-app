@@ -1085,15 +1085,25 @@ async function syncParts(closePool = false) {
       if (existing.rows.length > 0) {
         await client.query(
           `UPDATE parts SET
-            shrp_part_code = COALESCE(shrp_part_code, $1),
-            customer_part_no = COALESCE(customer_part_no, $2),
+            part_code = COALESCE(NULLIF(part_code, ''), $1),
+            shrp_part_code = $1,
+            customer_part_no = $2,
+            part_weight_g = $4,
+            trim_required = $5,
+            inspection_required = $6,
+            packing_required = $7,
+            dispatch_required = $8,
+            tolerance_pct = $9,
+            standard_pack_qty = $10,
+            cavity_count = $11,
+            unit_weight_g = $12,
+            batch_part_code = $13,
             active = TRUE
           WHERE id = $3`,
-          [shrpCode, custPartNo, existing.rows[0].id]
+          [shrpCode, custPartNo, existing.rows[0].id, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode]
         );
       } else {
-        const nextCodeRes = await client.query("SELECT 'SHRP-P' || LPAD((COALESCE(MAX(SUBSTRING(part_code FROM 7)::INTEGER), 0) + 1)::TEXT, 3, '0') AS next_code FROM parts WHERE part_code LIKE 'SHRP-P%'");
-        const nextCode = nextCodeRes.rows[0]?.next_code || ('SHRP-P' + String(Date.now()).slice(-3));
+        const cleanCode = shrpCode || custPartNo;
         await client.query(
           `INSERT INTO parts (
             part_code, shrp_part_code, customer_part_no, part_name,
@@ -1101,7 +1111,7 @@ async function syncParts(closePool = false) {
             tolerance_pct, standard_pack_qty, cavity_count, unit_weight_g, batch_part_code, active,
             standard_cycle_time_sec
           ) VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, 30)`,
-          [nextCode, shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode]
+          [cleanCode, shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode]
         );
       }
     }

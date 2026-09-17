@@ -2,7 +2,13 @@ const path = require('path');
 const fs = require('fs');
 const XLSX = require('xlsx');
 
-const erpFile = path.join(__dirname, '..', '..', 'Erp Master Requirements.xlsx');
+let erpFile = path.join(__dirname, '..', '..', 'Erp Master Requirements.xlsx');
+if (!fs.existsSync(erpFile)) {
+  erpFile = path.join(__dirname, '..', '..', 'scratch', 'Erp_Master.xlsx');
+}
+if (!fs.existsSync(erpFile)) {
+  erpFile = '/app/scratch/Erp_Master.xlsx';
+}
 
 function parseSheetDynamic(filePath, sheetName, expectedKeyHeaders = []) {
   const wb = XLSX.readFile(filePath);
@@ -495,14 +501,10 @@ ON CONFLICT (gauge_code) DO UPDATE SET
 });
 
 sql += `\n-- 7. Upsert 76 Parts & Workcenter Linkages\n`;
-sql += `
--- Avoid unique constraint collisions during batch rename by prefixing all codes temporarily
-UPDATE parts SET part_code = 'TEMP_' || id;
-`;
 
 parts.forEach((p, idx) => {
   const defaultCycleTime = p.workcenters.length > 0 ? p.workcenters[0].cycleTime : 30;
-  const partCode = 'SHRP-P' + String(idx + 1).padStart(3, '0');
+  const partCode = p.shrpPartCode || p.customerPartNo;
   sql += `
 DO $$
 DECLARE
@@ -512,7 +514,6 @@ BEGIN
   WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower(${escapeSql(p.shrpPartCode)}))
      OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower(${escapeSql(p.customerPartNo)}))
      OR lower(part_code) = lower(${escapeSql(partCode)})
-     OR lower(part_code) = lower('TEMP_' || ${escapeSql(p.shrpPartCode)})
      OR lower(part_code) = lower(${escapeSql(p.shrpPartCode)})
      OR lower(part_code) = lower(${escapeSql(p.customerPartNo)})
   ORDER BY
