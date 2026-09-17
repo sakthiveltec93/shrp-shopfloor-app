@@ -2,59 +2,83 @@ const pool = require('./pool');
 
 async function auditDuplicates() {
   try {
-    console.log('\n=================== DUPLICATE & FK AUDIT REPORT ===================');
-
-    // 1. parts duplicates by part_code
+    // 1. parts duplicates by part_code (case-insensitive & trimmed)
     const { rows: partCodeDups } = await pool.query(`
-      SELECT part_code, COUNT(*), array_agg(id) as ids, array_agg(active) as active_states
+      SELECT UPPER(TRIM(part_code)) AS normalized_part_code,
+             COUNT(*) AS count,
+             array_agg(id ORDER BY id) AS ids,
+             array_agg(part_code ORDER BY id) AS raw_part_codes,
+             array_agg(part_name ORDER BY id) AS part_names,
+             array_agg(active ORDER BY id) AS active_states
       FROM parts
-      GROUP BY part_code
+      WHERE part_code IS NOT NULL AND TRIM(part_code) != ''
+      GROUP BY UPPER(TRIM(part_code))
       HAVING COUNT(*) > 1
     `);
-    console.log(`[AUDIT] 1. Duplicate part_code count: ${partCodeDups.length}`);
-    if (partCodeDups.length > 0) {
-      console.log(JSON.stringify(partCodeDups, null, 2));
-    }
 
-    // 2. parts duplicates by shrp_part_code
+    // 2. parts duplicates by shrp_part_code (excluding placeholders like NA, N/A, NONE, -)
     const { rows: shrpCodeDups } = await pool.query(`
-      SELECT shrp_part_code, COUNT(*), array_agg(id) as ids, array_agg(part_code) as part_codes, array_agg(active) as active_states
+      SELECT UPPER(TRIM(shrp_part_code)) AS normalized_shrp_code,
+             COUNT(*) AS count,
+             array_agg(id ORDER BY id) AS ids,
+             array_agg(part_code ORDER BY id) AS part_codes,
+             array_agg(shrp_part_code ORDER BY id) AS raw_shrp_codes,
+             array_agg(part_name ORDER BY id) AS part_names,
+             array_agg(active ORDER BY id) AS active_states
       FROM parts
       WHERE shrp_part_code IS NOT NULL
-      GROUP BY shrp_part_code
+        AND TRIM(shrp_part_code) != ''
+        AND UPPER(TRIM(shrp_part_code)) NOT IN ('NA', 'N/A', 'NONE', '-', '--', 'N.A.', 'N.A', 'NULL', 'N A')
+      GROUP BY UPPER(TRIM(shrp_part_code))
       HAVING COUNT(*) > 1
     `);
-    console.log(`[AUDIT] 2. Duplicate shrp_part_code count: ${shrpCodeDups.length}`);
-    if (shrpCodeDups.length > 0) {
-      console.log(JSON.stringify(shrpCodeDups, null, 2));
-    }
 
-    // 3. users duplicates by username
+    // 3. parts duplicates by customer_part_no (excluding placeholders)
+    const { rows: customerPartNoDups } = await pool.query(`
+      SELECT UPPER(TRIM(customer_part_no)) AS normalized_customer_part_no,
+             COUNT(*) AS count,
+             array_agg(id ORDER BY id) AS ids,
+             array_agg(part_code ORDER BY id) AS part_codes,
+             array_agg(customer_part_no ORDER BY id) AS raw_customer_part_nos,
+             array_agg(part_name ORDER BY id) AS part_names,
+             array_agg(active ORDER BY id) AS active_states
+      FROM parts
+      WHERE customer_part_no IS NOT NULL
+        AND TRIM(customer_part_no) != ''
+        AND UPPER(TRIM(customer_part_no)) NOT IN ('NA', 'N/A', 'NONE', '-', '--', 'N.A.', 'N.A', 'NULL', 'N A')
+      GROUP BY UPPER(TRIM(customer_part_no))
+      HAVING COUNT(*) > 1
+    `);
+
+    // 4. users duplicates by username (case-insensitive)
     const { rows: usernameDups } = await pool.query(`
-      SELECT username, COUNT(*), array_agg(id) as ids
+      SELECT LOWER(TRIM(username)) AS normalized_username,
+             COUNT(*) AS count,
+             array_agg(id ORDER BY id) AS ids,
+             array_agg(username ORDER BY id) AS raw_usernames,
+             array_agg(role ORDER BY id) AS roles,
+             array_agg(active ORDER BY id) AS active_states,
+             array_agg(deleted_at IS NOT NULL ORDER BY id) AS is_deleted
       FROM users
-      GROUP BY username
+      GROUP BY LOWER(TRIM(username))
       HAVING COUNT(*) > 1
     `);
-    console.log(`[AUDIT] 3. Duplicate username count: ${usernameDups.length}`);
-    if (usernameDups.length > 0) {
-      console.log(JSON.stringify(usernameDups, null, 2));
-    }
 
-    // 4. users duplicates by UPPER(TRIM(full_name)) where deleted_at IS NULL
+    // 5. users duplicates by UPPER(TRIM(full_name)) where deleted_at IS NULL
     const { rows: nameDups } = await pool.query(`
-      SELECT UPPER(TRIM(full_name)) as full_name, COUNT(*), array_agg(id) as ids, array_agg(username) as usernames, array_agg(role) as roles, array_agg(active) as active_states
+      SELECT UPPER(TRIM(full_name)) AS normalized_name,
+             COUNT(*) AS count,
+             array_agg(id ORDER BY id) AS ids,
+             array_agg(username ORDER BY id) AS usernames,
+             array_agg(role ORDER BY id) AS roles,
+             array_agg(active ORDER BY id) AS active_states
       FROM users
       WHERE deleted_at IS NULL
       GROUP BY UPPER(TRIM(full_name))
       HAVING COUNT(*) > 1
     `);
-    console.log(`[AUDIT] 4. Duplicate user full_names (deleted_at IS NULL): ${nameDups.length}`);
-    if (nameDups.length > 0) {
-      console.log(JSON.stringify(nameDups, null, 2));
-    }
 
-    // 5. Inactive parts FK reference check
+    // 6. Inactive parts FK reference check (for historical traceability)
     const { rows: inactivePartsWithFk } = await pool.query(`
       SELECT
         p.id,
@@ -83,25 +107,33 @@ async function auditDuplicates() {
       Number(p.machine_assignments_count) > 0
     );
 
-    console.log(`[AUDIT] 5. Total inactive parts: ${inactivePartsWithFk.length}`);
-    console.log(`[AUDIT] 5a. Inactive parts WITH historical references (MUST KEEP for FK integrity): ${referencedInactive.length}`);
-    if (referencedInactive.length > 0) {
-      console.log(JSON.stringify(referencedInactive, null, 2));
-    }
-    console.log('====================================================================\n');
+    const unreferencedInactive = inactivePartsWithFk.filter((p) =>
+      Number(p.production_entries_count) === 0 &&
+      Number(p.bags_count) === 0 &&
+      Number(p.trim_entries_count) === 0 &&
+      Number(p.inspection_entries_count) === 0 &&
+      Number(p.packing_entries_count) === 0 &&
+      Number(p.machine_assignments_count) === 0
+    );
 
     return {
+      timestamp: new Date().toISOString(),
       partCodeDuplicates: partCodeDups,
       shrpCodeDuplicates: shrpCodeDups,
+      customerPartNoDuplicates: customerPartNoDups,
       usernameDuplicates: usernameDups,
-      nameDuplicates: nameDups,
-      totalInactiveParts: inactivePartsWithFk.length,
-      inactivePartsWithHistory: referencedInactive,
-      allInactiveParts: inactivePartsWithFk,
+      activeUserNameDuplicates: nameDups,
+      inactiveParts: {
+        total: inactivePartsWithFk.length,
+        withHistoricalReferencesCount: referencedInactive.length,
+        withoutHistoricalReferencesCount: unreferencedInactive.length,
+        withHistoricalReferences: referencedInactive,
+        withoutHistoricalReferences: unreferencedInactive,
+      },
     };
   } catch (err) {
-    console.error('[AUDIT] Failed to audit duplicates:', err.message);
-    return null;
+    console.error('[AUDIT] Failed to execute duplicate audit:', err.message);
+    return { error: err.message };
   }
 }
 

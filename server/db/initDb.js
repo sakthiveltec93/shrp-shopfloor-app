@@ -5,7 +5,6 @@ const { syncParts } = require('./clean_parts');
 const { syncMoulds } = require('./sync_moulds');
 const { syncMaterials } = require('./seed_materials');
 const { syncPartPhotos } = require('./seed_photos');
-const { auditDuplicates } = require('./audit_duplicates');
 
 async function initDb() {
   try {
@@ -53,8 +52,6 @@ async function initDb() {
       WHERE (bag_code ILIKE '%-SCRAP%' OR bag_code ILIKE '%SCRAP%') AND bag_type != 'SCRAP'
     `);
     console.log('[DB-INIT] Bag types cleaned up successfully.');
-
-    await auditDuplicates();
   } catch (err) {
     console.error('[DB-INIT] Warning during database init:', err.message || err);
   }
