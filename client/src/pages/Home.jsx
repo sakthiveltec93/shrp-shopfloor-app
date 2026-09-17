@@ -2,86 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
-
-const ERP_SECTIONS = [
-  {
-    id: 'production',
-    sectionKey: 'production',
-    title: 'Shopfloor Production',
-    tagline: 'Mould Setup · Hourly Entries · Bagging · Log',
-    icon: '🏭',
-    accentColor: '#f59e0b', // amber
-    badgeBg: 'rgba(245, 158, 11, 0.15)',
-    tiles: [
-      { key: 'planning', to: '/planning', icon: '📊', supervisorOnly: true },
-      { key: 'mould_setup', to: '/mould-setup', icon: '⚙', supervisorOnly: true },
-      { key: 'entry', to: '/entry', icon: '📝' },
-      { key: 'bag_entry', to: '/bag-entry', icon: '◧' },
-      { key: 'log', to: '/log', icon: '📋' },
-      { key: 'approvals', to: '/approvals', icon: '✓', supervisorOnly: true },
-    ],
-  },
-  {
-    id: 'quality',
-    sectionKey: 'quality',
-    title: 'Quality & Finishing Stages',
-    tagline: 'Trimming · Inspection · Packing · Dispatch · Rework',
-    icon: '⚡',
-    accentColor: '#10b981', // emerald
-    badgeBg: 'rgba(168, 85, 247, 0.15)',
-    tiles: [
-      { key: 'trimming', to: '/trimming', icon: '✂' },
-      { key: 'inspection', to: '/inspection', icon: '◎' },
-      { key: 'packing', to: '/packing', icon: '▧' },
-      { key: 'dispatch', to: '/dispatch', icon: '🚚' },
-      { key: 'rework', to: '/rework', icon: '🛠️' },
-    ],
-  },
-  {
-    id: 'materials',
-    sectionKey: 'materials',
-    title: 'Materials & Compounding',
-    tagline: 'RM Inward QA · Stock Register · Blend Recipes',
-    icon: '📦',
-    accentColor: '#3b82f6', // blue
-    badgeBg: 'rgba(59, 130, 246, 0.15)',
-    tiles: [
-      { key: 'rm_inward', to: '/rm-inward', icon: '📥', supervisorOnly: true },
-      { key: 'rm_stock', to: '/rm-stock', icon: '📦', supervisorOnly: true },
-      { key: 'recipes', to: '/recipes', icon: '🧪', supervisorOnly: true },
-    ],
-  },
-  {
-    id: 'tooling_mgmt',
-    sectionKey: 'tooling',
-    title: 'Tooling, TPM & Management',
-    tagline: 'Fleet Status · Tool Life · Reports · TPM Master',
-    icon: '⚙️',
-    accentColor: '#a855f7', // purple
-    badgeBg: 'rgba(168, 85, 247, 0.15)',
-    tiles: [
-      { key: 'machines', to: '/machines', icon: '🖥️', supervisorOnly: true },
-      { key: 'moulds', to: '/moulds', icon: '⚙️', supervisorOnly: true },
-      { key: 'reports', to: '/reports', icon: '📊', supervisorOnly: true },
-      { key: 'masters_hub', to: '/masters', icon: '🗂️', supervisorOnly: true },
-    ],
-  },
-  {
-    id: 'staff_hr',
-    sectionKey: 'staff_hr',
-    title: 'Staff, HR & Organization',
-    tagline: 'Staff Accounts · My Profile · Leave Requests · PIN',
-    icon: '👥',
-    accentColor: '#ec4899', // pink
-    badgeBg: 'rgba(236, 72, 153, 0.15)',
-    tiles: [
-      { key: 'users', to: '/users', icon: '👥', adminOnly: true },
-      { key: 'profile', to: '/profile', icon: '👤' },
-      { key: 'attendance_menu', to: '/attendance', icon: '🕒' },
-      { key: 'change_pin_menu', to: '/change-pin', icon: '🔑' },
-    ],
-  },
-];
+import { ERP_SECTIONS } from '../navigationSections';
 
 const STORAGE_KEY = 'shrp_erp_expanded_sections';
 
@@ -96,12 +17,16 @@ export default function Home() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
-    // Default: first two sections open for quick one-tap access
+    // Default: first three sections open for quick one-tap access
     return {
       production: true,
       quality: true,
+      planning: true,
       materials: false,
       tooling_mgmt: false,
+      commercial: false,
+      reports: false,
+      staff_hr: false,
     };
   });
 
@@ -114,13 +39,15 @@ export default function Home() {
   };
 
   const expandAll = () => {
-    const all = { production: true, quality: true, materials: true, tooling_mgmt: true };
+    const all = {};
+    ERP_SECTIONS.forEach((s) => { all[s.id] = true; });
     setExpanded(all);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
   };
 
   const collapseAll = () => {
-    const all = { production: false, quality: false, materials: false, tooling_mgmt: false };
+    const all = {};
+    ERP_SECTIONS.forEach((s) => { all[s.id] = false; });
     setExpanded(all);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
   };
@@ -132,12 +59,17 @@ export default function Home() {
     if (tile.adminOnly && !isAdmin) return false;
     if (tile.supervisorOnly && !isSupervisorOrAdmin) return false;
     if (isSupervisorOrAdmin) return true;
-    if (['rework'].includes(tile.key)) return true;
-    return Array.isArray(user.pages) && user.pages.includes(tile.key);
+    if (['rework', 'dispatch'].includes(tile.key)) return true;
+    return !tile.key || (Array.isArray(user.pages) && user.pages.includes(tile.key));
   };
 
   const matchesSearch = (tile) => {
     if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const label = (t(`home.tiles.${tile.key}.label`) || tile.label || '').toLowerCase();
+    const hint = (t(`home.tiles.${tile.key}.hint`) || tile.hint || '').toLowerCase();
+    return label.includes(q) || hint.includes(q) || tile.key.includes(q);
+  };
     const q = search.toLowerCase();
     const label = (t(`home.tiles.${tile.key}.label`) || '').toLowerCase();
     const hint = (t(`home.tiles.${tile.key}.hint`) || '').toLowerCase();
@@ -381,25 +313,54 @@ export default function Home() {
                 >
                   <div className="tile-grid" style={{ marginTop: 4 }}>
                     {visibleTiles.map((tile) => (
-                      <Link
-                        key={tile.key}
-                        to={tile.to}
-                        className="tile"
-                        style={{
-                          borderLeftColor: section.accentColor,
-                          padding: '12px 10px',
-                        }}
-                      >
-                        <span className="tile-icon" style={{ fontSize: 20, marginBottom: 4 }}>
-                          {tile.icon}
-                        </span>
-                        <span className="tile-label" style={{ fontSize: 13, marginBottom: 2 }}>
-                          {t(`home.tiles.${tile.key}.label`)}
-                        </span>
-                        <span className="tile-hint" style={{ fontSize: 11 }}>
-                          {t(`home.tiles.${tile.key}.hint`)}
-                        </span>
-                      </Link>
+                      tile.to ? (
+                        <Link
+                          key={tile.key}
+                          to={tile.to}
+                          className="tile"
+                          style={{
+                            borderLeftColor: section.accentColor,
+                            padding: '12px 10px',
+                          }}
+                        >
+                          <span className="tile-icon" style={{ fontSize: 20, marginBottom: 4 }}>
+                            {tile.icon}
+                          </span>
+                          <span className="tile-label" style={{ fontSize: 13, marginBottom: 2 }}>
+                            {t(`home.tiles.${tile.key}.label`) || tile.label}
+                          </span>
+                          <span className="tile-hint" style={{ fontSize: 11 }}>
+                            {t(`home.tiles.${tile.key}.hint`) || tile.hint}
+                          </span>
+                        </Link>
+                      ) : (
+                        <div
+                          key={tile.key}
+                          className="tile"
+                          style={{
+                            borderLeftColor: 'var(--line)',
+                            padding: '12px 10px',
+                            opacity: 0.65,
+                            cursor: 'not-allowed',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <span className="tile-icon" style={{ fontSize: 20, marginBottom: 4 }}>
+                              {tile.icon}
+                            </span>
+                            <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(255, 255, 255, 0.1)', padding: '2px 5px', borderRadius: 4, color: 'var(--text-muted)' }}>
+                              SOON
+                            </span>
+                          </div>
+                          <span className="tile-label" style={{ fontSize: 13, marginBottom: 2 }}>
+                            {t(`home.tiles.${tile.key}.label`) || tile.label}
+                          </span>
+                          <span className="tile-hint" style={{ fontSize: 11 }}>
+                            {t(`home.tiles.${tile.key}.hint`) || tile.hint}
+                          </span>
+                        </div>
+                      )
                     ))}
                   </div>
                 </div>

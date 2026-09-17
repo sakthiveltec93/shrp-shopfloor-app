@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
 import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
-
-const NAV_ITEMS = [
-  { to: '/', labelKey: 'layout.nav.home', icon: '⌂', key: null },
-  { to: '/planning', labelKey: 'layout.nav.planning', icon: '📊', key: 'planning', supervisorOnly: true },
-  { to: '/entry', labelKey: 'layout.nav.entry', icon: '📝', key: 'entry' },
-  { to: '/log', labelKey: 'layout.nav.log', icon: '📋', key: 'log' },
-  { to: '/masters', labelKey: 'layout.nav.masters', icon: '🗂️', key: 'masters', supervisorOnly: true },
-  { to: '/mould-setup', labelKey: 'layout.nav.mouldSetup', icon: '⚙', key: 'mould_setup', supervisorOnly: true },
-];
+import { ERP_SECTIONS } from '../navigationSections';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -19,8 +11,11 @@ export default function Layout({ children }) {
   const { lang, setLang, t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [moreSearch, setMoreSearch] = useState('');
   const [todayAttendance, setTodayAttendance] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -38,15 +33,49 @@ export default function Layout({ children }) {
   }, [user]);
 
   const isSupervisorOrAdmin = user && (user.role === 'admin' || user.role === 'supervisor');
-  const visibleNavItems = user
-    ? NAV_ITEMS.filter((item) => {
-        if (item.supervisorOnly && !isSupervisorOrAdmin) return false;
-        return !item.key || isSupervisorOrAdmin || (Array.isArray(user.pages) && user.pages.includes(item.key));
-      })
-    : [];
   const hasAttendanceAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('attendance')));
   const hasReportsAccess = user && (user.role === 'admin' || (Array.isArray(user.pages) && user.pages.includes('reports')));
   const isAdmin = user && user.role === 'admin';
+
+  // Role-based 4-icon bottom bar:
+  // Operator: Home · Entry · Shift Log · Alerts
+  // Supervisor/Quality: Home · Entry · Quality · Alerts
+  // Admin/Office: Home · Entry · Planning · More
+  const getRoleBottomNav = () => {
+    if (!user) return [];
+    const role = user.role;
+    const isQuality = role === 'quality' || role === 'quality_inspector';
+
+    const baseItems = [
+      { to: '/', labelKey: 'layout.nav.home', icon: '⌂', id: 'home' },
+      { to: '/entry', labelKey: 'layout.nav.entry', icon: '📝', id: 'entry' },
+    ];
+
+    if (role === 'admin' || role === 'office') {
+      return [
+        ...baseItems,
+        { to: '/planning', labelKey: 'layout.nav.planning', icon: '📊', id: 'planning' },
+        { action: 'more', labelKey: 'layout.nav.more', icon: '☰', id: 'more' },
+      ];
+    }
+
+    if (role === 'supervisor' || isQuality) {
+      return [
+        ...baseItems,
+        { to: '/inspection', labelKey: 'layout.nav.quality', icon: '⚡', id: 'quality' },
+        { to: '/alerts', labelKey: 'layout.nav.alerts', icon: '🔔', id: 'alerts', badge: alertCount },
+      ];
+    }
+
+    // Operator (default)
+    return [
+      ...baseItems,
+      { to: '/log', labelKey: 'layout.nav.log', icon: '📋', id: 'log' },
+      { to: '/alerts', labelKey: 'layout.nav.alerts', icon: '🔔', id: 'alerts', badge: alertCount },
+    ];
+  };
+
+  const navItems = getRoleBottomNav();
 
   useEffect(() => {
     function handleOnline() {
@@ -116,8 +145,30 @@ export default function Layout({ children }) {
         // Suppress any unexpected synchronous error
       }
     };
+
+    const fetchAlerts = () => {
+      try {
+        const alertCall = api.getAlerts?.();
+        if (alertCall && typeof alertCall.then === 'function') {
+          alertCall
+            .then((data) => {
+              if (data && typeof data.totalCount === 'number') {
+                setAlertCount(data.totalCount);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // Suppress
+      }
+    };
+
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000);
+    fetchAlerts();
+    const interval = setInterval(() => {
+      fetchNotifs();
+      fetchAlerts();
+    }, 20000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -474,18 +525,225 @@ export default function Layout({ children }) {
 
       {user && (
         <nav className="bottom-nav">
-          {visibleNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
-              end={item.to === '/'}
-            >
-              <span className="bottom-nav-icon">{item.icon}</span>
-              <span>{t(item.labelKey)}</span>
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            if (item.action === 'more') {
+              return (
+                <button
+                  key="more-btn"
+                  type="button"
+                  className={`bottom-nav-item${showMoreMenu ? ' active' : ''}`}
+                  onClick={() => setShowMoreMenu((v) => !v)}
+                  title="All Modules"
+                >
+                  <span className="bottom-nav-icon-wrapper">
+                    <span className="bottom-nav-icon">{item.icon}</span>
+                  </span>
+                  <span>{t(item.labelKey)}</span>
+                </button>
+              );
+            }
+
+            return (
+              <NavLink
+                key={item.id || item.to}
+                to={item.to}
+                className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
+                end={item.to === '/'}
+              >
+                <span className="bottom-nav-icon-wrapper">
+                  <span className="bottom-nav-icon">{item.icon}</span>
+                  {item.badge > 0 && (
+                    <span className="bottom-nav-badge">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </span>
+                <span>{t(item.labelKey)}</span>
+              </NavLink>
+            );
+          })}
         </nav>
+      )}
+
+      {/* Admin "More" Full Module Drawer Modal */}
+      {showMoreMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 100,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-end',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMoreMenu(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              maxHeight: '85vh',
+              background: 'var(--panel)',
+              borderTop: '2px solid var(--amber)',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: '16px 14px 30px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.8)',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', textTransform: 'uppercase' }}>
+                  SHRP Navigation Directory
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
+                  All ERP & MES Modules
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMoreMenu(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text)',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Search */}
+            <input
+              type="text"
+              placeholder="🔍 Search all modules…"
+              value={moreSearch}
+              onChange={(e) => setMoreSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: 13,
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid var(--line)',
+                borderRadius: 6,
+                color: 'var(--text)',
+                outline: 'none',
+              }}
+            />
+
+            {/* Modules Grid / Categories */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+              {ERP_SECTIONS.map((section) => {
+                const q = moreSearch.toLowerCase().trim();
+                const filteredTiles = section.tiles.filter((tile) => {
+                  if (tile.adminOnly && !isAdmin) return false;
+                  if (tile.supervisorOnly && !isSupervisorOrAdmin) return false;
+                  if (!q) return true;
+                  const label = (t(`home.tiles.${tile.key}.label`) || tile.label || '').toLowerCase();
+                  const hint = (t(`home.tiles.${tile.key}.hint`) || tile.hint || '').toLowerCase();
+                  return label.includes(q) || hint.includes(q) || tile.key.includes(q);
+                });
+
+                if (filteredTiles.length === 0) return null;
+
+                return (
+                  <div
+                    key={`more-${section.id}`}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--line)',
+                      borderLeft: `3px solid ${section.accentColor}`,
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{section.icon}</span>
+                      <span>{t(`home.sections.${section.sectionKey}.title`) || section.title}</span>
+                    </div>
+
+                    <div className="tile-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                      {filteredTiles.map((tile) => (
+                        tile.to ? (
+                          <button
+                            key={`more-tile-${tile.key}`}
+                            type="button"
+                            className="tile"
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              navigate(tile.to);
+                            }}
+                            style={{
+                              borderLeftColor: section.accentColor,
+                              padding: '10px 8px',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              background: 'var(--panel)',
+                              width: '100%',
+                            }}
+                          >
+                            <span className="tile-icon" style={{ fontSize: 18, marginBottom: 2 }}>
+                              {tile.icon}
+                            </span>
+                            <span className="tile-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                              {t(`home.tiles.${tile.key}.label`) || tile.label}
+                            </span>
+                            <span className="tile-hint" style={{ fontSize: 10 }}>
+                              {t(`home.tiles.${tile.key}.hint`) || tile.hint}
+                            </span>
+                          </button>
+                        ) : (
+                          <div
+                            key={`more-tile-${tile.key}`}
+                            className="tile"
+                            style={{
+                              borderLeftColor: 'var(--line)',
+                              padding: '10px 8px',
+                              opacity: 0.6,
+                              background: 'rgba(255, 255, 255, 0.02)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="tile-icon" style={{ fontSize: 18, marginBottom: 2 }}>
+                                {tile.icon}
+                              </span>
+                              <span style={{ fontSize: 8, fontWeight: 700, background: 'rgba(255, 255, 255, 0.1)', padding: '1px 4px', borderRadius: 3 }}>
+                                SOON
+                              </span>
+                            </div>
+                            <span className="tile-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                              {t(`home.tiles.${tile.key}.label`) || tile.label}
+                            </span>
+                            <span className="tile-hint" style={{ fontSize: 10 }}>
+                              {t(`home.tiles.${tile.key}.hint`) || tile.hint}
+                            </span>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

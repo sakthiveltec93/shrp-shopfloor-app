@@ -134,7 +134,14 @@
   color: var(--text-muted);
   text-decoration: none;
   font-size: 11px;
+  font-weight: 600;
   border-top: 2px solid transparent;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+  position: relative;
 }
 
 .bottom-nav-item.active {
@@ -142,8 +149,34 @@
   border-top-color: var(--amber);
 }
 
+.bottom-nav-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .bottom-nav-icon {
   font-size: 20px;
+  line-height: 1;
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid var(--panel);
   line-height: 1;
 }
 

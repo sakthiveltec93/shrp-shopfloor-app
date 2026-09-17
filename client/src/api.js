@@ -375,6 +375,15 @@ export const api = {
     downloadPdfUrl: (id) => `${BASE}/fpa/pdf/${id}`,
   },
 
+  notifications: {
+    list: () => request('/notifications'),
+    unread: () => request('/notifications'),
+    getAlerts: () => request('/notifications/alerts'),
+    read: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
+    readAll: () => request('/notifications/read-all', { method: 'POST' }),
+  },
+  getAlerts: () => request('/notifications/alerts'),
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

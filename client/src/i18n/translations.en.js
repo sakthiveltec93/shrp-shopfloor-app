@@ -47,6 +47,9 @@ export const en = {
       entry: "Entry",
       log: "Shift Log",
       planning: "Planning",
+      quality: "Quality",
+      alerts: "Alerts",
+      more: "More",
       masters: "Item Master",
       mouldSetup: "Mould Setup"
     }
@@ -71,6 +74,10 @@ export const en = {
         title: "Quality & Finishing Stages",
         tagline: "Trimming · Inspection · Packing · Dispatch · Rework"
       },
+      planning: {
+        title: "Planning & Schedule",
+        tagline: "MPS · Daily Schedules · Milestones · Plan vs Actual"
+      },
       materials: {
         title: "Materials & Compounding",
         tagline: "RM Inward QA · Stock Register · Blend Recipes"
@@ -78,6 +85,14 @@ export const en = {
       tooling: {
         title: "Tooling, TPM & Management",
         tagline: "Fleet Status · Tool Life · Reports · Part Master"
+      },
+      commercial: {
+        title: "Commercial & Orders",
+        tagline: "Purchase · Quotations · Invoicing · Customer Dispatch"
+      },
+      reports: {
+        title: "Reports & Analytics",
+        tagline: "Cross-Module Reports · Production Analytics · Exports"
       },
       staff_hr: {
         title: "Staff, HR & Organization",

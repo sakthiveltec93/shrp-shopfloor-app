@@ -46,7 +46,10 @@ export const or = {
       home: "Home",
       entry: "Entry",
       log: "Shift Log",
-      planning: "Yojana (MPS)",
+      planning: "Yojana",
+      quality: "Quality",
+      alerts: "Alerts",
+      more: "Adhika",
       masters: "Masters",
       mouldSetup: "Mould Setup"
     }
@@ -71,6 +74,10 @@ export const or = {
         title: "Gunabatta & Finishing (Quality)",
         tagline: "Trimming · Inspection · Packing · Dispatch"
       },
+      planning: {
+        title: "Yojana & Samayanirdharana (Planning)",
+        tagline: "MPS · Dainika Lakshya · Dispatch Yojana"
+      },
       materials: {
         title: "Kanchamal & Compounding (Raw Material)",
         tagline: "Inward Check · Stock Register · Recipe"
@@ -78,6 +85,14 @@ export const or = {
       tooling: {
         title: "Machine & Mould Parichalana",
         tagline: "Machine Status · Mould Ayusha · Part Master"
+      },
+      commercial: {
+        title: "Banijyika Bibhaga (Commercial)",
+        tagline: "Purchase · Quotation · Invoicing · Dispatch"
+      },
+      reports: {
+        title: "Bibaranika & Bislesana (Reports)",
+        tagline: "Dainika Utpadana Bibaranika · Graf · Export"
       },
       staff_hr: {
         title: "Karmachari & HR Parichalana",

@@ -33,6 +33,7 @@ import PartRecipes from './pages/PartRecipes'
 import Profile from './pages/Profile'
 import MastersHub from './pages/MastersHub'
 import ProductionPlanning from './pages/ProductionPlanning'
+import Alerts from './pages/Alerts'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function HeartbeatTracker() {
@@ -64,6 +65,7 @@ export default function App() {
           <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute roles={['admin', 'supervisor']} page="reports"><Reports /></ProtectedRoute>} />
           <Route path="/machines" element={<ProtectedRoute roles={['admin', 'supervisor']}><MachinesDashboard /></ProtectedRoute>} />
           <Route path="/moulds" element={<ProtectedRoute roles={['admin', 'supervisor']}><MouldsDashboard /></ProtectedRoute>} />
