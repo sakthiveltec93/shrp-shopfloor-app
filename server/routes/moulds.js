@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { optimizeImage } = require('../lib/imageProcessor');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -414,12 +415,13 @@ router.post('/:id/files', requireRole('admin', 'supervisor'), async (req, res) =
     return res.status(400).json({ error: 'filename, mime_type and data_base64 are required' });
   }
 
-  const buffer = Buffer.from(data_base64, 'base64');
+  const rawBuffer = Buffer.from(data_base64, 'base64');
+  const { buffer, mime_type: finalMimeType } = await optimizeImage(rawBuffer, mime_type);
   const { rows } = await pool.query(
     `INSERT INTO mould_files (mould_id, file_type, filename, mime_type, data, uploaded_by_user_id)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, mould_id, file_type, filename, mime_type, uploaded_at`,
-    [id, file_type, filename, mime_type, buffer, req.user.id]
+    [id, file_type, filename, finalMimeType, buffer, req.user.id]
   );
   res.status(201).json(rows[0]);
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { optimizeImage } = require('../lib/imageProcessor');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -424,11 +425,12 @@ router.post('/parts/:id/files', requireRole('admin', 'supervisor'), async (req, 
   if (!filename || !mime_type || !data_base64) {
     return res.status(400).json({ error: 'filename, mime_type and data_base64 are required' });
   }
-  const buffer = Buffer.from(data_base64, 'base64');
+  const rawBuffer = Buffer.from(data_base64, 'base64');
+  const { buffer, mime_type: finalMimeType } = await optimizeImage(rawBuffer, mime_type);
   const { rows } = await pool.query(
     `INSERT INTO part_files (part_id, file_type, filename, mime_type, data, uploaded_by_user_id)
      VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, file_type, filename, mime_type, uploaded_at`,
-    [id, file_type, filename, mime_type, buffer, req.user.id]
+    [id, file_type, filename, finalMimeType, buffer, req.user.id]
   );
   res.status(201).json(rows[0]);
 });
@@ -501,6 +503,31 @@ router.delete('/parts/:id', requireRole('admin'), async (req, res) => {
     }
     console.error('Error deleting part:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin on-demand compression for legacy part_files images
+router.post('/compress-images', requireRole('admin'), async (req, res) => {
+  const { compressTableFiles } = require('../db/compress_part_files');
+  const client = await pool.connect();
+  try {
+    const partStats = await compressTableFiles(client, 'part_files', 'id');
+    let mouldStats = null;
+    const mouldFilesCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'mould_files'
+      )
+    `);
+    if (mouldFilesCheck.rows[0]?.exists) {
+      mouldStats = await compressTableFiles(client, 'mould_files', 'id');
+    }
+    res.json({ ok: true, part_files: partStats, mould_files: mouldStats });
+  } catch (err) {
+    console.error('Error during image compression endpoint:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

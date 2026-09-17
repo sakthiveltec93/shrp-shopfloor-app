@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const pool = require('./pool');
+const { optimizeImage } = require('../lib/imageProcessor');
 
 // Explicit overrides / aliases for filenames that don't match exactly by simple normalization
 const EXPLICIT_MAPPINGS = {
@@ -195,8 +196,9 @@ async function syncPartPhotos(closePool = false) {
       }
 
       matchedCount++;
-      const mimeType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
-      const fileBuffer = fs.readFileSync(filePath);
+      const rawMimeType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
+      const rawFileBuffer = fs.readFileSync(filePath);
+      const { buffer: fileBuffer, mime_type: mimeType } = await optimizeImage(rawFileBuffer, rawMimeType);
 
       // Check if photo already exists for this part in part_files
       const existingRes = await client.query(`
