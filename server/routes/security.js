@@ -28,7 +28,16 @@ router.get('/approved-devices', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT ad.id, ad.device_id, ad.device_label, ad.approved_at,
               ad.approval_lat, ad.approval_lng, ad.approval_distance_m,
-              u.full_name AS approved_by_name, u.username AS approved_by_username
+              u.full_name AS approved_by_name, u.username AS approved_by_username,
+              (
+                SELECT json_agg(DISTINCT jsonb_build_object('full_name', u2.full_name, 'username', u2.username))
+                FROM login_history lh
+                JOIN users u2 ON u2.id = lh.user_id
+                WHERE lh.device_id = ad.device_id
+              ) AS used_by,
+              (
+                SELECT MAX(lh.login_at) FROM login_history lh WHERE lh.device_id = ad.device_id
+              ) AS last_login_at
        FROM approved_devices ad
        LEFT JOIN users u ON u.id = ad.approved_by_user_id
        ORDER BY ad.approved_at DESC`
@@ -224,7 +233,16 @@ router.get('/blocked-devices', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT bd.id, bd.device_id, bd.reason, bd.created_at,
-              u.full_name AS blocked_by_name, u.username AS blocked_by_username
+              u.full_name AS blocked_by_name, u.username AS blocked_by_username,
+              (
+                SELECT json_agg(DISTINCT jsonb_build_object('full_name', u2.full_name, 'username', u2.username))
+                FROM login_history lh
+                JOIN users u2 ON u2.id = lh.user_id
+                WHERE lh.device_id = bd.device_id
+              ) AS used_by,
+              (
+                SELECT MAX(lh.login_at) FROM login_history lh WHERE lh.device_id = bd.device_id
+              ) AS last_login_at
        FROM blocked_devices bd
        LEFT JOIN users u ON u.id = bd.blocked_by_user_id
        ORDER BY bd.created_at DESC`

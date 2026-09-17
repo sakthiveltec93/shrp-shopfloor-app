@@ -1079,6 +1079,22 @@ export default function UsersList() {
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         Device ID: <code style={{ fontSize: 11 }}>{dev.device_id}</code>
                       </div>
+                      <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>
+                        {Array.isArray(dev.used_by) && dev.used_by.length > 0 ? (
+                          <span>
+                            👤 <strong>Used by:</strong> {dev.used_by.map((u) => u.full_name || u.username).filter(Boolean).join(', ')}
+                            {dev.last_login_at && (
+                              <span style={{ color: 'var(--text-muted)' }}>
+                                {' · '}Last login: {new Date(dev.last_login_at).toLocaleString()}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            ⏳ Not used yet
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                         Approved by {dev.approved_by_name || 'Admin'} (@{dev.approved_by_username || 'admin'}) on {new Date(dev.approved_at).toLocaleString()}
                       </div>
@@ -1151,6 +1167,22 @@ export default function UsersList() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <code style={{ fontSize: 12, color: '#f43f5e', fontWeight: 700 }}>{dev.device_id}</code>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 3 }}>
+                        {Array.isArray(dev.used_by) && dev.used_by.length > 0 ? (
+                          <span>
+                            👤 <strong>Attempted by:</strong> {dev.used_by.map((u) => u.full_name || u.username).filter(Boolean).join(', ')}
+                            {dev.last_login_at && (
+                              <span style={{ color: 'var(--text-muted)' }}>
+                                {' · '}Last seen: {new Date(dev.last_login_at).toLocaleString()}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            No login attempts recorded
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         Reason: <span style={{ color: 'var(--text)' }}>{dev.reason || 'None specified'}</span>
