@@ -336,14 +336,14 @@ CREATE TABLE IF NOT EXISTS gauges_backup_pre_reconcile AS SELECT * FROM gauges;
 
 -- 2. Ensure Schema Columns & Relational Tables
 CREATE TABLE IF NOT EXISTS part_machines (
-  id SERIAL PRIMARY KEY,
   part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
   machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
-  cycle_time_sec NUMERIC NOT NULL DEFAULT 0,
-  workcenter_order INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(part_id, machine_id)
+  PRIMARY KEY (part_id, machine_id)
 );
+ALTER TABLE part_machines ADD COLUMN IF NOT EXISTS cycle_time_sec NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE part_machines ADD COLUMN IF NOT EXISTS workcenter_order INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE part_machines ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_part_machines_part ON part_machines(part_id);
 CREATE INDEX IF NOT EXISTS idx_part_machines_machine ON part_machines(machine_id);
 
@@ -364,17 +364,22 @@ ALTER TABLE moulds ADD COLUMN IF NOT EXISTS yom INTEGER;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS mould_type TEXT;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS gate_type TEXT;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS maker TEXT;
+ALTER TABLE moulds ADD COLUMN IF NOT EXISTS tool_maker TEXT;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS rack_no TEXT;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS suitable_machines TEXT;
 ALTER TABLE moulds ADD COLUMN IF NOT EXISTS customer_name TEXT;
 
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_code TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS short_name TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS gstin TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS pan_no TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS state_code TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS plant_code TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS vendor_code TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS po_no TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS gst_type TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE;
 
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS mobile TEXT;
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS scope_of_supply TEXT;
@@ -386,7 +391,11 @@ ALTER TABLE machines ADD COLUMN IF NOT EXISTS make TEXT;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS machine_type TEXT;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS dimension TEXT;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS screw_dia NUMERIC;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS max_shot_weight_g NUMERIC;
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS hp NUMERIC;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS year_of_commission INTEGER;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS hourly_rate_inr NUMERIC DEFAULT 450;
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS tonnage NUMERIC;
 
 ALTER TABLE gauges ADD COLUMN IF NOT EXISTS serial_no TEXT;
 ALTER TABLE gauges ADD COLUMN IF NOT EXISTS make TEXT;
@@ -423,20 +432,27 @@ ON CONFLICT (machine_code) DO UPDATE SET
 sql += `\n-- 4. Upsert 10 Customers (SHRP/CUS-001 Series)\n`;
 customers.forEach(c => {
   sql += `
-INSERT INTO customers (customer_code, customer_name, short_name, address, gstin, pan_no, state_code, plant_code, vendor_code, po_no, gst_type, active)
-VALUES (${escapeSql(c.customerCode)}, ${escapeSql(c.customerName)}, ${escapeSql(c.shortName)}, ${escapeSql(c.address)}, ${escapeSql(c.gstin)}, ${escapeSql(c.pan)}, ${escapeSql(c.stateCode)}, ${escapeSql(c.plantCode)}, ${escapeSql(c.vendorCode)}, ${escapeSql(c.poNo)}, ${escapeSql(c.gstType)}, TRUE)
-ON CONFLICT (customer_code) DO UPDATE SET
-  customer_name = EXCLUDED.customer_name,
-  short_name = EXCLUDED.short_name,
-  address = EXCLUDED.address,
-  gstin = EXCLUDED.gstin,
-  pan_no = EXCLUDED.pan_no,
-  state_code = EXCLUDED.state_code,
-  plant_code = EXCLUDED.plant_code,
-  vendor_code = EXCLUDED.vendor_code,
-  po_no = EXCLUDED.po_no,
-  gst_type = EXCLUDED.gst_type,
-  active = TRUE;
+DO $$
+BEGIN
+  UPDATE customers SET
+    customer_code = ${escapeSql(c.customerCode)},
+    short_name = ${escapeSql(c.shortName)},
+    address = ${escapeSql(c.address)},
+    gstin = ${escapeSql(c.gstin)},
+    pan_no = ${escapeSql(c.pan)},
+    state_code = ${escapeSql(c.stateCode)},
+    plant_code = ${escapeSql(c.plantCode)},
+    vendor_code = ${escapeSql(c.vendorCode)},
+    po_no = ${escapeSql(c.poNo)},
+    gst_type = ${escapeSql(c.gstType)},
+    active = TRUE
+  WHERE (customer_code IS NOT NULL AND customer_code = ${escapeSql(c.customerCode)}) OR lower(name) = lower(${escapeSql(c.customerName)});
+
+  IF NOT FOUND THEN
+    INSERT INTO customers (customer_code, name, short_name, address, gstin, pan_no, state_code, plant_code, vendor_code, po_no, gst_type, active)
+    VALUES (${escapeSql(c.customerCode)}, ${escapeSql(c.customerName)}, ${escapeSql(c.shortName)}, ${escapeSql(c.address)}, ${escapeSql(c.gstin)}, ${escapeSql(c.pan)}, ${escapeSql(c.stateCode)}, ${escapeSql(c.plantCode)}, ${escapeSql(c.vendorCode)}, ${escapeSql(c.poNo)}, ${escapeSql(c.gstType)}, TRUE);
+  END IF;
+END $$;
 `;
 });
 
@@ -487,42 +503,53 @@ DO $$
 DECLARE
   v_part_id INTEGER;
 BEGIN
-  INSERT INTO parts (
-    part_code, part_name, shrp_part_code, customer_part_no, batch_part_code,
-    cavity_count, standard_cycle_time_sec, part_weight_g, unit_weight_g, shot_weight_g,
-    standard_pack_qty, trim_required, inspection_required, packing_required, dispatch_required,
-    material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
-  )
-  VALUES (
-    ${escapeSql(partCode)}, ${escapeSql(p.partName)}, ${escapeSql(p.shrpPartCode)}, ${escapeSql(p.customerPartNo)}, ${escapeSql(p.batchPartCode)},
-    ${p.cavityCount}, ${defaultCycleTime}, ${p.partWeightG}, ${p.shotWt}, ${p.shotWt},
-    ${p.standardPackQty}, ${p.trimRequired ? 'TRUE' : 'FALSE'}, ${p.inspectionRequired ? 'TRUE' : 'FALSE'}, ${p.packingRequired ? 'TRUE' : 'FALSE'}, ${p.dispatchRequired ? 'TRUE' : 'FALSE'},
-    ${escapeSql(p.materialGrade)}, ${escapeSql(p.colour)}, ${p.sellingPrice}, ${escapeSql(p.primaryPacking)}, ${escapeSql(p.secondaryPacking)}, ${p.bagsPerBinBox || 'NULL'}, ${escapeSql(JSON.stringify(p.rmRatio))}::jsonb, TRUE
-  )
-  ON CONFLICT (part_code) DO UPDATE SET
-    part_name = EXCLUDED.part_name,
-    shrp_part_code = EXCLUDED.shrp_part_code,
-    customer_part_no = EXCLUDED.customer_part_no,
-    batch_part_code = EXCLUDED.batch_part_code,
-    cavity_count = EXCLUDED.cavity_count,
-    standard_cycle_time_sec = EXCLUDED.standard_cycle_time_sec,
-    part_weight_g = EXCLUDED.part_weight_g,
-    unit_weight_g = EXCLUDED.unit_weight_g,
-    shot_weight_g = EXCLUDED.shot_weight_g,
-    standard_pack_qty = EXCLUDED.standard_pack_qty,
-    trim_required = EXCLUDED.trim_required,
-    inspection_required = EXCLUDED.inspection_required,
-    packing_required = EXCLUDED.packing_required,
-    dispatch_required = EXCLUDED.dispatch_required,
-    material_grade = EXCLUDED.material_grade,
-    color = EXCLUDED.color,
-    selling_price = EXCLUDED.selling_price,
-    primary_packing = EXCLUDED.primary_packing,
-    secondary_packing = EXCLUDED.secondary_packing,
-    bags_per_box = EXCLUDED.bags_per_box,
-    rm_ratio = EXCLUDED.rm_ratio,
-    active = TRUE
-  RETURNING id INTO v_part_id;
+  SELECT id INTO v_part_id FROM parts
+  WHERE part_code = ${escapeSql(partCode)}
+     OR (shrp_part_code IS NOT NULL AND shrp_part_code = ${escapeSql(p.shrpPartCode)})
+     OR (customer_part_no IS NOT NULL AND customer_part_no = ${escapeSql(p.customerPartNo)})
+  LIMIT 1;
+
+  IF v_part_id IS NOT NULL THEN
+    UPDATE parts SET
+      part_code = ${escapeSql(partCode)},
+      part_name = ${escapeSql(p.partName)},
+      shrp_part_code = ${escapeSql(p.shrpPartCode)},
+      customer_part_no = ${escapeSql(p.customerPartNo)},
+      batch_part_code = ${escapeSql(p.batchPartCode)},
+      cavity_count = ${p.cavityCount},
+      standard_cycle_time_sec = ${defaultCycleTime},
+      part_weight_g = ${p.partWeightG},
+      unit_weight_g = ${p.shotWt},
+      shot_weight_g = ${p.shotWt},
+      standard_pack_qty = ${p.standardPackQty},
+      trim_required = ${p.trimRequired ? 'TRUE' : 'FALSE'},
+      inspection_required = ${p.inspectionRequired ? 'TRUE' : 'FALSE'},
+      packing_required = ${p.packingRequired ? 'TRUE' : 'FALSE'},
+      dispatch_required = ${p.dispatchRequired ? 'TRUE' : 'FALSE'},
+      material_grade = ${escapeSql(p.materialGrade)},
+      color = ${escapeSql(p.colour)},
+      selling_price = ${p.sellingPrice},
+      primary_packing = ${escapeSql(p.primaryPacking)},
+      secondary_packing = ${escapeSql(p.secondaryPacking)},
+      bags_per_box = ${p.bagsPerBinBox || 'NULL'},
+      rm_ratio = ${escapeSql(JSON.stringify(p.rmRatio))}::jsonb,
+      active = TRUE
+    WHERE id = v_part_id;
+  ELSE
+    INSERT INTO parts (
+      part_code, part_name, shrp_part_code, customer_part_no, batch_part_code,
+      cavity_count, standard_cycle_time_sec, part_weight_g, unit_weight_g, shot_weight_g,
+      standard_pack_qty, trim_required, inspection_required, packing_required, dispatch_required,
+      material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
+    )
+    VALUES (
+      ${escapeSql(partCode)}, ${escapeSql(p.partName)}, ${escapeSql(p.shrpPartCode)}, ${escapeSql(p.customerPartNo)}, ${escapeSql(p.batchPartCode)},
+      ${p.cavityCount}, ${defaultCycleTime}, ${p.partWeightG}, ${p.shotWt}, ${p.shotWt},
+      ${p.standardPackQty}, ${p.trimRequired ? 'TRUE' : 'FALSE'}, ${p.inspectionRequired ? 'TRUE' : 'FALSE'}, ${p.packingRequired ? 'TRUE' : 'FALSE'}, ${p.dispatchRequired ? 'TRUE' : 'FALSE'},
+      ${escapeSql(p.materialGrade)}, ${escapeSql(p.colour)}, ${p.sellingPrice}, ${escapeSql(p.primaryPacking)}, ${escapeSql(p.secondaryPacking)}, ${p.bagsPerBinBox || 'NULL'}, ${escapeSql(JSON.stringify(p.rmRatio))}::jsonb, TRUE
+    )
+    RETURNING id INTO v_part_id;
+  END IF;
 `;
 
   p.workcenters.forEach(wc => {
