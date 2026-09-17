@@ -171,6 +171,8 @@ router.get('/activity-report', async (req, res) => {
       return res.json([]);
     }
   }
+});
+
 // ============================================================
 // 3.1 Audit Duplicates & Foreign Key Reference Check
 // ============================================================
