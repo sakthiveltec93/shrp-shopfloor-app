@@ -1078,7 +1078,7 @@ async function syncParts(closePool = false) {
       const [shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode] = p;
 
       const existing = await client.query(
-        'SELECT id, part_code FROM parts WHERE part_code = $1 OR shrp_part_code = $1 OR part_code = $2 LIMIT 1',
+        'SELECT id, part_code FROM parts WHERE (shrp_part_code IS NOT NULL AND shrp_part_code = $1) OR (customer_part_no IS NOT NULL AND customer_part_no = $2) OR part_code = $1 LIMIT 1',
         [shrpCode, custPartNo]
       );
 
@@ -1092,14 +1092,16 @@ async function syncParts(closePool = false) {
           [shrpCode, custPartNo, existing.rows[0].id]
         );
       } else {
+        const nextCodeRes = await client.query("SELECT 'SHRP-P' || LPAD((COALESCE(MAX(SUBSTRING(part_code FROM 7)::INTEGER), 0) + 1)::TEXT, 3, '0') AS next_code FROM parts WHERE part_code LIKE 'SHRP-P%'");
+        const nextCode = nextCodeRes.rows[0]?.next_code || ('SHRP-P' + String(Date.now()).slice(-3));
         await client.query(
           `INSERT INTO parts (
             part_code, shrp_part_code, customer_part_no, part_name,
             part_weight_g, trim_required, inspection_required, packing_required, dispatch_required,
             tolerance_pct, standard_pack_qty, cavity_count, unit_weight_g, batch_part_code, active,
             standard_cycle_time_sec
-          ) VALUES ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, 30)`,
-          [shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode]
+          ) VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, 30)`,
+          [nextCode, shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode]
         );
       }
     }

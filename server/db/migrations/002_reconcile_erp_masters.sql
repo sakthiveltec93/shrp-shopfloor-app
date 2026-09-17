@@ -1291,19 +1291,29 @@ ON CONFLICT (gauge_code) DO UPDATE SET
 
 -- 7. Upsert 76 Parts & Workcenter Linkages
 
+-- Avoid unique constraint collisions during batch rename by prefixing all codes temporarily
+UPDATE parts SET part_code = 'TEMP_' || id;
+
 DO $$
 DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F885-BB1AA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F885 Y')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F885-BB1AA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F885 Y'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F885-BB1AA-01'))
+     OR lower(part_code) = lower('SHRP-P001')
+     OR lower(part_code) = lower('TEMP_' || 'F885 Y')
+     OR lower(part_code) = lower('F885 Y')
+     OR lower(part_code) = lower('F885-BB1AA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F885 Y') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F885-BB1AA-01',
+      part_code = 'SHRP-P001',
       part_name = 'cap txv',
       shrp_part_code = 'F885 Y',
       customer_part_no = 'F885-BB1AA-01',
@@ -1335,7 +1345,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F885-BB1AA-01', 'cap txv', 'F885 Y', 'F885-BB1AA-01', '8',
+      'SHRP-P001', 'cap txv', 'F885 Y', 'F885-BB1AA-01', '8',
       6, 32, 2.59, 22.5, 22.5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'yellow', 0.96, 'PE Cover', 'Bin', 4, '{"grade1":0.13,"grade2":0.24,"mb":0.16,"colourRegrind":0.32,"naturalRegrind":0.16}'::jsonb, TRUE
@@ -1365,14 +1375,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442L3LAC01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LAC Blue')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442L3LAC01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LAC Blue'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442L3LAC01'))
+     OR lower(part_code) = lower('SHRP-P002')
+     OR lower(part_code) = lower('TEMP_' || 'LAC Blue')
+     OR lower(part_code) = lower('LAC Blue')
+     OR lower(part_code) = lower('HC442L3LAC01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LAC Blue') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442L3LAC01',
+      part_code = 'SHRP-P002',
       part_name = 'Cap (A) joint flange',
       shrp_part_code = 'LAC Blue',
       customer_part_no = 'HC442L3LAC01',
@@ -1404,7 +1421,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442L3LAC01', 'Cap (A) joint flange', 'LAC Blue', 'HC442L3LAC01', '35',
+      'SHRP-P002', 'Cap (A) joint flange', 'LAC Blue', 'HC442L3LAC01', '35',
       16, 37, 4.44, 95.5, 95.5,
       400, FALSE, TRUE, TRUE, TRUE,
       'PVC GR65', 'navy blue', 2.5, 'PE Cover', 'Bin', 4, '{"grade1":0.7,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1426,14 +1443,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'DM1C4UBH1B01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'DM1C')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'DM1C4UBH1B01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DM1C'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('DM1C4UBH1B01'))
+     OR lower(part_code) = lower('SHRP-P003')
+     OR lower(part_code) = lower('TEMP_' || 'DM1C')
+     OR lower(part_code) = lower('DM1C')
+     OR lower(part_code) = lower('DM1C4UBH1B01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DM1C') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'DM1C4UBH1B01',
+      part_code = 'SHRP-P003',
       part_name = 'Cap SHP''G EVAP CORE',
       shrp_part_code = 'DM1C',
       customer_part_no = 'DM1C4UBH1B01',
@@ -1465,7 +1489,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'DM1C4UBH1B01', 'Cap SHP''G EVAP CORE', 'DM1C', 'DM1C4UBH1B01', '32',
+      'SHRP-P003', 'Cap SHP''G EVAP CORE', 'DM1C', 'DM1C4UBH1B01', '32',
       8, 41, 1.29, 14, 14,
       750, TRUE, TRUE, TRUE, TRUE,
       'TPE MULTIFLEX', 'WHITE', 2.72, 'PE Cover', 'Bin', 4, '{"grade1":0.7,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":0.3}'::jsonb, TRUE
@@ -1495,14 +1519,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1E1BAE1D01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'PUNE B')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1E1BAE1D01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PUNE B'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1E1BAE1D01'))
+     OR lower(part_code) = lower('SHRP-P004')
+     OR lower(part_code) = lower('TEMP_' || 'PUNE B')
+     OR lower(part_code) = lower('PUNE B')
+     OR lower(part_code) = lower('FC1E1BAE1D01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PUNE B') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1E1BAE1D01',
+      part_code = 'SHRP-P004',
       part_name = 'SHG''G/CAPE. MISC',
       shrp_part_code = 'PUNE B',
       customer_part_no = 'FC1E1BAE1D01',
@@ -1534,7 +1565,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1E1BAE1D01', 'SHG''G/CAPE. MISC', 'PUNE B', 'FC1E1BAE1D01', 'P1',
+      'SHRP-P004', 'SHG''G/CAPE. MISC', 'PUNE B', 'FC1E1BAE1D01', 'P1',
       6, 29, 2.36, 19.5, 19.5,
       400, FALSE, TRUE, TRUE, TRUE,
       'PPCP B030MG', 'Natural', 1.8, 'PE Cover', 'Box', 7, '{"grade1":0.7,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":0.3}'::jsonb, TRUE
@@ -1556,14 +1587,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'V0LC-01C022-00'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '2200')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'V0LC-01C022-00')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2200'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('V0LC-01C022-00'))
+     OR lower(part_code) = lower('SHRP-P005')
+     OR lower(part_code) = lower('TEMP_' || '2200')
+     OR lower(part_code) = lower('2200')
+     OR lower(part_code) = lower('V0LC-01C022-00')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2200') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'V0LC-01C022-00',
+      part_code = 'SHRP-P005',
       part_name = 'PRODUCTION CAPE',
       shrp_part_code = '2200',
       customer_part_no = 'V0LC-01C022-00',
@@ -1595,7 +1633,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'V0LC-01C022-00', 'PRODUCTION CAPE', '2200', 'V0LC-01C022-00', '28',
+      'SHRP-P005', 'PRODUCTION CAPE', '2200', 'V0LC-01C022-00', '28',
       6, 29, 1.62, 11, 11,
       750, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.75, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1617,14 +1655,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-SC21NA-LC-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NA-LC')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-SC21NA-LC-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-LC'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-SC21NA-LC-01'))
+     OR lower(part_code) = lower('SHRP-P006')
+     OR lower(part_code) = lower('TEMP_' || 'NA-LC')
+     OR lower(part_code) = lower('NA-LC')
+     OR lower(part_code) = lower('WC-SCP-SC21NA-LC-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-LC') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-SC21NA-LC-01',
+      part_code = 'SHRP-P006',
       part_name = 'SHP''G CAP LIQ COND END',
       shrp_part_code = 'NA-LC',
       customer_part_no = 'WC-SCP-SC21NA-LC-01',
@@ -1656,7 +1701,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-SC21NA-LC-01', 'SHP''G CAP LIQ COND END', 'NA-LC', 'WC-SCP-SC21NA-LC-01', 'W15',
+      'SHRP-P006', 'SHP''G CAP LIQ COND END', 'NA-LC', 'WC-SCP-SC21NA-LC-01', 'W15',
       4, 38, 1.43, 7, 7,
       750, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.43, 'PE Cover', 'Bin', NULL, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1678,14 +1723,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2CEEAA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'CEEAA-ORANGE')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2CEEAA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('CEEAA-ORANGE'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2CEEAA02'))
+     OR lower(part_code) = lower('SHRP-P007')
+     OR lower(part_code) = lower('TEMP_' || 'CEEAA-ORANGE')
+     OR lower(part_code) = lower('CEEAA-ORANGE')
+     OR lower(part_code) = lower('FC1F2CEEAA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('CEEAA-ORANGE') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2CEEAA02',
+      part_code = 'SHRP-P007',
       part_name = 'CAP - (D) JOINT FLANGE',
       shrp_part_code = 'CEEAA-ORANGE',
       customer_part_no = 'FC1F2CEEAA02',
@@ -1717,7 +1769,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2CEEAA02', 'CAP - (D) JOINT FLANGE', 'CEEAA-ORANGE', 'FC1F2CEEAA02', '1A',
+      'SHRP-P007', 'CAP - (D) JOINT FLANGE', 'CEEAA-ORANGE', 'FC1F2CEEAA02', '1A',
       6, 36, 5.75, 47.5, 47.5,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'orange', 2.78, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1739,14 +1791,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HW773G9E1B01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'VW DIA 8 - HW773B')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HW773G9E1B01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VW DIA 8 - HW773B'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HW773G9E1B01'))
+     OR lower(part_code) = lower('SHRP-P008')
+     OR lower(part_code) = lower('TEMP_' || 'VW DIA 8 - HW773B')
+     OR lower(part_code) = lower('VW DIA 8 - HW773B')
+     OR lower(part_code) = lower('HW773G9E1B01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VW DIA 8 - HW773B') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HW773G9E1B01',
+      part_code = 'SHRP-P008',
       part_name = 'Shipping Cap Degas Spout',
       shrp_part_code = 'VW DIA 8 - HW773B',
       customer_part_no = 'HW773G9E1B01',
@@ -1778,7 +1837,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HW773G9E1B01', 'Shipping Cap Degas Spout', 'VW DIA 8 - HW773B', 'HW773G9E1B01', '23',
+      'SHRP-P008', 'Shipping Cap Degas Spout', 'VW DIA 8 - HW773B', 'HW773G9E1B01', '23',
       6, 19, 0.34, 3.7, 3.7,
       3000, TRUE, FALSE, TRUE, TRUE,
       'LDPE 16MA400', 'Yellow', 0.8, 'PE Cover', 'Bin', 4, '{"grade1":0.14,"grade2":0.27,"mb":0.19,"colourRegrind":0.31,"naturalRegrind":0.9}'::jsonb, TRUE
@@ -1800,14 +1859,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'A710-BBWBA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'A710')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'A710-BBWBA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('A710'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('A710-BBWBA-01'))
+     OR lower(part_code) = lower('SHRP-P009')
+     OR lower(part_code) = lower('TEMP_' || 'A710')
+     OR lower(part_code) = lower('A710')
+     OR lower(part_code) = lower('A710-BBWBA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('A710') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'A710-BBWBA-01',
+      part_code = 'SHRP-P009',
       part_name = 'CAP-(D)JOINT FLANGE',
       shrp_part_code = 'A710',
       customer_part_no = 'A710-BBWBA-01',
@@ -1839,7 +1905,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'A710-BBWBA-01', 'CAP-(D)JOINT FLANGE', 'A710', 'A710-BBWBA-01', '1',
+      'SHRP-P009', 'CAP-(D)JOINT FLANGE', 'A710', 'A710-BBWBA-01', '1',
       6, 36, 5.75, 47.5, 47.5,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.51, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1861,14 +1927,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F364-CB5AA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F364 16C')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F364-CB5AA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F364 16C'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F364-CB5AA-01'))
+     OR lower(part_code) = lower('SHRP-P010')
+     OR lower(part_code) = lower('TEMP_' || 'F364 16C')
+     OR lower(part_code) = lower('F364 16C')
+     OR lower(part_code) = lower('F364-CB5AA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F364 16C') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F364-CB5AA-01',
+      part_code = 'SHRP-P010',
       part_name = 'HTR PIPE CAP',
       shrp_part_code = 'F364 16C',
       customer_part_no = 'F364-CB5AA-01',
@@ -1900,7 +1973,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F364-CB5AA-01', 'HTR PIPE CAP', 'F364 16C', 'F364-CB5AA-01', '2',
+      'SHRP-P010', 'HTR PIPE CAP', 'F364 16C', 'F364-CB5AA-01', '2',
       16, 42, 3, 62, 62,
       400, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.24, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -1938,14 +2011,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F364-CB5AA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F364 GS')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F364-CB5AA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F364 GS'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F364-CB5AA-01'))
+     OR lower(part_code) = lower('SHRP-P011')
+     OR lower(part_code) = lower('TEMP_' || 'F364 GS')
+     OR lower(part_code) = lower('F364 GS')
+     OR lower(part_code) = lower('F364-CB5AA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F364 GS') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F364-CB5AA-01',
+      part_code = 'SHRP-P011',
       part_name = 'HTR PIPE CAP - GS (Line on Top)',
       shrp_part_code = 'F364 GS',
       customer_part_no = 'F364-CB5AA-01',
@@ -1977,7 +2057,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F364-CB5AA-01', 'HTR PIPE CAP - GS (Line on Top)', 'F364 GS', 'F364-CB5AA-01', '2A',
+      'SHRP-P011', 'HTR PIPE CAP - GS (Line on Top)', 'F364 GS', 'F364-CB5AA-01', '2A',
       6, 29, 2.68, 19.5, 19.5,
       400, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.24, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2007,14 +2087,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F442-KQAAA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F442 KQ')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F442-KQAAA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 KQ'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F442-KQAAA-01'))
+     OR lower(part_code) = lower('SHRP-P012')
+     OR lower(part_code) = lower('TEMP_' || 'F442 KQ')
+     OR lower(part_code) = lower('F442 KQ')
+     OR lower(part_code) = lower('F442-KQAAA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 KQ') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F442-KQAAA-01',
+      part_code = 'SHRP-P012',
       part_name = 'DUST CAP CONDS',
       shrp_part_code = 'F442 KQ',
       customer_part_no = 'F442-KQAAA-01',
@@ -2046,7 +2133,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F442-KQAAA-01', 'DUST CAP CONDS', 'F442 KQ', 'F442-KQAAA-01', '4',
+      'SHRP-P012', 'DUST CAP CONDS', 'F442 KQ', 'F442-KQAAA-01', '4',
       6, 34, 4.33, 31.5, 31.5,
       200, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2068,14 +2155,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F710-AKYAA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F710')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F710-AKYAA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F710'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F710-AKYAA-01'))
+     OR lower(part_code) = lower('SHRP-P013')
+     OR lower(part_code) = lower('TEMP_' || 'F710')
+     OR lower(part_code) = lower('F710')
+     OR lower(part_code) = lower('F710-AKYAA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F710') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F710-AKYAA-01',
+      part_code = 'SHRP-P013',
       part_name = 'CAP-J/F',
       shrp_part_code = 'F710',
       customer_part_no = 'F710-AKYAA-01',
@@ -2107,7 +2201,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F710-AKYAA-01', 'CAP-J/F', 'F710', 'F710-AKYAA-01', '7',
+      'SHRP-P013', 'CAP-J/F', 'F710', 'F710-AKYAA-01', '7',
       7, 47, 3.44, 26.5, 26.5,
       400, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.29, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2145,14 +2239,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2AN6BA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'AN6B')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2AN6BA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AN6B'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2AN6BA01'))
+     OR lower(part_code) = lower('SHRP-P014')
+     OR lower(part_code) = lower('TEMP_' || 'AN6B')
+     OR lower(part_code) = lower('AN6B')
+     OR lower(part_code) = lower('FC1F2AN6BA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AN6B') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2AN6BA01',
+      part_code = 'SHRP-P014',
       part_name = 'SHIPG CAP HYUNDAI/M',
       shrp_part_code = 'AN6B',
       customer_part_no = 'FC1F2AN6BA01',
@@ -2184,7 +2285,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2AN6BA01', 'SHIPG CAP HYUNDAI/M', 'AN6B', 'FC1F2AN6BA01', '9',
+      'SHRP-P014', 'SHIPG CAP HYUNDAI/M', 'AN6B', 'FC1F2AN6BA01', '9',
       4, 30, 2.37, 13, 13,
       500, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2222,14 +2323,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2SPHAA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'AA02 Y')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2SPHAA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AA02 Y'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2SPHAA02'))
+     OR lower(part_code) = lower('SHRP-P015')
+     OR lower(part_code) = lower('TEMP_' || 'AA02 Y')
+     OR lower(part_code) = lower('AA02 Y')
+     OR lower(part_code) = lower('FC1F2SPHAA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AA02 Y') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2SPHAA02',
+      part_code = 'SHRP-P015',
       part_name = 'SHP''G/CAP-HYUNDAI/M',
       shrp_part_code = 'AA02 Y',
       customer_part_no = 'FC1F2SPHAA02',
@@ -2261,7 +2369,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2SPHAA02', 'SHP''G/CAP-HYUNDAI/M', 'AA02 Y', 'FC1F2SPHAA02', '10',
+      'SHRP-P015', 'SHP''G/CAP-HYUNDAI/M', 'AA02 Y', 'FC1F2SPHAA02', '10',
       4, 26, 1.75, 10, 10,
       750, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Yellow', 1.2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2291,14 +2399,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2SULLA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SULLA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2SULLA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SULLA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2SULLA01'))
+     OR lower(part_code) = lower('SHRP-P016')
+     OR lower(part_code) = lower('TEMP_' || 'SULLA')
+     OR lower(part_code) = lower('SULLA')
+     OR lower(part_code) = lower('FC1F2SULLA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SULLA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2SULLA01',
+      part_code = 'SHRP-P016',
       part_name = 'SHP''G/CAP HYUNDAI/M',
       shrp_part_code = 'SULLA',
       customer_part_no = 'FC1F2SULLA01',
@@ -2330,7 +2445,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2SULLA01', 'SHP''G/CAP HYUNDAI/M', 'SULLA', 'FC1F2SULLA01', '11',
+      'SHRP-P016', 'SHP''G/CAP HYUNDAI/M', 'SULLA', 'FC1F2SULLA01', '11',
       4, 35, 2.62, 12, 12,
       300, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Blue', 2.23, 'PE Cover', 'Bin', 4, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -2352,14 +2467,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2UGKCA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'UGKCA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2UGKCA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UGKCA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2UGKCA01'))
+     OR lower(part_code) = lower('SHRP-P017')
+     OR lower(part_code) = lower('TEMP_' || 'UGKCA')
+     OR lower(part_code) = lower('UGKCA')
+     OR lower(part_code) = lower('FC1F2UGKCA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UGKCA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2UGKCA01',
+      part_code = 'SHRP-P017',
       part_name = 'SHP''G/CAP HYUNDAI/M',
       shrp_part_code = 'UGKCA',
       customer_part_no = 'FC1F2UGKCA01',
@@ -2391,7 +2513,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2UGKCA01', 'SHP''G/CAP HYUNDAI/M', 'UGKCA', 'FC1F2UGKCA01', '12',
+      'SHRP-P017', 'SHP''G/CAP HYUNDAI/M', 'UGKCA', 'FC1F2UGKCA01', '12',
       8, 29, 0.8, 12.5, 12.5,
       1500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.35, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2413,14 +2535,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2UMEAB01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'UMEAB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2UMEAB01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMEAB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2UMEAB01'))
+     OR lower(part_code) = lower('SHRP-P018')
+     OR lower(part_code) = lower('TEMP_' || 'UMEAB')
+     OR lower(part_code) = lower('UMEAB')
+     OR lower(part_code) = lower('FC1F2UMEAB01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMEAB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2UMEAB01',
+      part_code = 'SHRP-P018',
       part_name = 'SHP''G/CAP HYUNDAI/M',
       shrp_part_code = 'UMEAB',
       customer_part_no = 'FC1F2UMEAB01',
@@ -2452,7 +2581,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2UMEAB01', 'SHP''G/CAP HYUNDAI/M', 'UMEAB', 'FC1F2UMEAB01', '13',
+      'SHRP-P018', 'SHP''G/CAP HYUNDAI/M', 'UMEAB', 'FC1F2UMEAB01', '13',
       6, 33, 1.69, 14, 14,
       750, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.26, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2474,14 +2603,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HA715L5G1A01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'HA715 - W501')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HA715L5G1A01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HA715 - W501'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HA715L5G1A01'))
+     OR lower(part_code) = lower('SHRP-P019')
+     OR lower(part_code) = lower('TEMP_' || 'HA715 - W501')
+     OR lower(part_code) = lower('HA715 - W501')
+     OR lower(part_code) = lower('HA715L5G1A01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HA715 - W501') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HA715L5G1A01',
+      part_code = 'SHRP-P019',
       part_name = 'CAP ACAC',
       shrp_part_code = 'HA715 - W501',
       customer_part_no = 'HA715L5G1A01',
@@ -2513,7 +2649,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HA715L5G1A01', 'CAP ACAC', 'HA715 - W501', 'HA715L5G1A01', '14',
+      'SHRP-P019', 'CAP ACAC', 'HA715 - W501', 'HA715L5G1A01', '14',
       6, 31, 4.56, 31, 31,
       200, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2543,14 +2679,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442CXGAA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'CXGAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442CXGAA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('CXGAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442CXGAA01'))
+     OR lower(part_code) = lower('SHRP-P020')
+     OR lower(part_code) = lower('TEMP_' || 'CXGAA')
+     OR lower(part_code) = lower('CXGAA')
+     OR lower(part_code) = lower('HC442CXGAA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('CXGAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442CXGAA01',
+      part_code = 'SHRP-P020',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'CXGAA',
       customer_part_no = 'HC442CXGAA01',
@@ -2582,7 +2725,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442CXGAA01', 'CAP (A) JOINT FLANGE', 'CXGAA', 'HC442CXGAA01', '15',
+      'SHRP-P020', 'CAP (A) JOINT FLANGE', 'CXGAA', 'HC442CXGAA01', '15',
       6, 35, 3.84, 29, 29,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2612,14 +2755,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442OERAA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'OERAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442OERAA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('OERAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442OERAA01'))
+     OR lower(part_code) = lower('SHRP-P021')
+     OR lower(part_code) = lower('TEMP_' || 'OERAA')
+     OR lower(part_code) = lower('OERAA')
+     OR lower(part_code) = lower('HC442OERAA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('OERAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442OERAA01',
+      part_code = 'SHRP-P021',
       part_name = 'Shipping Cap',
       shrp_part_code = 'OERAA',
       customer_part_no = 'HC442OERAA01',
@@ -2651,7 +2801,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442OERAA01', 'Shipping Cap', 'OERAA', 'HC442OERAA01', '38',
+      'SHRP-P021', 'Shipping Cap', 'OERAA', 'HC442OERAA01', '38',
       6, 34, 1.28, 0, 0,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 5.5, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2673,14 +2823,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442SPHAA03'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'AA03')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442SPHAA03')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AA03'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442SPHAA03'))
+     OR lower(part_code) = lower('SHRP-P022')
+     OR lower(part_code) = lower('TEMP_' || 'AA03')
+     OR lower(part_code) = lower('AA03')
+     OR lower(part_code) = lower('HC442SPHAA03')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AA03') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442SPHAA03',
+      part_code = 'SHRP-P022',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'AA03',
       customer_part_no = 'HC442SPHAA03',
@@ -2712,7 +2869,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442SPHAA03', 'CAP (A) JOINT FLANGE', 'AA03', 'HC442SPHAA03', '16',
+      'SHRP-P022', 'CAP (A) JOINT FLANGE', 'AA03', 'HC442SPHAA03', '16',
       4, 36, 3.63, 18, 18,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2734,14 +2891,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442L3LBB01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LBB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442L3LBB01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LBB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442L3LBB01'))
+     OR lower(part_code) = lower('SHRP-P023')
+     OR lower(part_code) = lower('TEMP_' || 'LBB')
+     OR lower(part_code) = lower('LBB')
+     OR lower(part_code) = lower('HC442L3LBB01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LBB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442L3LBB01',
+      part_code = 'SHRP-P023',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'LBB',
       customer_part_no = 'HC442L3LBB01',
@@ -2773,7 +2937,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442L3LBB01', 'CAP (A) JOINT FLANGE', 'LBB', 'HC442L3LBB01', '33',
+      'SHRP-P023', 'CAP (A) JOINT FLANGE', 'LBB', 'HC442L3LBB01', '33',
       4, 34, 6.07, 31, 31,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.47, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2803,14 +2967,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442L3LBC02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LBC')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442L3LBC02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LBC'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442L3LBC02'))
+     OR lower(part_code) = lower('SHRP-P024')
+     OR lower(part_code) = lower('TEMP_' || 'LBC')
+     OR lower(part_code) = lower('LBC')
+     OR lower(part_code) = lower('HC442L3LBC02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LBC') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442L3LBC02',
+      part_code = 'SHRP-P024',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'LBC',
       customer_part_no = 'HC442L3LBC02',
@@ -2842,7 +3013,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442L3LBC02', 'CAP (A) JOINT FLANGE', 'LBC', 'HC442L3LBC02', '34',
+      'SHRP-P024', 'CAP (A) JOINT FLANGE', 'LBC', 'HC442L3LBC02', '34',
       4, 37, 7.15, 36, 36,
       150, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.84, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2872,14 +3043,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442SULAC01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SULAC')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442SULAC01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SULAC'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442SULAC01'))
+     OR lower(part_code) = lower('SHRP-P025')
+     OR lower(part_code) = lower('TEMP_' || 'SULAC')
+     OR lower(part_code) = lower('SULAC')
+     OR lower(part_code) = lower('HC442SULAC01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SULAC') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442SULAC01',
+      part_code = 'SHRP-P025',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'SULAC',
       customer_part_no = 'HC442SULAC01',
@@ -2911,7 +3089,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442SULAC01', 'CAP (A) JOINT FLANGE', 'SULAC', 'HC442SULAC01', '17',
+      'SHRP-P025', 'CAP (A) JOINT FLANGE', 'SULAC', 'HC442SULAC01', '17',
       4, 41, 3.59, 17.5, 17.5,
       300, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.82, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -2933,14 +3111,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC443QQVBA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'QQVBA W')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC443QQVBA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QQVBA W'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC443QQVBA02'))
+     OR lower(part_code) = lower('SHRP-P026')
+     OR lower(part_code) = lower('TEMP_' || 'QQVBA W')
+     OR lower(part_code) = lower('QQVBA W')
+     OR lower(part_code) = lower('HC443QQVBA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QQVBA W') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC443QQVBA02',
+      part_code = 'SHRP-P026',
       part_name = 'CCAP (B) JOINT FLANGE (yellow)',
       shrp_part_code = 'QQVBA W',
       customer_part_no = 'HC443QQVBA02',
@@ -2972,7 +3157,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC443QQVBA02', 'CCAP (B) JOINT FLANGE (yellow)', 'QQVBA W', 'HC443QQVBA02', '18',
+      'SHRP-P026', 'CCAP (B) JOINT FLANGE (yellow)', 'QQVBA W', 'HC443QQVBA02', '18',
       5, 34, 1.79, 11.5, 11.5,
       750, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Yellow', 1.6, 'PE Cover', 'Bin', 4, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -2994,14 +3179,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC443QQVBA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'QQVBA Y')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC443QQVBA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QQVBA Y'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC443QQVBA02'))
+     OR lower(part_code) = lower('SHRP-P027')
+     OR lower(part_code) = lower('TEMP_' || 'QQVBA Y')
+     OR lower(part_code) = lower('QQVBA Y')
+     OR lower(part_code) = lower('HC443QQVBA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QQVBA Y') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC443QQVBA02',
+      part_code = 'SHRP-P027',
       part_name = 'CCAP (B) JOINT FLANGE (White)',
       shrp_part_code = 'QQVBA Y',
       customer_part_no = 'HC443QQVBA02',
@@ -3033,7 +3225,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC443QQVBA02', 'CCAP (B) JOINT FLANGE (White)', 'QQVBA Y', 'HC443QQVBA02', '18Y',
+      'SHRP-P027', 'CCAP (B) JOINT FLANGE (White)', 'QQVBA Y', 'HC443QQVBA02', '18Y',
       5, 34, 1.79, 11.5, 11.5,
       750, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Yellow', 1.6, 'PE Cover', 'Bin', 4, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -3055,14 +3247,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HR230DH7AA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'DH7AA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HR230DH7AA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DH7AA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HR230DH7AA01'))
+     OR lower(part_code) = lower('SHRP-P028')
+     OR lower(part_code) = lower('TEMP_' || 'DH7AA')
+     OR lower(part_code) = lower('DH7AA')
+     OR lower(part_code) = lower('HR230DH7AA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DH7AA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HR230DH7AA01',
+      part_code = 'SHRP-P028',
       part_name = 'PLUG-RAD PIPE',
       shrp_part_code = 'DH7AA',
       customer_part_no = 'HR230DH7AA01',
@@ -3094,7 +3293,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HR230DH7AA01', 'PLUG-RAD PIPE', 'DH7AA', 'HR230DH7AA01', '21',
+      'SHRP-P028', 'PLUG-RAD PIPE', 'DH7AA', 'HR230DH7AA01', '21',
       4, 29, 7.18, 31, 31,
       100, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 3.25, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3116,14 +3315,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HR230PDPKA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'PDPKA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HR230PDPKA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PDPKA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HR230PDPKA02'))
+     OR lower(part_code) = lower('SHRP-P029')
+     OR lower(part_code) = lower('TEMP_' || 'PDPKA')
+     OR lower(part_code) = lower('PDPKA')
+     OR lower(part_code) = lower('HR230PDPKA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PDPKA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HR230PDPKA02',
+      part_code = 'SHRP-P029',
       part_name = 'PLUG-RAD PIPE',
       shrp_part_code = 'PDPKA',
       customer_part_no = 'HR230PDPKA02',
@@ -3155,7 +3361,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HR230PDPKA02', 'PLUG-RAD PIPE', 'PDPKA', 'HR230PDPKA02', '20',
+      'SHRP-P029', 'PLUG-RAD PIPE', 'PDPKA', 'HR230PDPKA02', '20',
       4, 36, 9.34, 38.5, 38.5,
       100, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 3.1, 'PE Cover', 'Bin', 3, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3177,14 +3383,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HL180F4W1A01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'HL180')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HL180F4W1A01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HL180'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HL180F4W1A01'))
+     OR lower(part_code) = lower('SHRP-P030')
+     OR lower(part_code) = lower('TEMP_' || 'HL180')
+     OR lower(part_code) = lower('HL180')
+     OR lower(part_code) = lower('HL180F4W1A01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HL180') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HL180F4W1A01',
+      part_code = 'SHRP-P030',
       part_name = 'CAP CHL''R NEX GEN PORSCHE',
       shrp_part_code = 'HL180',
       customer_part_no = 'HL180F4W1A01',
@@ -3216,7 +3429,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HL180F4W1A01', 'CAP CHL''R NEX GEN PORSCHE', 'HL180', 'HL180F4W1A01', '19',
+      'SHRP-P030', 'CAP CHL''R NEX GEN PORSCHE', 'HL180', 'HL180F4W1A01', '19',
       4, 0, 0.99, 6.5, 6.5,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.8, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3246,14 +3459,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HW773G9E1A01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'VW DIA 16 - HW773A')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HW773G9E1A01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VW DIA 16 - HW773A'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HW773G9E1A01'))
+     OR lower(part_code) = lower('SHRP-P031')
+     OR lower(part_code) = lower('TEMP_' || 'VW DIA 16 - HW773A')
+     OR lower(part_code) = lower('VW DIA 16 - HW773A')
+     OR lower(part_code) = lower('HW773G9E1A01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VW DIA 16 - HW773A') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HW773G9E1A01',
+      part_code = 'SHRP-P031',
       part_name = 'CAP WCAC 16DIA',
       shrp_part_code = 'VW DIA 16 - HW773A',
       customer_part_no = 'HW773G9E1A01',
@@ -3285,7 +3505,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HW773G9E1A01', 'CAP WCAC 16DIA', 'VW DIA 16 - HW773A', 'HW773G9E1A01', '22',
+      'SHRP-P031', 'CAP WCAC 16DIA', 'VW DIA 16 - HW773A', 'HW773G9E1A01', '22',
       6, 23, 1.2, 9.3, 9.3,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Yellow', 0.88, 'PE Cover', 'Bin', 4, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -3307,14 +3527,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'R230-NC5BA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NCBA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'R230-NC5BA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NCBA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('R230-NC5BA-01'))
+     OR lower(part_code) = lower('SHRP-P032')
+     OR lower(part_code) = lower('TEMP_' || 'NCBA')
+     OR lower(part_code) = lower('NCBA')
+     OR lower(part_code) = lower('R230-NC5BA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NCBA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'R230-NC5BA-01',
+      part_code = 'SHRP-P032',
       part_name = 'PLUG RAD PIPE',
       shrp_part_code = 'NCBA',
       customer_part_no = 'R230-NC5BA-01',
@@ -3346,7 +3573,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'R230-NC5BA-01', 'PLUG RAD PIPE', 'NCBA', 'R230-NC5BA-01', '24',
+      'SHRP-P032', 'PLUG RAD PIPE', 'NCBA', 'R230-NC5BA-01', '24',
       4, 33, 5.99, 26.5, 26.5,
       200, TRUE, FALSE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.91, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3392,14 +3619,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'R230-NC5BB-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NCBB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'R230-NC5BB-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NCBB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('R230-NC5BB-01'))
+     OR lower(part_code) = lower('SHRP-P033')
+     OR lower(part_code) = lower('TEMP_' || 'NCBB')
+     OR lower(part_code) = lower('NCBB')
+     OR lower(part_code) = lower('R230-NC5BB-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NCBB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'R230-NC5BB-01',
+      part_code = 'SHRP-P033',
       part_name = 'PLUG RAD PIPE',
       shrp_part_code = 'NCBB',
       customer_part_no = 'R230-NC5BB-01',
@@ -3431,7 +3665,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'R230-NC5BB-01', 'PLUG RAD PIPE', 'NCBB', 'R230-NC5BB-01', '25',
+      'SHRP-P033', 'PLUG RAD PIPE', 'NCBB', 'R230-NC5BB-01', '25',
       4, 33, 6.2, 28, 28,
       105, TRUE, FALSE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.91, 'PE Cover', 'Bin', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3461,14 +3695,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'V0LC-01C019-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '1901')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'V0LC-01C019-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('1901'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('V0LC-01C019-01'))
+     OR lower(part_code) = lower('SHRP-P034')
+     OR lower(part_code) = lower('TEMP_' || '1901')
+     OR lower(part_code) = lower('1901')
+     OR lower(part_code) = lower('V0LC-01C019-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('1901') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'V0LC-01C019-01',
+      part_code = 'SHRP-P034',
       part_name = 'CAP-J/FLANGE',
       shrp_part_code = '1901',
       customer_part_no = 'V0LC-01C019-01',
@@ -3500,7 +3741,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'V0LC-01C019-01', 'CAP-J/FLANGE', '1901', 'V0LC-01C019-01', '26',
+      'SHRP-P034', 'CAP-J/FLANGE', '1901', 'V0LC-01C019-01', '26',
       6, 24, 1.68, 11.7, 11.7,
       600, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.8, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3522,14 +3763,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'V0LC-01C021-00'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '2100')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'V0LC-01C021-00')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2100'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('V0LC-01C021-00'))
+     OR lower(part_code) = lower('SHRP-P035')
+     OR lower(part_code) = lower('TEMP_' || '2100')
+     OR lower(part_code) = lower('2100')
+     OR lower(part_code) = lower('V0LC-01C021-00')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2100') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'V0LC-01C021-00',
+      part_code = 'SHRP-P035',
       part_name = 'CAP-J/FLANGE 12MM',
       shrp_part_code = '2100',
       customer_part_no = 'V0LC-01C021-00',
@@ -3561,7 +3809,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'V0LC-01C021-00', 'CAP-J/FLANGE 12MM', '2100', 'V0LC-01C021-00', '27',
+      'SHRP-P035', 'CAP-J/FLANGE 12MM', '2100', 'V0LC-01C021-00', '27',
       6, 33, 1.88, 15.5, 15.5,
       750, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.8, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3583,14 +3831,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'V0LC-01C028-00'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '2800')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'V0LC-01C028-00')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2800'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('V0LC-01C028-00'))
+     OR lower(part_code) = lower('SHRP-P036')
+     OR lower(part_code) = lower('TEMP_' || '2800')
+     OR lower(part_code) = lower('2800')
+     OR lower(part_code) = lower('V0LC-01C028-00')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('2800') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'V0LC-01C028-00',
+      part_code = 'SHRP-P036',
       part_name = 'CAP',
       shrp_part_code = '2800',
       customer_part_no = 'V0LC-01C028-00',
@@ -3622,7 +3877,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'V0LC-01C028-00', 'CAP', '2800', 'V0LC-01C028-00', '29',
+      'SHRP-P036', 'CAP', '2800', 'V0LC-01C028-00', '29',
       4, 31, 2.26, 11, 11,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.96, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3652,14 +3907,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VP5N1H-407721-AA'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'VPAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VP5N1H-407721-AA')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VPAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VP5N1H-407721-AA'))
+     OR lower(part_code) = lower('SHRP-P037')
+     OR lower(part_code) = lower('TEMP_' || 'VPAA')
+     OR lower(part_code) = lower('VPAA')
+     OR lower(part_code) = lower('VP5N1H-407721-AA')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VPAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VP5N1H-407721-AA',
+      part_code = 'SHRP-P037',
       part_name = 'PROTECTION CAP - INLET',
       shrp_part_code = 'VPAA',
       customer_part_no = 'VP5N1H-407721-AA',
@@ -3691,7 +3953,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VP5N1H-407721-AA', 'PROTECTION CAP - INLET', 'VPAA', 'VP5N1H-407721-AA', '30',
+      'SHRP-P037', 'PROTECTION CAP - INLET', 'VPAA', 'VP5N1H-407721-AA', '30',
       6, 27, 1.71, 15, 15,
       650, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.82, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3729,14 +3991,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VP5N1H-407721-FA'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'VPFA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VP5N1H-407721-FA')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VPFA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VP5N1H-407721-FA'))
+     OR lower(part_code) = lower('SHRP-P038')
+     OR lower(part_code) = lower('TEMP_' || 'VPFA')
+     OR lower(part_code) = lower('VPFA')
+     OR lower(part_code) = lower('VP5N1H-407721-FA')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VPFA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VP5N1H-407721-FA',
+      part_code = 'SHRP-P038',
       part_name = 'CAP-J FLANGE MALE',
       shrp_part_code = 'VPFA',
       customer_part_no = 'VP5N1H-407721-FA',
@@ -3768,7 +4037,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VP5N1H-407721-FA', 'CAP-J FLANGE MALE', 'VPFA', 'VP5N1H-407721-FA', '31',
+      'SHRP-P038', 'CAP-J FLANGE MALE', 'VPFA', 'VP5N1H-407721-FA', '31',
       6, 30, 2.24, 16.5, 16.5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.96, 'PE Cover', 'Bin', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3798,14 +4067,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HR241BAE1B01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'PUNE S')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HR241BAE1B01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PUNE S'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HR241BAE1B01'))
+     OR lower(part_code) = lower('SHRP-P039')
+     OR lower(part_code) = lower('TEMP_' || 'PUNE S')
+     OR lower(part_code) = lower('PUNE S')
+     OR lower(part_code) = lower('HR241BAE1B01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('PUNE S') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HR241BAE1B01',
+      part_code = 'SHRP-P039',
       part_name = 'CAP RAD',
       shrp_part_code = 'PUNE S',
       customer_part_no = 'HR241BAE1B01',
@@ -3837,7 +4113,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HR241BAE1B01', 'CAP RAD', 'PUNE S', 'HR241BAE1B01', 'P2',
+      'SHRP-P039', 'CAP RAD', 'PUNE S', 'HR241BAE1B01', 'P2',
       6, 29, 1, 11.5, 11.5,
       800, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.8, 'PE Cover', 'Box', 7, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -3867,14 +4143,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1P4L1E1A01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'BH-DIA 8')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1P4L1E1A01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 8'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1P4L1E1A01'))
+     OR lower(part_code) = lower('SHRP-P040')
+     OR lower(part_code) = lower('TEMP_' || 'BH-DIA 8')
+     OR lower(part_code) = lower('BH-DIA 8')
+     OR lower(part_code) = lower('FC1P4L1E1A01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 8') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1P4L1E1A01',
+      part_code = 'SHRP-P040',
       part_name = 'Shipping Cap Hose Liquid',
       shrp_part_code = 'BH-DIA 8',
       customer_part_no = 'FC1P4L1E1A01',
@@ -3906,7 +4189,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1P4L1E1A01', 'Shipping Cap Hose Liquid', 'BH-DIA 8', 'FC1P4L1E1A01', 'B3',
+      'SHRP-P040', 'Shipping Cap Hose Liquid', 'BH-DIA 8', 'FC1P4L1E1A01', 'B3',
       6, 25, 0.78, 7, 7,
       1500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.39, 'PE Cover', 'Box', 11, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -3936,14 +4219,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'PLFC1E4K5MAA-00'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'BH-DIA 16 - MAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'PLFC1E4K5MAA-00')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 16 - MAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('PLFC1E4K5MAA-00'))
+     OR lower(part_code) = lower('SHRP-P041')
+     OR lower(part_code) = lower('TEMP_' || 'BH-DIA 16 - MAA')
+     OR lower(part_code) = lower('BH-DIA 16 - MAA')
+     OR lower(part_code) = lower('PLFC1E4K5MAA-00')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 16 - MAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'PLFC1E4K5MAA-00',
+      part_code = 'SHRP-P041',
       part_name = 'DUST CAP (SUCTION)(16)',
       shrp_part_code = 'BH-DIA 16 - MAA',
       customer_part_no = 'PLFC1E4K5MAA-00',
@@ -3975,7 +4265,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'PLFC1E4K5MAA-00', 'DUST CAP (SUCTION)(16)', 'BH-DIA 16 - MAA', 'PLFC1E4K5MAA-00', 'B1',
+      'SHRP-P041', 'DUST CAP (SUCTION)(16)', 'BH-DIA 16 - MAA', 'PLFC1E4K5MAA-00', 'B1',
       6, 26, 1.24, 13, 13,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.5, 'PE Cover', 'Box', 7, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4013,14 +4303,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'PLFC1E4K5MBA-00'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'BH-DIA 12 -MBA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'PLFC1E4K5MBA-00')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 12 -MBA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('PLFC1E4K5MBA-00'))
+     OR lower(part_code) = lower('SHRP-P042')
+     OR lower(part_code) = lower('TEMP_' || 'BH-DIA 12 -MBA')
+     OR lower(part_code) = lower('BH-DIA 12 -MBA')
+     OR lower(part_code) = lower('PLFC1E4K5MBA-00')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('BH-DIA 12 -MBA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'PLFC1E4K5MBA-00',
+      part_code = 'SHRP-P042',
       part_name = 'DUST CAP (DISCHARGE)(12)',
       shrp_part_code = 'BH-DIA 12 -MBA',
       customer_part_no = 'PLFC1E4K5MBA-00',
@@ -4052,7 +4349,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'PLFC1E4K5MBA-00', 'DUST CAP (DISCHARGE)(12)', 'BH-DIA 12 -MBA', 'PLFC1E4K5MBA-00', 'B2',
+      'SHRP-P042', 'DUST CAP (DISCHARGE)(12)', 'BH-DIA 12 -MBA', 'PLFC1E4K5MBA-00', 'B2',
       6, 23, 1.36, 14, 14,
       750, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.5, 'PE Cover', 'Box', 8, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4098,14 +4395,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F442-KQ'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'KQ NEW')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F442-KQ')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('KQ NEW'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F442-KQ'))
+     OR lower(part_code) = lower('SHRP-P043')
+     OR lower(part_code) = lower('TEMP_' || 'KQ NEW')
+     OR lower(part_code) = lower('KQ NEW')
+     OR lower(part_code) = lower('F442-KQ')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('KQ NEW') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F442-KQ',
+      part_code = 'SHRP-P043',
       part_name = 'SHIPPING END CAP (IA) FLANGE',
       shrp_part_code = 'KQ NEW',
       customer_part_no = 'F442-KQ',
@@ -4137,7 +4441,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F442-KQ', 'SHIPPING END CAP (IA) FLANGE', 'KQ NEW', 'F442-KQ', 'W3',
+      'SHRP-P043', 'SHIPPING END CAP (IA) FLANGE', 'KQ NEW', 'F442-KQ', 'W3',
       1, 0, 0, 0, 0,
       1000, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.07, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4159,14 +4463,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'SHRP-T8'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SHRP-T8')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'SHRP-T8')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T8'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('SHRP-T8'))
+     OR lower(part_code) = lower('SHRP-P044')
+     OR lower(part_code) = lower('TEMP_' || 'SHRP-T8')
+     OR lower(part_code) = lower('SHRP-T8')
+     OR lower(part_code) = lower('SHRP-T8')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T8') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'SHRP-T8',
+      part_code = 'SHRP-P044',
       part_name = 'SHIPPING END CAP (IA) FLANGE',
       shrp_part_code = 'SHRP-T8',
       customer_part_no = 'SHRP-T8',
@@ -4198,7 +4509,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'SHRP-T8', 'SHIPPING END CAP (IA) FLANGE', 'SHRP-T8', 'SHRP-T8', 'W8',
+      'SHRP-P044', 'SHIPPING END CAP (IA) FLANGE', 'SHRP-T8', 'SHRP-T8', 'W8',
       2, 0, 2.21, 5.5, 5.5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.5, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4220,14 +4531,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-ECC21-DA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'DA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-ECC21-DA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-ECC21-DA01'))
+     OR lower(part_code) = lower('SHRP-P045')
+     OR lower(part_code) = lower('TEMP_' || 'DA')
+     OR lower(part_code) = lower('DA')
+     OR lower(part_code) = lower('WC-SCP-ECC21-DA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-ECC21-DA01',
+      part_code = 'SHRP-P045',
       part_name = 'Shipping Cap DIS Comp Side',
       shrp_part_code = 'DA',
       customer_part_no = 'WC-SCP-ECC21-DA01',
@@ -4259,7 +4577,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-ECC21-DA01', 'Shipping Cap DIS Comp Side', 'DA', 'WC-SCP-ECC21-DA01', 'W9',
+      'SHRP-P045', 'Shipping Cap DIS Comp Side', 'DA', 'WC-SCP-ECC21-DA01', 'W9',
       2, 0, 2.37, 5.5, 5.5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.35, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4281,14 +4599,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-ECC21-LMF01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LMF')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-ECC21-LMF01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LMF'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-ECC21-LMF01'))
+     OR lower(part_code) = lower('SHRP-P046')
+     OR lower(part_code) = lower('TEMP_' || 'LMF')
+     OR lower(part_code) = lower('LMF')
+     OR lower(part_code) = lower('WC-SCP-ECC21-LMF01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LMF') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-ECC21-LMF01',
+      part_code = 'SHRP-P046',
       part_name = 'Shipping Cap Liq Middle Female Type',
       shrp_part_code = 'LMF',
       customer_part_no = 'WC-SCP-ECC21-LMF01',
@@ -4320,7 +4645,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-ECC21-LMF01', 'Shipping Cap Liq Middle Female Type', 'LMF', 'WC-SCP-ECC21-LMF01', 'W10',
+      'SHRP-P046', 'Shipping Cap Liq Middle Female Type', 'LMF', 'WC-SCP-ECC21-LMF01', 'W10',
       2, 0, 2.05, 6.5, 6.5,
       650, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.19, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4342,14 +4667,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-eCC21-Lmm01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LMM')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-eCC21-Lmm01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LMM'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-eCC21-Lmm01'))
+     OR lower(part_code) = lower('SHRP-P047')
+     OR lower(part_code) = lower('TEMP_' || 'LMM')
+     OR lower(part_code) = lower('LMM')
+     OR lower(part_code) = lower('WC-SCP-eCC21-Lmm01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LMM') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-eCC21-Lmm01',
+      part_code = 'SHRP-P047',
       part_name = 'Shipping Cap LIQ Middle Male Type',
       shrp_part_code = 'LMM',
       customer_part_no = 'WC-SCP-eCC21-Lmm01',
@@ -4381,7 +4713,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-eCC21-Lmm01', 'Shipping Cap LIQ Middle Male Type', 'LMM', 'WC-SCP-eCC21-Lmm01', 'W11',
+      'SHRP-P047', 'Shipping Cap LIQ Middle Male Type', 'LMM', 'WC-SCP-eCC21-Lmm01', 'W11',
       2, 0, 0, 0, 0,
       650, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.36, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4403,14 +4735,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-ECC21-SMF01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SMF')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-ECC21-SMF01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SMF'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-ECC21-SMF01'))
+     OR lower(part_code) = lower('SHRP-P048')
+     OR lower(part_code) = lower('TEMP_' || 'SMF')
+     OR lower(part_code) = lower('SMF')
+     OR lower(part_code) = lower('WC-SCP-ECC21-SMF01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SMF') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-ECC21-SMF01',
+      part_code = 'SHRP-P048',
       part_name = 'Shipping Cap Suc Middle Female Type',
       shrp_part_code = 'SMF',
       customer_part_no = 'WC-SCP-ECC21-SMF01',
@@ -4442,7 +4781,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-ECC21-SMF01', 'Shipping Cap Suc Middle Female Type', 'SMF', 'WC-SCP-ECC21-SMF01', 'W12',
+      'SHRP-P048', 'Shipping Cap Suc Middle Female Type', 'SMF', 'WC-SCP-ECC21-SMF01', 'W12',
       2, 0, 2.73, 6.5, 6.5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.41, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4464,14 +4803,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-eCC21-Smm01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SMM')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-eCC21-Smm01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SMM'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-eCC21-Smm01'))
+     OR lower(part_code) = lower('SHRP-P049')
+     OR lower(part_code) = lower('TEMP_' || 'SMM')
+     OR lower(part_code) = lower('SMM')
+     OR lower(part_code) = lower('WC-SCP-eCC21-Smm01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SMM') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-eCC21-Smm01',
+      part_code = 'SHRP-P049',
       part_name = 'Shipping Cap SUC Middle Male Type',
       shrp_part_code = 'SMM',
       customer_part_no = 'WC-SCP-eCC21-Smm01',
@@ -4503,7 +4849,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-eCC21-Smm01', 'Shipping Cap SUC Middle Male Type', 'SMM', 'WC-SCP-eCC21-Smm01', 'W13',
+      'SHRP-P049', 'Shipping Cap SUC Middle Male Type', 'SMM', 'WC-SCP-eCC21-Smm01', 'W13',
       6, 0, 2.48, 5, 5,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.09, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4525,14 +4871,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-SC21NA-DB-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NA-DB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-SC21NA-DB-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-DB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-SC21NA-DB-01'))
+     OR lower(part_code) = lower('SHRP-P050')
+     OR lower(part_code) = lower('TEMP_' || 'NA-DB')
+     OR lower(part_code) = lower('NA-DB')
+     OR lower(part_code) = lower('WC-SCP-SC21NA-DB-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-DB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-SC21NA-DB-01',
+      part_code = 'SHRP-P050',
       part_name = 'SHIPING CAP DIS COND SIDE',
       shrp_part_code = 'NA-DB',
       customer_part_no = 'WC-SCP-SC21NA-DB-01',
@@ -4564,7 +4917,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-SC21NA-DB-01', 'SHIPING CAP DIS COND SIDE', 'NA-DB', 'WC-SCP-SC21NA-DB-01', 'W14',
+      'SHRP-P050', 'SHIPING CAP DIS COND SIDE', 'NA-DB', 'WC-SCP-SC21NA-DB-01', 'W14',
       4, 0, 2.68, 13.12, 13.12,
       500, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.71, 'PE Cover', 'Bag', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4586,14 +4939,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'CA581CAWXX01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'AFM BIG')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'CA581CAWXX01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AFM BIG'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('CA581CAWXX01'))
+     OR lower(part_code) = lower('SHRP-P051')
+     OR lower(part_code) = lower('TEMP_' || 'AFM BIG')
+     OR lower(part_code) = lower('AFM BIG')
+     OR lower(part_code) = lower('CA581CAWXX01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AFM BIG') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'CA581CAWXX01',
+      part_code = 'SHRP-P051',
       part_name = 'CAP ASY-SUC',
       shrp_part_code = 'AFM BIG',
       customer_part_no = 'CA581CAWXX01',
@@ -4625,7 +4985,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'CA581CAWXX01', 'CAP ASY-SUC', 'AFM BIG', 'CA581CAWXX01', '36',
+      'SHRP-P051', 'CAP ASY-SUC', 'AFM BIG', 'CA581CAWXX01', '36',
       6, 0, 5.77, 85.5, 85.5,
       250, FALSE, TRUE, TRUE, TRUE,
       'HNBR', 'BLACK', 13.88, 'PE Cover', 'Box', 4, '{"grade1":1,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -4647,14 +5007,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'CA582DDRXX01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'AFM SMALL')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'CA582DDRXX01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AFM SMALL'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('CA582DDRXX01'))
+     OR lower(part_code) = lower('SHRP-P052')
+     OR lower(part_code) = lower('TEMP_' || 'AFM SMALL')
+     OR lower(part_code) = lower('AFM SMALL')
+     OR lower(part_code) = lower('CA582DDRXX01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('AFM SMALL') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'CA582DDRXX01',
+      part_code = 'SHRP-P052',
       part_name = 'CAP ASY-DIS',
       shrp_part_code = 'AFM SMALL',
       customer_part_no = 'CA582DDRXX01',
@@ -4686,7 +5053,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'CA582DDRXX01', 'CAP ASY-DIS', 'AFM SMALL', 'CA582DDRXX01', '37',
+      'SHRP-P052', 'CAP ASY-DIS', 'AFM SMALL', 'CA582DDRXX01', '37',
       6, 0, 4.92, 68.5, 68.5,
       250, FALSE, TRUE, TRUE, TRUE,
       'HNBR', 'BLACK', 13.48, 'PE Cover', 'Box', 4, '{"grade1":1,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -4708,14 +5075,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F442-QQ7AA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F442 QQ')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F442-QQ7AA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 QQ'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F442-QQ7AA-01'))
+     OR lower(part_code) = lower('SHRP-P053')
+     OR lower(part_code) = lower('TEMP_' || 'F442 QQ')
+     OR lower(part_code) = lower('F442 QQ')
+     OR lower(part_code) = lower('F442-QQ7AA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 QQ') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F442-QQ7AA-01',
+      part_code = 'SHRP-P053',
       part_name = 'DUST CAP COND',
       shrp_part_code = 'F442 QQ',
       customer_part_no = 'F442-QQ7AA-01',
@@ -4747,7 +5121,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F442-QQ7AA-01', 'DUST CAP COND', 'F442 QQ', 'F442-QQ7AA-01', '3',
+      'SHRP-P053', 'DUST CAP COND', 'F442 QQ', 'F442-QQ7AA-01', '3',
       4, 27, 3.97, 19.1, 19.1,
       300, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.66, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4769,14 +5143,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F442-WBAAA-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F442 WB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F442-WBAAA-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 WB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F442-WBAAA-01'))
+     OR lower(part_code) = lower('SHRP-P054')
+     OR lower(part_code) = lower('TEMP_' || 'F442 WB')
+     OR lower(part_code) = lower('F442 WB')
+     OR lower(part_code) = lower('F442-WBAAA-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F442 WB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F442-WBAAA-01',
+      part_code = 'SHRP-P054',
       part_name = 'DUST CAP-COND',
       shrp_part_code = 'F442 WB',
       customer_part_no = 'F442-WBAAA-01',
@@ -4808,7 +5189,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F442-WBAAA-01', 'DUST CAP-COND', 'F442 WB', 'F442-WBAAA-01', '5',
+      'SHRP-P054', 'DUST CAP-COND', 'F442 WB', 'F442-WBAAA-01', '5',
       1, 0, 3.31, 4, 4,
       300, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.93, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4830,14 +5211,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2NDGAA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NDGAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2NDGAA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NDGAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2NDGAA02'))
+     OR lower(part_code) = lower('SHRP-P055')
+     OR lower(part_code) = lower('TEMP_' || 'NDGAA')
+     OR lower(part_code) = lower('NDGAA')
+     OR lower(part_code) = lower('FC1F2NDGAA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NDGAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2NDGAA02',
+      part_code = 'SHRP-P055',
       part_name = 'CAP-(D)JOINT FLANGE',
       shrp_part_code = 'NDGAA',
       customer_part_no = 'FC1F2NDGAA02',
@@ -4869,7 +5257,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2NDGAA02', 'CAP-(D)JOINT FLANGE', 'NDGAA', 'FC1F2NDGAA02', '47',
+      'SHRP-P055', 'CAP-(D)JOINT FLANGE', 'NDGAA', 'FC1F2NDGAA02', '47',
       6, 32, 2, 16.7, 16.7,
       650, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.37, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4891,14 +5279,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'FC1F2UMEAA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'UMEAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'FC1F2UMEAA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMEAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('FC1F2UMEAA01'))
+     OR lower(part_code) = lower('SHRP-P056')
+     OR lower(part_code) = lower('TEMP_' || 'UMEAA')
+     OR lower(part_code) = lower('UMEAA')
+     OR lower(part_code) = lower('FC1F2UMEAA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMEAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'FC1F2UMEAA01',
+      part_code = 'SHRP-P056',
       part_name = 'SHP''G/CAP HYUNDAI/M',
       shrp_part_code = 'UMEAA',
       customer_part_no = 'FC1F2UMEAA01',
@@ -4930,7 +5325,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'FC1F2UMEAA01', 'SHP''G/CAP HYUNDAI/M', 'UMEAA', 'FC1F2UMEAA01', '46',
+      'SHRP-P056', 'SHP''G/CAP HYUNDAI/M', 'UMEAA', 'FC1F2UMEAA01', '46',
       4, 30, 2.57, 12.5, 12.5,
       300, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.52, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -4952,14 +5347,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442QVEAC01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'QVEAC')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442QVEAC01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QVEAC'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442QVEAC01'))
+     OR lower(part_code) = lower('SHRP-P057')
+     OR lower(part_code) = lower('TEMP_' || 'QVEAC')
+     OR lower(part_code) = lower('QVEAC')
+     OR lower(part_code) = lower('HC442QVEAC01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QVEAC') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442QVEAC01',
+      part_code = 'SHRP-P057',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'QVEAC',
       customer_part_no = 'HC442QVEAC01',
@@ -4991,7 +5393,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442QVEAC01', 'CAP (A) JOINT FLANGE', 'QVEAC', 'HC442QVEAC01', '39',
+      'SHRP-P057', 'CAP (A) JOINT FLANGE', 'QVEAC', 'HC442QVEAC01', '39',
       8, 30, 1.21, 16, 16,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.5, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5021,14 +5423,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442QVEBC01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'QVEBC')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442QVEBC01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QVEBC'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442QVEBC01'))
+     OR lower(part_code) = lower('SHRP-P058')
+     OR lower(part_code) = lower('TEMP_' || 'QVEBC')
+     OR lower(part_code) = lower('QVEBC')
+     OR lower(part_code) = lower('HC442QVEBC01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('QVEBC') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442QVEBC01',
+      part_code = 'SHRP-P058',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'QVEBC',
       customer_part_no = 'HC442QVEBC01',
@@ -5060,7 +5469,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442QVEBC01', 'CAP (A) JOINT FLANGE', 'QVEBC', 'HC442QVEBC01', '40',
+      'SHRP-P058', 'CAP (A) JOINT FLANGE', 'QVEBC', 'HC442QVEBC01', '40',
       8, 32, 1.5, 19, 19,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.47, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5082,14 +5491,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442UMNAA02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'UMNAA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442UMNAA02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMNAA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442UMNAA02'))
+     OR lower(part_code) = lower('SHRP-P059')
+     OR lower(part_code) = lower('TEMP_' || 'UMNAA')
+     OR lower(part_code) = lower('UMNAA')
+     OR lower(part_code) = lower('HC442UMNAA02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('UMNAA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442UMNAA02',
+      part_code = 'SHRP-P059',
       part_name = 'CAP (A) JOINT FLANGE',
       shrp_part_code = 'UMNAA',
       customer_part_no = 'HC442UMNAA02',
@@ -5121,7 +5537,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442UMNAA02', 'CAP (A) JOINT FLANGE', 'UMNAA', 'HC442UMNAA02', '45',
+      'SHRP-P059', 'CAP (A) JOINT FLANGE', 'UMNAA', 'HC442UMNAA02', '45',
       6, 35, 3.56, 29.5, 29.5,
       250, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.66, 'PE Cover', 'BIN', 4, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5143,14 +5559,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'DM1C1QRJAA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'DM1C1QRJAA01')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'DM1C1QRJAA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DM1C1QRJAA01'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('DM1C1QRJAA01'))
+     OR lower(part_code) = lower('SHRP-P060')
+     OR lower(part_code) = lower('TEMP_' || 'DM1C1QRJAA01')
+     OR lower(part_code) = lower('DM1C1QRJAA01')
+     OR lower(part_code) = lower('DM1C1QRJAA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('DM1C1QRJAA01') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'DM1C1QRJAA01',
+      part_code = 'SHRP-P060',
       part_name = 'SHIPPPING CAP HTR',
       shrp_part_code = 'DM1C1QRJAA01',
       customer_part_no = 'DM1C1QRJAA01',
@@ -5182,7 +5605,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'DM1C1QRJAA01', 'SHIPPPING CAP HTR', 'DM1C1QRJAA01', 'DM1C1QRJAA01', '',
+      'SHRP-P060', 'SHIPPPING CAP HTR', 'DM1C1QRJAA01', 'DM1C1QRJAA01', '',
       1, 30, 3, 62, 62,
       400, FALSE, FALSE, FALSE, FALSE,
       'LDPE 16MA400', 'Natural', 1.77, 'PE Cover', 'Box', 7, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5196,14 +5619,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VPR230-WC9AB-01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '9AB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VPR230-WC9AB-01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('9AB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VPR230-WC9AB-01'))
+     OR lower(part_code) = lower('SHRP-P061')
+     OR lower(part_code) = lower('TEMP_' || '9AB')
+     OR lower(part_code) = lower('9AB')
+     OR lower(part_code) = lower('VPR230-WC9AB-01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('9AB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VPR230-WC9AB-01',
+      part_code = 'SHRP-P061',
       part_name = 'DUST PROTECTION CAP',
       shrp_part_code = '9AB',
       customer_part_no = 'VPR230-WC9AB-01',
@@ -5235,7 +5665,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VPR230-WC9AB-01', 'DUST PROTECTION CAP', '9AB', 'VPR230-WC9AB-01', 'B9',
+      'SHRP-P061', 'DUST PROTECTION CAP', '9AB', 'VPR230-WC9AB-01', 'B9',
       4, 0, 3.1, 13.6, 13.6,
       300, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 3.3, 'PE Cover', 'Box', 8, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5257,14 +5687,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HR241G6C1A01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'HR241')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HR241G6C1A01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HR241'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HR241G6C1A01'))
+     OR lower(part_code) = lower('SHRP-P062')
+     OR lower(part_code) = lower('TEMP_' || 'HR241')
+     OR lower(part_code) = lower('HR241')
+     OR lower(part_code) = lower('HR241G6C1A01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HR241') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HR241G6C1A01',
+      part_code = 'SHRP-P062',
       part_name = 'CAP MG RAD 18.5',
       shrp_part_code = 'HR241',
       customer_part_no = 'HR241G6C1A01',
@@ -5296,7 +5733,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HR241G6C1A01', 'CAP MG RAD 18.5', 'HR241', 'HR241G6C1A01', 'B4',
+      'SHRP-P062', 'CAP MG RAD 18.5', 'HR241', 'HR241G6C1A01', 'B4',
       6, 26, 0, 18.5, 18.5,
       400, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.92, 'PE Cover', 'Box', 8, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5318,14 +5755,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442G6C1A'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'INLET')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442G6C1A')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('INLET'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442G6C1A'))
+     OR lower(part_code) = lower('SHRP-P063')
+     OR lower(part_code) = lower('TEMP_' || 'INLET')
+     OR lower(part_code) = lower('INLET')
+     OR lower(part_code) = lower('HC442G6C1A')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('INLET') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442G6C1A',
+      part_code = 'SHRP-P063',
       part_name = 'MG Condensor INLET',
       shrp_part_code = 'INLET',
       customer_part_no = 'HC442G6C1A',
@@ -5357,7 +5801,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442G6C1A', 'MG Condensor INLET', 'INLET', 'HC442G6C1A', 'B6',
+      'SHRP-P063', 'MG Condensor INLET', 'INLET', 'HC442G6C1A', 'B6',
       4, 0, 1.44, 8.5, 8.5,
       1000, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.04, 'PE Cover', 'Box', 12, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5379,14 +5823,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HC442G6C1B'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'OUTLET')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HC442G6C1B')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('OUTLET'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HC442G6C1B'))
+     OR lower(part_code) = lower('SHRP-P064')
+     OR lower(part_code) = lower('TEMP_' || 'OUTLET')
+     OR lower(part_code) = lower('OUTLET')
+     OR lower(part_code) = lower('HC442G6C1B')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('OUTLET') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HC442G6C1B',
+      part_code = 'SHRP-P064',
       part_name = 'MG Condensor Outlet',
       shrp_part_code = 'OUTLET',
       customer_part_no = 'HC442G6C1B',
@@ -5418,7 +5869,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HC442G6C1B', 'MG Condensor Outlet', 'OUTLET', 'HC442G6C1B', 'B5',
+      'SHRP-P064', 'MG Condensor Outlet', 'OUTLET', 'HC442G6C1B', 'B5',
       4, 0, 1.44, 8.5, 8.5,
       1000, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.94, 'PE Cover', 'Box', 12, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5440,14 +5891,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'R101WC9AA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'R101')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'R101WC9AA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('R101'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('R101WC9AA01'))
+     OR lower(part_code) = lower('SHRP-P065')
+     OR lower(part_code) = lower('TEMP_' || 'R101')
+     OR lower(part_code) = lower('R101')
+     OR lower(part_code) = lower('R101WC9AA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('R101') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'R101WC9AA01',
+      part_code = 'SHRP-P065',
       part_name = 'CAP TOC-CONN',
       shrp_part_code = 'R101',
       customer_part_no = 'R101WC9AA01',
@@ -5479,7 +5937,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'R101WC9AA01', 'CAP TOC-CONN', 'R101', 'R101WC9AA01', 'B7',
+      'SHRP-P065', 'CAP TOC-CONN', 'R101', 'R101WC9AA01', 'B7',
       4, 0, 0, 0, 0,
       2000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 1.98, 'PE Cover', 'Box', 12, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5501,14 +5959,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VPR230WC9AA01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = '9AA')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VPR230WC9AA01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('9AA'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VPR230WC9AA01'))
+     OR lower(part_code) = lower('SHRP-P066')
+     OR lower(part_code) = lower('TEMP_' || '9AA')
+     OR lower(part_code) = lower('9AA')
+     OR lower(part_code) = lower('VPR230WC9AA01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('9AA') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VPR230WC9AA01',
+      part_code = 'SHRP-P066',
       part_name = 'DUST PROTECTION CAP RAD',
       shrp_part_code = '9AA',
       customer_part_no = 'VPR230WC9AA01',
@@ -5540,7 +6005,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VPR230WC9AA01', 'DUST PROTECTION CAP RAD', '9AA', 'VPR230WC9AA01', 'B8',
+      'SHRP-P066', 'DUST PROTECTION CAP RAD', '9AA', 'VPR230WC9AA01', 'B8',
       4, 0, 0, 0, 0,
       400, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 3.13, 'PE Cover', 'Box', 8, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5562,14 +6027,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F390-QQDC-A02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'F390')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F390-QQDC-A02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F390'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F390-QQDC-A02'))
+     OR lower(part_code) = lower('SHRP-P067')
+     OR lower(part_code) = lower('TEMP_' || 'F390')
+     OR lower(part_code) = lower('F390')
+     OR lower(part_code) = lower('F390-QQDC-A02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('F390') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F390-QQDC-A02',
+      part_code = 'SHRP-P067',
       part_name = 'SHIPPING CAP',
       shrp_part_code = 'F390',
       customer_part_no = 'F390-QQDC-A02',
@@ -5601,7 +6073,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F390-QQDC-A02', 'SHIPPING CAP', 'F390', 'F390-QQDC-A02', 'W1',
+      'SHRP-P067', 'SHIPPING CAP', 'F390', 'F390-QQDC-A02', 'W1',
       4, 30, 0, 0, 0,
       1000, FALSE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.4, 'PE Cover', 'BAG', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5615,14 +6087,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'SHRP-T7'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SHRP-T7')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'SHRP-T7')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T7'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('SHRP-T7'))
+     OR lower(part_code) = lower('SHRP-P068')
+     OR lower(part_code) = lower('TEMP_' || 'SHRP-T7')
+     OR lower(part_code) = lower('SHRP-T7')
+     OR lower(part_code) = lower('SHRP-T7')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T7') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'SHRP-T7',
+      part_code = 'SHRP-P068',
       part_name = 'SHIPPING (WHITE)-HP (IA)',
       shrp_part_code = 'SHRP-T7',
       customer_part_no = 'SHRP-T7',
@@ -5654,7 +6133,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'SHRP-T7', 'SHIPPING (WHITE)-HP (IA)', 'SHRP-T7', 'SHRP-T7', 'W7',
+      'SHRP-P068', 'SHIPPING (WHITE)-HP (IA)', 'SHRP-T7', 'SHRP-T7', 'W7',
       2, 30, 0, 0, 0,
       2000, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.5, 'PE Cover', 'BAG', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5668,14 +6147,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'SHRP-T10'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SHRP-T10')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'SHRP-T10')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T10'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('SHRP-T10'))
+     OR lower(part_code) = lower('SHRP-P069')
+     OR lower(part_code) = lower('TEMP_' || 'SHRP-T10')
+     OR lower(part_code) = lower('SHRP-T10')
+     OR lower(part_code) = lower('SHRP-T10')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SHRP-T10') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'SHRP-T10',
+      part_code = 'SHRP-P069',
       part_name = 'SHIPPING (white)-LP (IA)',
       shrp_part_code = 'SHRP-T10',
       customer_part_no = 'SHRP-T10',
@@ -5707,7 +6193,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'SHRP-T10', 'SHIPPING (white)-LP (IA)', 'SHRP-T10', 'SHRP-T10', 'W4',
+      'SHRP-P069', 'SHIPPING (white)-LP (IA)', 'SHRP-T10', 'SHRP-T10', 'W4',
       2, 30, 0, 0, 0,
       2000, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 0.5, 'PE Cover', 'BAG', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5721,14 +6207,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VPMGH-18B602-DA'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'LAC GREEN')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VPMGH-18B602-DA')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LAC GREEN'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VPMGH-18B602-DA'))
+     OR lower(part_code) = lower('SHRP-P070')
+     OR lower(part_code) = lower('TEMP_' || 'LAC GREEN')
+     OR lower(part_code) = lower('LAC GREEN')
+     OR lower(part_code) = lower('VPMGH-18B602-DA')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('LAC GREEN') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VPMGH-18B602-DA',
+      part_code = 'SHRP-P070',
       part_name = 'SHIPPING CAP SV CT',
       shrp_part_code = 'LAC GREEN',
       customer_part_no = 'VPMGH-18B602-DA',
@@ -5760,7 +6253,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VPMGH-18B602-DA', 'SHIPPING CAP SV CT', 'LAC GREEN', 'VPMGH-18B602-DA', 'W15',
+      'SHRP-P070', 'SHIPPING CAP SV CT', 'LAC GREEN', 'VPMGH-18B602-DA', 'W15',
       16, 30, 4.44, 95.5, 95.5,
       400, FALSE, TRUE, TRUE, TRUE,
       'PVC GR65', 'GREEN', 2.15, 'PE Cover', 'BAG', 6, '{"grade1":0.7,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5774,14 +6267,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'WC-SCP-SC21NA-TB-T01'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'NA-TB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'WC-SCP-SC21NA-TB-T01')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-TB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('WC-SCP-SC21NA-TB-T01'))
+     OR lower(part_code) = lower('SHRP-P071')
+     OR lower(part_code) = lower('TEMP_' || 'NA-TB')
+     OR lower(part_code) = lower('NA-TB')
+     OR lower(part_code) = lower('WC-SCP-SC21NA-TB-T01')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('NA-TB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'WC-SCP-SC21NA-TB-T01',
+      part_code = 'SHRP-P071',
       part_name = 'SHP''G CAP TXV SIDE',
       shrp_part_code = 'NA-TB',
       customer_part_no = 'WC-SCP-SC21NA-TB-T01',
@@ -5813,7 +6313,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'WC-SCP-SC21NA-TB-T01', 'SHP''G CAP TXV SIDE', 'NA-TB', 'WC-SCP-SC21NA-TB-T01', 'W16',
+      'SHRP-P071', 'SHP''G CAP TXV SIDE', 'NA-TB', 'WC-SCP-SC21NA-TB-T01', 'W16',
       4, 0, 3.61, 16.5, 16.5,
       300, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.14, 'PE Cover', 'BAG', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5835,14 +6335,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'F442-ATBAB-02'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'ATBAB')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'F442-ATBAB-02')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('ATBAB'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('F442-ATBAB-02'))
+     OR lower(part_code) = lower('SHRP-P072')
+     OR lower(part_code) = lower('TEMP_' || 'ATBAB')
+     OR lower(part_code) = lower('ATBAB')
+     OR lower(part_code) = lower('F442-ATBAB-02')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('ATBAB') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'F442-ATBAB-02',
+      part_code = 'SHRP-P072',
       part_name = 'SHP''G CAP GS JUMPER TUBE JF',
       shrp_part_code = 'ATBAB',
       customer_part_no = 'F442-ATBAB-02',
@@ -5874,7 +6381,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'F442-ATBAB-02', 'SHP''G CAP GS JUMPER TUBE JF', 'ATBAB', 'F442-ATBAB-02', 'W18',
+      'SHRP-P072', 'SHP''G CAP GS JUMPER TUBE JF', 'ATBAB', 'F442-ATBAB-02', 'W18',
       2, 30, 3.63, 8.5, 8.5,
       300, TRUE, TRUE, TRUE, TRUE,
       'LDPE 16MA400', 'Natural', 2.15, 'PE Cover', 'BAG', 6, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5896,14 +6403,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'SmallGrommet'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SmallGrommet')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'SmallGrommet')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SmallGrommet'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('SmallGrommet'))
+     OR lower(part_code) = lower('SHRP-P073')
+     OR lower(part_code) = lower('TEMP_' || 'SmallGrommet')
+     OR lower(part_code) = lower('SmallGrommet')
+     OR lower(part_code) = lower('SmallGrommet')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SmallGrommet') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'SmallGrommet',
+      part_code = 'SHRP-P073',
       part_name = 'GROMMET',
       shrp_part_code = 'SmallGrommet',
       customer_part_no = 'SmallGrommet',
@@ -5935,7 +6449,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'SmallGrommet', 'GROMMET', 'SmallGrommet', 'SmallGrommet', '',
+      'SHRP-P073', 'GROMMET', 'SmallGrommet', 'SmallGrommet', '',
       4, 0, 0, 0, 0,
       3000, FALSE, FALSE, FALSE, FALSE,
       'LDPE 16MA400', 'Natural', 0.4, 'PE Cover', 'BAG', NULL, '{"grade1":0.2,"grade2":0.6,"mb":"","colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -5957,14 +6471,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'VP6TLU11N087AA'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'VP6T')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'VP6TLU11N087AA')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VP6T'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('VP6TLU11N087AA'))
+     OR lower(part_code) = lower('SHRP-P074')
+     OR lower(part_code) = lower('TEMP_' || 'VP6T')
+     OR lower(part_code) = lower('VP6T')
+     OR lower(part_code) = lower('VP6TLU11N087AA')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('VP6T') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'VP6TLU11N087AA',
+      part_code = 'SHRP-P074',
       part_name = 'CVR STR MTR SOLE TERM',
       shrp_part_code = 'VP6T',
       customer_part_no = 'VP6TLU11N087AA',
@@ -5996,7 +6517,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'VP6TLU11N087AA', 'CVR STR MTR SOLE TERM', 'VP6T', 'VP6TLU11N087AA', 'C1',
+      'SHRP-P074', 'CVR STR MTR SOLE TERM', 'VP6T', 'VP6TLU11N087AA', 'C1',
       16, 0, 0, 0, 0,
       1000, TRUE, TRUE, TRUE, TRUE,
       'NBR', 'BLACK', 2.75, 'PE Cover', 'BOX', NULL, '{"grade1":1,"grade2":"","mb":"","colourRegrind":"","naturalRegrind":""}'::jsonb, TRUE
@@ -6018,14 +6539,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'HandlePlastic'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'HandlePlastic')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'HandlePlastic')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HandlePlastic'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('HandlePlastic'))
+     OR lower(part_code) = lower('SHRP-P075')
+     OR lower(part_code) = lower('TEMP_' || 'HandlePlastic')
+     OR lower(part_code) = lower('HandlePlastic')
+     OR lower(part_code) = lower('HandlePlastic')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('HandlePlastic') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'HandlePlastic',
+      part_code = 'SHRP-P075',
       part_name = 'HNDL',
       shrp_part_code = 'HandlePlastic',
       customer_part_no = 'HandlePlastic',
@@ -6057,7 +6585,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'HandlePlastic', 'HNDL', 'HandlePlastic', 'HandlePlastic', '',
+      'SHRP-P075', 'HNDL', 'HandlePlastic', 'HandlePlastic', '',
       1, 0, 0, 0, 0,
       90, FALSE, FALSE, FALSE, FALSE,
       'LDPE 16MA400', 'RED', 30, 'PE Cover', 'OPEN', NULL, '{"grade1":0.15,"grade2":0.45,"mb":0.2,"colourRegrind":"","naturalRegrind":0.2}'::jsonb, TRUE
@@ -6079,14 +6607,21 @@ DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = 'SYRNGECAP'
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = 'SYRINGE CAP')
-     OR (customer_part_no IS NOT NULL AND customer_part_no = 'SYRNGECAP')
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SYRINGE CAP'))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower('SYRNGECAP'))
+     OR lower(part_code) = lower('SHRP-P076')
+     OR lower(part_code) = lower('TEMP_' || 'SYRINGE CAP')
+     OR lower(part_code) = lower('SYRINGE CAP')
+     OR lower(part_code) = lower('SYRNGECAP')
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower('SYRINGE CAP') THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
     UPDATE parts SET
-      part_code = 'SYRNGECAP',
+      part_code = 'SHRP-P076',
       part_name = 'CAP',
       shrp_part_code = 'SYRINGE CAP',
       customer_part_no = 'SYRNGECAP',
@@ -6118,7 +6653,7 @@ BEGIN
       material_grade, color, selling_price, primary_packing, secondary_packing, bags_per_box, rm_ratio, active
     )
     VALUES (
-      'SYRNGECAP', 'CAP', 'SYRINGE CAP', 'SYRNGECAP', 'O1',
+      'SHRP-P076', 'CAP', 'SYRINGE CAP', 'SYRNGECAP', 'O1',
       12, 0, 0, 0, 0,
       1500, TRUE, TRUE, TRUE, TRUE,
       'TPE MULTIFLEX', 'WHITE', 0.8, 'PE Cover', 'OPEN', NULL, '{"grade1":"","grade2":"","mb":"","colourRegrind":"","naturalRegrind":1}'::jsonb, TRUE

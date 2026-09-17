@@ -495,18 +495,30 @@ ON CONFLICT (gauge_code) DO UPDATE SET
 });
 
 sql += `\n-- 7. Upsert 76 Parts & Workcenter Linkages\n`;
-parts.forEach(p => {
+sql += `
+-- Avoid unique constraint collisions during batch rename by prefixing all codes temporarily
+UPDATE parts SET part_code = 'TEMP_' || id;
+`;
+
+parts.forEach((p, idx) => {
   const defaultCycleTime = p.workcenters.length > 0 ? p.workcenters[0].cycleTime : 30;
-  const partCode = p.customerPartNo || p.shrpPartCode;
+  const partCode = 'SHRP-P' + String(idx + 1).padStart(3, '0');
   sql += `
 DO $$
 DECLARE
   v_part_id INTEGER;
 BEGIN
   SELECT id INTO v_part_id FROM parts
-  WHERE part_code = ${escapeSql(partCode)}
-     OR (shrp_part_code IS NOT NULL AND shrp_part_code = ${escapeSql(p.shrpPartCode)})
-     OR (customer_part_no IS NOT NULL AND customer_part_no = ${escapeSql(p.customerPartNo)})
+  WHERE (shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower(${escapeSql(p.shrpPartCode)}))
+     OR (customer_part_no IS NOT NULL AND lower(customer_part_no) = lower(${escapeSql(p.customerPartNo)}))
+     OR lower(part_code) = lower(${escapeSql(partCode)})
+     OR lower(part_code) = lower('TEMP_' || ${escapeSql(p.shrpPartCode)})
+     OR lower(part_code) = lower(${escapeSql(p.shrpPartCode)})
+     OR lower(part_code) = lower(${escapeSql(p.customerPartNo)})
+  ORDER BY
+    CASE WHEN shrp_part_code IS NOT NULL AND lower(shrp_part_code) = lower(${escapeSql(p.shrpPartCode)}) THEN 1 ELSE 2 END,
+    active DESC,
+    id ASC
   LIMIT 1;
 
   IF v_part_id IS NOT NULL THEN
