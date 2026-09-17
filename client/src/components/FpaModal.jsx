@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import CameraScanner from './CameraScanner';
 
-export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
+export default function FpaModal({ machine, part, mould, assignment, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submittedFpa, setSubmittedFpa] = useState(null);
+
+  const effMachineId = machine?.id || assignment?.machine_id;
+  const effPartId = part?.id || assignment?.part_id;
+  const effMouldId = mould?.id || assignment?.mould_id;
+  const effAssignmentId = assignment?.assignment_id || assignment?.id;
 
   // Master pre-loaded data
   const [fpaData, setFpaData] = useState({
@@ -63,7 +68,7 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
   const [approvalStatus, setApprovalStatus] = useState('APPROVED');
   const [remarks, setRemarks] = useState('');
 
-  const draftKey = `fpa_draft_${machine?.id}_${part?.id}`;
+  const draftKey = `fpa_draft_${effMachineId}_${effPartId}`;
 
   // Load initial data
   useEffect(() => {
@@ -71,21 +76,43 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
       setLoading(true);
       setError('');
       try {
-        const res = await api.fpa.getData(machine.id, part.id, mould?.id);
+        const res = await api.fpa.getData(effMachineId, effPartId, effMouldId, effAssignmentId);
         setFpaData(res);
 
-        if (res.recipe && res.recipe.material_id) {
-          setRawMaterialId(res.recipe.material_id);
+        if (res.recipe && (res.recipe.primary_material_id || res.recipe.material_id)) {
+          setRawMaterialId(res.recipe.primary_material_id || res.recipe.material_id);
         }
 
-        const cavityCount = Math.max(1, Number(res.part?.cavity_count) || 1);
+        const cavityCount = Math.max(1, Number(res.part?.cavity_count) || Number(part?.cavity_count) || Number(assignment?.cavity_count) || 1);
 
-        const defaultDims = [
-          { parameter_name: 'Outer Diameter (OD)', spec: '25.0 ± 0.2 mm', nominal: 25.0, lsl: 24.8, usl: 25.2, gauge_code: '', cavities: Array(cavityCount).fill('') },
-          { parameter_name: 'Wall Thickness', spec: '2.5 ± 0.1 mm', nominal: 2.5, lsl: 2.4, usl: 2.6, gauge_code: '', cavities: Array(cavityCount).fill('') },
-          { parameter_name: 'Total Height / Length', spec: '50.0 ± 0.3 mm', nominal: 50.0, lsl: 49.7, usl: 50.3, gauge_code: '', cavities: Array(cavityCount).fill('') },
-          { parameter_name: 'Inner Diameter (ID)', spec: '15.0 ± 0.15 mm', nominal: 15.0, lsl: 14.85, usl: 15.15, gauge_code: '', cavities: Array(cavityCount).fill('') },
-        ];
+        let defaultDims = [];
+        if (res.standardDimensions && res.standardDimensions.length > 0) {
+          defaultDims = res.standardDimensions.map((sd) => ({
+            parameter_name: sd.dimension_name,
+            spec: `${sd.nominal_value} (+${sd.tol_plus}/-${sd.tol_minus}) ${sd.unit || 'mm'}`,
+            nominal: Number(sd.nominal_value) || 0,
+            lsl: Number(sd.lsl) || 0,
+            usl: Number(sd.usl) || 0,
+            gauge_code: '',
+            cavities: Array(cavityCount).fill(''),
+          }));
+        } else {
+          defaultDims = [
+            { parameter_name: 'Outer Diameter (OD)', spec: '25.0 ± 0.2 mm', nominal: 25.0, lsl: 24.8, usl: 25.2, gauge_code: '', cavities: Array(cavityCount).fill('') },
+            { parameter_name: 'Wall Thickness', spec: '2.5 ± 0.1 mm', nominal: 2.5, lsl: 2.4, usl: 2.6, gauge_code: '', cavities: Array(cavityCount).fill('') },
+            { parameter_name: 'Total Height / Length', spec: '50.0 ± 0.3 mm', nominal: 50.0, lsl: 49.7, usl: 50.3, gauge_code: '', cavities: Array(cavityCount).fill('') },
+            { parameter_name: 'Inner Diameter (ID)', spec: '15.0 ± 0.15 mm', nominal: 15.0, lsl: 14.85, usl: 15.15, gauge_code: '', cavities: Array(cavityCount).fill('') },
+          ];
+        }
+
+        if (res.standardProcessParameters && res.standardProcessParameters.length > 0) {
+          const paramMap = {};
+          res.standardProcessParameters.forEach((p) => {
+            const k = p.parameter_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            paramMap[k] = p.value;
+          });
+          setProcessParameters((prev) => ({ ...paramMap, ...prev }));
+        }
 
         const savedDraft = localStorage.getItem(draftKey);
         if (savedDraft) {
@@ -113,15 +140,17 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
         setLoading(false);
       }
     }
-    if (machine?.id && part?.id) {
+    if (effMachineId && effPartId) {
+      load();
+    } else if (effAssignmentId) {
       load();
     }
-  }, [machine?.id, part?.id, mould?.id]);
+  }, [effMachineId, effPartId, effMouldId, effAssignmentId]);
 
   // Auto-save draft every 5s
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!loading && machine?.id && part?.id) {
+      if (!loading && (effMachineId || effAssignmentId)) {
         const draft = {
           raw_material_id: rawMaterialId,
           raw_material_lot_no: rawMaterialLotNo,
@@ -135,7 +164,7 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [loading, machine?.id, part?.id, rawMaterialId, rawMaterialLotNo, regrindPercentage, visualChecks, processParameters, dimensionReadings]);
+  }, [loading, effMachineId, effPartId, effAssignmentId, rawMaterialId, rawMaterialLotNo, regrindPercentage, visualChecks, processParameters, dimensionReadings]);
 
   const handleDimensionChange = (dimIndex, cavityIndex, val) => {
     const updated = [...dimensionReadings];
@@ -197,9 +226,10 @@ export default function FpaModal({ machine, part, mould, onClose, onSuccess }) {
     try {
       const visualPassed = Object.values(visualChecks).every(Boolean);
       const payload = {
-        machine_id: machine.id,
-        part_id: part.id,
-        mould_id: mould?.id || fpaData.mould?.id || null,
+        assignment_id: effAssignmentId || null,
+        machine_id: effMachineId,
+        part_id: effPartId,
+        mould_id: effMouldId || fpaData.mould?.id || null,
         raw_material_id: rawMaterialId || null,
         raw_material_lot_no: rawMaterialLotNo,
         regrind_percentage: Number(regrindPercentage) || 0,

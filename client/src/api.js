@@ -397,10 +397,13 @@ export const api = {
   },
 
   fpa: {
-    getData: (machineId, partId, mouldId) => request(`/fpa/data?machine_id=${machineId}&part_id=${partId}&mould_id=${mouldId || ''}`),
+    getData: (machineId, partId, mouldId, assignmentId) =>
+      request(`/fpa/data?machine_id=${machineId || ''}&part_id=${partId || ''}&mould_id=${mouldId || ''}&assignment_id=${assignmentId || ''}`),
     submit: (payload) => request('/fpa/submit', { method: 'POST', body: payload }),
-    getHistory: (machineId, partId, status) => request(`/fpa/history?machine_id=${machineId || ''}&part_id=${partId || ''}&status=${status || ''}`),
-    downloadPdfUrl: (id) => `${BASE}/fpa/pdf/${id}`,
+    getHistory: (machineId, partId, status) =>
+      request(`/fpa/history?machine_id=${machineId || ''}&part_id=${partId || ''}&status=${status || ''}`),
+    getPending: () => request('/fpa/pending'),
+    downloadPdfUrl: (id) => `/api/fpa/pdf/${id}?token=${getToken()}`,
   },
 
   notifications: {

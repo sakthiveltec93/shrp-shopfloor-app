@@ -14,11 +14,20 @@ router.get('/current', async (req, res) => {
       ma.id AS assignment_id, ma.machine_id, m.machine_code, ma.part_id,
       p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
       p.cavity_count, p.standard_cycle_time_sec, p.unit_weight_g, p.part_weight_g,
+      ma.mould_id, mo.mould_code, mo.mould_name,
       ma.status, ma.approved_at, ma.mould_load_started_at, ma.first_ok_part_at,
+      fpa.id AS fpa_submission_id, fpa.approval_status AS fpa_approval_status,
       (SELECT pf.id FROM part_files pf WHERE pf.part_id = p.id AND pf.file_type = 'photo' ORDER BY pf.uploaded_at DESC LIMIT 1) AS photo_file_id
     FROM machine_assignments ma
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id
+    LEFT JOIN moulds mo ON mo.id = ma.mould_id
+    LEFT JOIN LATERAL (
+      SELECT id, approval_status
+      FROM fpa_submissions
+      WHERE assignment_id = ma.id
+      ORDER BY created_at DESC LIMIT 1
+    ) fpa ON true
     WHERE ma.status = 'approved'
     ORDER BY ma.machine_id, ma.approved_at DESC
   `);
@@ -129,7 +138,19 @@ router.post('/:id/first-ok-part', async (req, res) => {
   const assignment = existing.rows[0];
   if (!assignment) return res.status(404).json({ error: 'Approved assignment not found' });
 
-  if (assignment.first_ok_part_at != null && !['supervisor', 'admin'].includes(req.user.role)) {
+  // If first_ok_part_at is not set yet, ensure FPA submission has been approved
+  if (!assignment.first_ok_part_at) {
+    const fpaCheck = await pool.query(
+      `SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [id]
+    );
+    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+      return res.status(403).json({
+        error: 'IATF 16949 Clause 8.5.1.1: First-Piece Approval (FPA) sheet must be filled and APPROVED before marking 1st OK Part.',
+        code: 'fpa_required',
+      });
+    }
+  } else if (!['supervisor', 'admin'].includes(req.user.role)) {
     return res.status(403).json({ error: '1st OK part time is already set. Ask a supervisor to correct it.' });
   }
 
