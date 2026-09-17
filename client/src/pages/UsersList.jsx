@@ -437,6 +437,34 @@ export default function UsersList() {
                         >
                           {u.role ? u.role.slice(0, 4) : 'USER'}
                         </span>
+                        {u.role === 'operator' && (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              background:
+                                u.assigned_process === 'TRIMMING'
+                                  ? '#065f46'
+                                  : u.assigned_process === 'PACKING_INSPECTION'
+                                  ? '#1e3a8a'
+                                  : 'rgba(245, 158, 11, 0.2)',
+                              color:
+                                u.assigned_process === 'TRIMMING'
+                                  ? '#a7f3d0'
+                                  : u.assigned_process === 'PACKING_INSPECTION'
+                                  ? '#bfdbfe'
+                                  : 'var(--amber)',
+                            }}
+                          >
+                            {u.assigned_process === 'TRIMMING'
+                              ? '✂ Trimming'
+                              : u.assigned_process === 'PACKING_INSPECTION'
+                              ? '◎ Insp/Pack'
+                              : '🏭 Moulding'}
+                          </span>
+                        )}
                         {!isUserActive && (
                           <span
                             style={{

@@ -32,6 +32,7 @@ export default function UserForm() {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('operator');
+  const [assignedProcess, setAssignedProcess] = useState('PRODUCTION');
   const [active, setActive] = useState(true);
   const [pin, setPin] = useState('');
   const [pages, setPages] = useState(DEFAULTS_BY_ROLE.operator);
@@ -49,6 +50,7 @@ export default function UserForm() {
           setUsername(u.username);
           setFullName(u.full_name);
           setRole(u.role);
+          setAssignedProcess(u.assigned_process || 'PRODUCTION');
           setActive(u.active);
           setPages(u.pages);
           setCanOverrideFifo(!!u.can_override_fifo);
@@ -77,6 +79,7 @@ export default function UserForm() {
           pin,
           full_name: fullName,
           role,
+          assigned_process: assignedProcess,
           pages,
           can_override_fifo: canOverrideFifo,
           can_approve_tolerance: canApproveTolerance,
@@ -86,6 +89,7 @@ export default function UserForm() {
         const payload = {
           full_name: fullName,
           role,
+          assigned_process: assignedProcess,
           active,
           pages,
           can_override_fifo: canOverrideFifo,
@@ -126,6 +130,17 @@ export default function UserForm() {
             <option value="supervisor">Supervisor</option>
             <option value="admin">Admin</option>
           </select>
+        </div>
+        <div className="field">
+          <label>Assigned Station / Process</label>
+          <select value={assignedProcess} onChange={(e) => setAssignedProcess(e.target.value)}>
+            <option value="PRODUCTION">Hourly Moulding Production</option>
+            <option value="TRIMMING">Trimming &amp; Dispatch</option>
+            <option value="PACKING_INSPECTION">Final Inspection, Packing &amp; Dispatch</option>
+          </select>
+          <small style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 4, display: 'block' }}>
+            Determines what screen or station chooser opens when this operator taps the Entry tab.
+          </small>
         </div>
         <div className="field">
           <label>{isNew ? 'PIN (4-6 digits)' : 'Reset PIN (leave blank to keep current)'}</label>

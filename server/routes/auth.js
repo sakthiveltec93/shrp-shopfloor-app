@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
   const pages = pagesRes.rows.map((r) => r.page_key);
 
   const token = jwt.sign(
-    { id: user.id, username: user.username, full_name: user.full_name, role: user.role },
+    { id: user.id, username: user.username, full_name: user.full_name, role: user.role, assigned_process: user.assigned_process || 'PRODUCTION' },
     JWT_SECRET,
     { expiresIn: '12h' }
   );
@@ -49,7 +49,18 @@ router.post('/login', async (req, res) => {
     console.warn('Failed to log login activity:', logErr.message);
   }
 
-  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role, pages } });
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      full_name: user.full_name,
+      role: user.role,
+      assigned_process: user.assigned_process || 'PRODUCTION',
+      default_language: user.default_language || 'en',
+      pages,
+    },
+  });
 });
 
 module.exports = router;

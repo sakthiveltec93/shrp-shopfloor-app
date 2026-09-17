@@ -11,6 +11,9 @@ async function initDb() {
     console.log('[DB-INIT] Applying latest database schema...');
     const schemaSql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await pool.query(schemaSql);
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_process TEXT NOT NULL DEFAULT 'PRODUCTION';
+    `);
     console.log('[DB-INIT] Schema updated successfully.');
 
     console.log('[DB-INIT] Syncing clean 77 master parts...');

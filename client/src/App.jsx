@@ -10,6 +10,7 @@ import Home from './pages/Home'
 import MouldSetup from './pages/MouldSetup'
 import Approvals from './pages/Approvals'
 import ProductionEntry from './pages/ProductionEntry'
+import EntryHub from './pages/EntryHub'
 import TodayLog from './pages/TodayLog'
 import BagEntry from './pages/BagEntry'
 import Trimming from './pages/Trimming'
@@ -80,7 +81,8 @@ export default function App() {
             path="/approvals"
             element={<ProtectedRoute roles={['supervisor', 'admin']} page="approvals"><Approvals /></ProtectedRoute>}
           />
-          <Route path="/entry" element={<ProtectedRoute page="entry"><ProductionEntry /></ProtectedRoute>} />
+          <Route path="/entry" element={<ProtectedRoute page="entry"><EntryHub /></ProtectedRoute>} />
+          <Route path="/production-entry" element={<ProtectedRoute page="entry"><ProductionEntry /></ProtectedRoute>} />
           <Route path="/bag-entry" element={<ProtectedRoute page="bag_entry"><BagEntry /></ProtectedRoute>} />
           <Route path="/trimming" element={<ProtectedRoute page="trimming"><Trimming /></ProtectedRoute>} />
           <Route path="/inspection" element={<ProtectedRoute page="inspection"><Inspection /></ProtectedRoute>} />

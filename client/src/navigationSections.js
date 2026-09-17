@@ -1,4 +1,4 @@
-﻿export const ERP_SECTIONS = [
+export const ERP_SECTIONS = [
   {
     id: 'production',
     sectionKey: 'production',
@@ -9,7 +9,7 @@
     badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
       { key: 'mould_setup', to: '/mould-setup', icon: '⚙', label: 'Mould Setup', hint: 'Assign part & mould to machine', supervisorOnly: true },
-      { key: 'entry', to: '/entry', icon: '📝', label: 'Hourly Production Entry', hint: 'Log hourly count, scrap & machine runs' },
+      { key: 'entry', to: '/production-entry', icon: '📝', label: 'Hourly Production Entry', hint: 'Log hourly count, scrap & machine runs' },
       { key: 'bag_entry', to: '/bag-entry', icon: '◧', label: 'Bag Entry', hint: 'Log bag weight against active batch' },
       { key: 'log', to: '/log', icon: '📋', label: 'Shift Log', hint: 'Today\'s machine entries & production log' },
       { key: 'approvals', to: '/approvals', icon: '✓', label: 'Approvals & Gates', hint: 'Pending mould setups & deletions', supervisorOnly: true },

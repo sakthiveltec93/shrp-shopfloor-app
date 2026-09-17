@@ -55,7 +55,7 @@ router.post('/heartbeat', async (req, res) => {
 router.get('/operators', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT DISTINCT ON (UPPER(TRIM(full_name))) id, username, full_name, role
+      `SELECT DISTINCT ON (UPPER(TRIM(full_name))) id, username, full_name, role, assigned_process
        FROM users
        WHERE active = TRUE AND deleted_at IS NULL
        ORDER BY UPPER(TRIM(full_name)), CASE WHEN role = 'operator' THEN 1 WHEN role = 'supervisor' THEN 2 ELSE 3 END, id ASC`
@@ -83,7 +83,7 @@ router.use(requireRole('admin'));
 router.get('/', async (req, res) => {
   try {
     const { rows: users } = await pool.query(`
-      SELECT u.id, u.username, u.full_name, u.role, u.active,
+      SELECT u.id, u.username, u.full_name, u.role, u.assigned_process, u.active,
              u.phone, u.avatar_data, u.default_language,
              u.can_override_fifo, u.can_approve_tolerance,
              u.created_at, u.last_login_at, u.last_active_at,
@@ -133,6 +133,7 @@ router.get('/activity-report', async (req, res) => {
              u.username,
              u.full_name,
              u.role,
+             u.assigned_process,
              u.active AS user_active,
              u.last_active_at,
              ual.activity_date,
@@ -161,7 +162,7 @@ router.get('/activity-report', async (req, res) => {
     console.warn('Fallback activity report:', err.message);
     try {
       const { rows: fallbackUsers } = await pool.query(
-        `SELECT id AS user_id, username, full_name, role, active AS user_active,
+        `SELECT id AS user_id, username, full_name, role, assigned_process, active AS user_active,
                 0 AS active_minutes, 0 AS total_actions_count, 'OFFLINE' AS live_status
          FROM users WHERE deleted_at IS NULL ORDER BY full_name`
       );
@@ -176,13 +177,17 @@ router.get('/activity-report', async (req, res) => {
 // 4. Create New User
 // ============================================================
 router.post('/', async (req, res) => {
-  const { username, pin, full_name, role, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
+  const { username, pin, full_name, role, assigned_process, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
   if (!username || !pin || !full_name || !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'username, pin, full_name and a valid role are required' });
   }
   if (!/^\d{4,6}$/.test(pin)) {
     return res.status(400).json({ error: 'PIN must be 4-6 digits' });
   }
+  const validProcess = ['PRODUCTION', 'TRIMMING', 'PACKING_INSPECTION'].includes(assigned_process)
+    ? assigned_process
+    : 'PRODUCTION';
+
   const invalidPages = (pages || []).filter((p) => !VALID_PAGES.includes(p));
   if (invalidPages.length) return res.status(400).json({ error: `Unknown page(s): ${invalidPages.join(', ')}` });
 
@@ -191,10 +196,10 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO users (username, pin_hash, full_name, role, can_override_fifo, can_approve_tolerance, active, default_language)
-       VALUES ($1,$2,$3,$4,$5,$6, TRUE, $7)
-       RETURNING id, username, full_name, role, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
-      [username.trim().toLowerCase(), pinHash, full_name.trim(), role, !!can_override_fifo, !!can_approve_tolerance, default_language || 'ta']
+      `INSERT INTO users (username, pin_hash, full_name, role, assigned_process, can_override_fifo, can_approve_tolerance, active, default_language)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, TRUE, $8)
+       RETURNING id, username, full_name, role, assigned_process, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
+      [username.trim().toLowerCase(), pinHash, full_name.trim(), role, validProcess, !!can_override_fifo, !!can_approve_tolerance, default_language || 'ta']
     );
     const user = rows[0];
     for (const page of pages || []) {
@@ -216,9 +221,12 @@ router.post('/', async (req, res) => {
 // ============================================================
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { full_name, role, active, pin, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
+  const { full_name, role, assigned_process, active, pin, pages, can_override_fifo, can_approve_tolerance, default_language } = req.body;
   if (role && !['operator', 'supervisor', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
+  }
+  if (assigned_process && !['PRODUCTION', 'TRIMMING', 'PACKING_INSPECTION'].includes(assigned_process)) {
+    return res.status(400).json({ error: 'Invalid assigned_process. Must be PRODUCTION, TRIMMING, or PACKING_INSPECTION' });
   }
   if (pin && !/^\d{4,6}$/.test(pin)) {
     return res.status(400).json({ error: 'PIN must be 4-6 digits' });
@@ -236,13 +244,24 @@ router.put('/:id', async (req, res) => {
       `UPDATE users SET
          full_name = COALESCE($1, full_name),
          role = COALESCE($2, role),
-         active = COALESCE($3, active),
-         pin_hash = COALESCE($4, pin_hash),
-         can_override_fifo = COALESCE($5, can_override_fifo),
-         can_approve_tolerance = COALESCE($6, can_approve_tolerance),
-         default_language = COALESCE($7, default_language)
-       WHERE id = $8 RETURNING id, username, full_name, role, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
-      [full_name || null, role || null, active, pinHash, can_override_fifo != null ? !!can_override_fifo : null, can_approve_tolerance != null ? !!can_approve_tolerance : null, default_language || null, id]
+         assigned_process = COALESCE($3, assigned_process),
+         active = COALESCE($4, active),
+         pin_hash = COALESCE($5, pin_hash),
+         can_override_fifo = COALESCE($6, can_override_fifo),
+         can_approve_tolerance = COALESCE($7, can_approve_tolerance),
+         default_language = COALESCE($8, default_language)
+       WHERE id = $9 RETURNING id, username, full_name, role, assigned_process, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
+      [
+        full_name || null,
+        role || null,
+        assigned_process || null,
+        active,
+        pinHash,
+        can_override_fifo != null ? !!can_override_fifo : null,
+        can_approve_tolerance != null ? !!can_approve_tolerance : null,
+        default_language || null,
+        id,
+      ]
     );
     if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'User not found' }); }
 

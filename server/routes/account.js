@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -12,7 +12,7 @@ router.use(requireAuth);
 router.get('/profile', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, username, full_name, role, phone, aadhaar_no,
+      `SELECT id, username, full_name, role, assigned_process, phone, aadhaar_no,
               bank_name, bank_account_no, bank_ifsc,
               nominee_name, nominee_relation, default_language,
               avatar_data, created_at, last_login_at, last_active_at

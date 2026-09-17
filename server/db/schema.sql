@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   pin_hash TEXT NOT NULL,
   full_name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('operator', 'supervisor', 'admin')),
+  assigned_process TEXT NOT NULL DEFAULT 'PRODUCTION' CHECK (assigned_process IN ('PRODUCTION', 'TRIMMING', 'PACKING_INSPECTION')),
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
