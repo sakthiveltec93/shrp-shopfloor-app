@@ -1193,5 +1193,23 @@ CREATE TABLE IF NOT EXISTS approved_devices (
 
 CREATE INDEX IF NOT EXISTS idx_approved_devices_id ON approved_devices(device_id);
 
+-- 12. Master Document Numbering & Sequence Configuration
+CREATE TABLE IF NOT EXISTS document_sequences (
+  id SERIAL PRIMARY KEY,
+  document_type TEXT UNIQUE NOT NULL,
+  type_label TEXT,
+  prefix TEXT NOT NULL,
+  suffix TEXT DEFAULT '',
+  padding_digits INTEGER NOT NULL DEFAULT 4,
+  include_year BOOLEAN NOT NULL DEFAULT FALSE,
+  year_format TEXT NOT NULL DEFAULT 'YYYY',
+  current_number INTEGER NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_sequences_type ON document_sequences(document_type);
+
 
 

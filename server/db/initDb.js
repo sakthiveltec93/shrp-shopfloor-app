@@ -5,6 +5,7 @@ const { syncParts } = require('./clean_parts');
 const { syncMoulds } = require('./sync_moulds');
 const { syncMaterials } = require('./seed_materials');
 const { syncPartPhotos } = require('./seed_photos');
+const { syncDocSequences } = require('./seed_doc_sequences');
 
 async function initDb() {
   try {
@@ -27,6 +28,22 @@ async function initDb() {
         approval_distance_m NUMERIC
       );
       CREATE INDEX IF NOT EXISTS idx_approved_devices_id ON approved_devices(device_id);
+
+      CREATE TABLE IF NOT EXISTS document_sequences (
+        id SERIAL PRIMARY KEY,
+        document_type TEXT UNIQUE NOT NULL,
+        type_label TEXT,
+        prefix TEXT NOT NULL,
+        suffix TEXT DEFAULT '',
+        padding_digits INTEGER NOT NULL DEFAULT 4,
+        include_year BOOLEAN NOT NULL DEFAULT FALSE,
+        year_format TEXT NOT NULL DEFAULT 'YYYY',
+        current_number INTEGER NOT NULL DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_document_sequences_type ON document_sequences(document_type);
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
@@ -45,6 +62,10 @@ async function initDb() {
     console.log('[DB-INIT] Syncing part photos from PART PHOTO folder...');
     await syncPartPhotos(false);
     console.log('[DB-INIT] Part photos synced successfully.');
+
+    console.log('[DB-INIT] Syncing standard document sequences & numbering formats...');
+    await syncDocSequences();
+    console.log('[DB-INIT] Document sequences synced successfully.');
 
     console.log('[DB-INIT] Cleaning up bag types for historical rejection/runner/lump bags...');
     await pool.query(`

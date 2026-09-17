@@ -5,6 +5,7 @@ import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
 import { isValidGSTIN, extractPanFromGSTIN } from '../utils/gstinValidator';
+import { getSuggestedDocFormat, formatDocumentNumber } from '../utils/docSequenceHelper';
 
 const TABS = [
   { key: 'parts', label: 'Parts', icon: '📋' },
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'customers', label: 'Customers', icon: '🏢' },
   { key: 'machines', label: 'Machines', icon: '🖥️' },
   { key: 'moulds', label: 'Moulds', icon: '⚙️' },
+  { key: 'document_sequences', label: 'Doc Numbering', icon: '🔢' },
   { key: 'defaults', label: 'Checksheets', icon: '📑' },
 ];
 
@@ -170,6 +172,28 @@ export default function MastersHub() {
     active: true,
   });
 
+  // 9. DOCUMENT SEQUENCES STATE
+  const [docSequences, setDocSequences] = useState([]);
+  const [docSeqLoading, setDocSeqLoading] = useState(false);
+  const [docSeqSearch, setDocSeqSearch] = useState('');
+  const [docSeqModal, setDocSeqModal] = useState(null); // { isEdit: boolean, data?: obj }
+  const [docSeqForm, setDocSeqForm] = useState({
+    document_type: '',
+    type_label: '',
+    prefix: 'SHRP-',
+    suffix: '',
+    padding_digits: 4,
+    include_year: true,
+    year_format: 'YYYY',
+    current_number: 0,
+    active: true,
+  });
+  const [docSeqTouched, setDocSeqTouched] = useState({
+    prefix: false,
+    padding_digits: false,
+    include_year: false,
+  });
+
   // Expandable card states for all tabs
   const [expandedPartId, setExpandedPartId] = useState(null);
   const [expandedRmId, setExpandedRmId] = useState(null);
@@ -186,8 +210,17 @@ export default function MastersHub() {
     if (activeTab === 'customers') loadCustomers();
     if (activeTab === 'machines') loadMachines();
     if (activeTab === 'moulds') loadMoulds();
+    if (activeTab === 'document_sequences') loadDocSequences();
     if (activeTab === 'defaults') loadDefaults();
   }, [activeTab]);
+
+  const loadDocSequences = () => {
+    setDocSeqLoading(true);
+    api.documentSequences.list()
+      .then((data) => setDocSequences(Array.isArray(data) ? data : []))
+      .catch((e) => setError(e.message))
+      .finally(() => setDocSeqLoading(false));
+  };
 
   const loadParts = () => {
     setPartsLoading(true);
@@ -340,6 +373,125 @@ export default function MastersHub() {
       loadDefaults();
     } catch (err) {
       setError(err.message || 'Cannot delete item');
+    }
+  };
+
+  // --- DOCUMENT SEQUENCES ACTIONS ---
+  const handleOpenDocSeqModal = (mode = 'add', data = null) => {
+    setError('');
+    if (mode === 'edit' && data) {
+      setDocSeqForm({
+        document_type: data.document_type || '',
+        type_label: data.type_label || '',
+        prefix: data.prefix || 'SHRP-',
+        suffix: data.suffix || '',
+        padding_digits: Number(data.padding_digits) || 4,
+        include_year: data.include_year !== false,
+        year_format: data.year_format || 'YYYY',
+        current_number: Number(data.current_number) || 0,
+        active: data.active !== false,
+      });
+      setDocSeqTouched({ prefix: true, padding_digits: true, include_year: true });
+      setDocSeqModal({ isEdit: true, data });
+    } else {
+      const initialType = '';
+      const initialSug = getSuggestedDocFormat(initialType);
+      setDocSeqForm({
+        document_type: '',
+        type_label: '',
+        prefix: initialSug.prefix,
+        suffix: '',
+        padding_digits: initialSug.padding_digits,
+        include_year: initialSug.include_year,
+        year_format: 'YYYY',
+        current_number: 0,
+        active: true,
+      });
+      setDocSeqTouched({ prefix: false, padding_digits: false, include_year: false });
+      setDocSeqModal({ isEdit: false });
+    }
+  };
+
+  const handleDocTypeInputChange = (val) => {
+    const uppercased = val.toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+    const suggestion = getSuggestedDocFormat(val);
+
+    setDocSeqForm((prev) => ({
+      ...prev,
+      document_type: uppercased,
+      type_label: !prev.type_label || prev.type_label === prev.document_type ? val : prev.type_label,
+      prefix: docSeqTouched.prefix ? prev.prefix : suggestion.prefix,
+      padding_digits: docSeqTouched.padding_digits ? prev.padding_digits : suggestion.padding_digits,
+      include_year: docSeqTouched.include_year ? prev.include_year : suggestion.include_year,
+    }));
+  };
+
+  const handleApplySuggestedDefaults = () => {
+    const sug = getSuggestedDocFormat(docSeqForm.document_type);
+    setDocSeqForm((prev) => ({
+      ...prev,
+      prefix: sug.prefix,
+      padding_digits: sug.padding_digits,
+      include_year: sug.include_year,
+    }));
+    setDocSeqTouched({ prefix: false, padding_digits: false, include_year: false });
+  };
+
+  const handleSaveDocSequence = async (e) => {
+    e.preventDefault();
+    setError('');
+    const { isEdit, data } = docSeqModal || {};
+    try {
+      if (isEdit) {
+        await api.documentSequences.update(data.id, {
+          type_label: docSeqForm.type_label,
+          prefix: docSeqForm.prefix,
+          suffix: docSeqForm.suffix,
+          padding_digits: Number(docSeqForm.padding_digits),
+          include_year: docSeqForm.include_year,
+          year_format: docSeqForm.year_format,
+          current_number: Number(docSeqForm.current_number),
+          active: docSeqForm.active,
+        });
+        setSuccess(`✅ Document sequence '${docSeqForm.document_type}' updated.`);
+      } else {
+        await api.documentSequences.create({
+          document_type: docSeqForm.document_type,
+          type_label: docSeqForm.type_label,
+          prefix: docSeqForm.prefix,
+          suffix: docSeqForm.suffix,
+          padding_digits: Number(docSeqForm.padding_digits),
+          include_year: docSeqForm.include_year,
+          year_format: docSeqForm.year_format,
+          current_number: Number(docSeqForm.current_number),
+          active: docSeqForm.active,
+        });
+        setSuccess(`✅ Document sequence '${docSeqForm.document_type}' created.`);
+      }
+      setDocSeqModal(null);
+      loadDocSequences();
+    } catch (err) {
+      setError(err.message || 'Failed to save document sequence');
+    }
+  };
+
+  const handleDeleteDocSequence = async (seq) => {
+    if (!window.confirm(`Are you sure you want to delete numbering sequence for '${seq.document_type}' (${seq.prefix})?`)) return;
+    try {
+      await api.documentSequences.delete(seq.id);
+      setSuccess(`✅ Sequence '${seq.document_type}' deleted.`);
+      loadDocSequences();
+    } catch (err) {
+      setError(err.message || 'Cannot delete document sequence');
+    }
+  };
+
+  const handleToggleDocSeqActive = async (seq) => {
+    try {
+      await api.documentSequences.update(seq.id, { active: !seq.active });
+      loadDocSequences();
+    } catch (err) {
+      setError(err.message || 'Failed to update status');
     }
   };
 
@@ -2655,6 +2807,487 @@ export default function MastersHub() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 8: DOCUMENT NUMBERING & SEQUENCES MASTER */}
+      {activeTab === 'document_sequences' && (
+        <div className="panel" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
+              <input
+                type="text"
+                placeholder="🔍 Search document type, prefix, or label..."
+                value={docSeqSearch}
+                onChange={(e) => setDocSeqSearch(e.target.value)}
+                style={{ flex: 1, padding: '8px 12px', fontSize: 13, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: 'auto', padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => handleOpenDocSeqModal('add')}
+            >
+              <span>➕</span> Add New Document Type
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 14, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span>
+              Configure standardized document numbering schemes across invoices, delivery challans, RFQs, production batches, and master records.
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--text)' }}>
+              {docSequences.length} Types Configured
+            </span>
+          </div>
+
+          {docSeqLoading ? (
+            <p className="muted">Loading document numbering formats…</p>
+          ) : docSequences.filter(s => {
+              if (!docSeqSearch.trim()) return true;
+              const q = docSeqSearch.toLowerCase();
+              return (s.document_type || '').toLowerCase().includes(q) ||
+                     (s.type_label || '').toLowerCase().includes(q) ||
+                     (s.prefix || '').toLowerCase().includes(q);
+            }).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)' }}>
+              No document types found. Click <strong>+ Add New Document Type</strong> to create one.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+              {docSequences
+                .filter(s => {
+                  if (!docSeqSearch.trim()) return true;
+                  const q = docSeqSearch.toLowerCase();
+                  return (s.document_type || '').toLowerCase().includes(q) ||
+                         (s.type_label || '').toLowerCase().includes(q) ||
+                         (s.prefix || '').toLowerCase().includes(q);
+                })
+                .map((seq) => {
+                  const isTransactional = seq.include_year;
+                  return (
+                    <div
+                      key={seq.id}
+                      style={{
+                        background: 'var(--bg)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 8,
+                        padding: 14,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        opacity: seq.active ? 1 : 0.6,
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <strong style={{ fontSize: 14, color: 'var(--text)' }}>
+                                {seq.type_label || seq.document_type}
+                              </strong>
+                              {!seq.active && (
+                                <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.2)', color: '#ef4444', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>
+                                  INACTIVE
+                                </span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                              Type: {seq.document_type}
+                            </span>
+                          </div>
+
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              background: isTransactional ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                              color: isTransactional ? '#60a5fa' : '#34d399',
+                            }}
+                          >
+                            {isTransactional ? '📅 Transactional (Year)' : '🏷️ Master Code'}
+                          </span>
+                        </div>
+
+                        {/* Live Next Number Banner */}
+                        <div
+                          style={{
+                            margin: '8px 0',
+                            padding: '8px 10px',
+                            background: 'rgba(0,0,0,0.35)',
+                            border: '1px dashed var(--line)',
+                            borderRadius: 6,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Next Number:</span>
+                          <code style={{ fontSize: 13, fontWeight: 800, color: '#10b981' }}>
+                            {seq.preview_next || formatDocumentNumber({ prefix: seq.prefix, padding_digits: seq.padding_digits, include_year: seq.include_year, suffix: seq.suffix, number: (Number(seq.current_number) || 0) + 1 })}
+                          </code>
+                        </div>
+
+                        {/* Specs */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                          <div>
+                            Prefix: <strong style={{ color: 'var(--text)' }}>{seq.prefix}</strong>
+                          </div>
+                          <div>
+                            Padding: <strong style={{ color: 'var(--text)' }}>{seq.padding_digits} digits</strong>
+                          </div>
+                          <div>
+                            Year in Code: <strong style={{ color: 'var(--text)' }}>{seq.include_year ? 'Yes (YYYY)' : 'No'}</strong>
+                          </div>
+                          <div>
+                            Current Counter: <strong style={{ color: 'var(--text)' }}>#{seq.current_number || 0}</strong>
+                          </div>
+                          {seq.suffix && (
+                            <div style={{ gridColumn: 'span 2' }}>
+                              Suffix: <strong style={{ color: 'var(--text)' }}>{seq.suffix}</strong>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDocSeqActive(seq)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            background: 'transparent',
+                            color: seq.active ? 'var(--text-muted)' : '#10b981',
+                            border: '1px solid var(--line)',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {seq.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ width: 'auto', padding: '4px 10px', fontSize: 11 }}
+                          onClick={() => handleOpenDocSeqModal('edit', seq)}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => handleDeleteDocSequence(seq)}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
+          {/* Add / Edit Document Sequence Modal */}
+          {docSeqModal && (() => {
+            const currentYear = new Date().getFullYear();
+            const livePreview = formatDocumentNumber({
+              prefix: docSeqForm.prefix,
+              padding_digits: Number(docSeqForm.padding_digits) || 4,
+              include_year: docSeqForm.include_year,
+              suffix: docSeqForm.suffix,
+              number: (Number(docSeqForm.current_number) || 0) + 1,
+              year: currentYear,
+            });
+            const suggested = getSuggestedDocFormat(docSeqForm.document_type);
+
+            return (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+                <div className="panel" style={{ width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                      {docSeqModal.isEdit ? `✏️ Edit Sequence: ${docSeqForm.document_type}` : '➕ Add New Document Type & Numbering'}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setDocSeqModal(null)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveDocSequence} style={{ display: 'grid', gap: 12 }}>
+                    {/* 1. Document Type Name */}
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                        Document Type Key * (e.g. INVOICE, RFQ, DC, BATCH, CUSTOMER)
+                      </label>
+                      <input
+                        required
+                        disabled={docSeqModal.isEdit}
+                        value={docSeqForm.document_type}
+                        onChange={(e) => handleDocTypeInputChange(e.target.value)}
+                        placeholder="e.g. RFQ, INVOICE, DC, BATCH"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          background: docSeqModal.isEdit ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.3)',
+                          border: '1px solid var(--line)',
+                          borderRadius: 6,
+                          color: 'var(--text)',
+                          textTransform: 'uppercase',
+                        }}
+                      />
+                      {!docSeqModal.isEdit && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                          💡 Type a name above to instantly auto-generate sensible prefix &amp; padding defaults.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Human-Readable Label */}
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                        Display Label / Title
+                      </label>
+                      <input
+                        value={docSeqForm.type_label}
+                        onChange={(e) => setDocSeqForm({ ...docSeqForm, type_label: e.target.value })}
+                        placeholder="e.g. Request For Quotation, Tax Invoice, Delivery Challan"
+                        style={{ width: '100%', padding: '8px 12px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+                      />
+                    </div>
+
+                    {/* 3. SIDE-BY-SIDE: Suggested Default vs Live Next Number Preview */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '4px 0' }}>
+                      {/* Left: Suggested Default */}
+                      <div
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.06)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: 6,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span>💡</span> Suggested Default
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Prefix: <strong style={{ color: 'var(--text)' }}>{suggested.prefix}</strong>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Padding: <strong style={{ color: 'var(--text)' }}>{suggested.padding_digits} digits</strong> ({suggested.padding_digits === 3 ? 'Master' : 'Transactional'})
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Include Year: <strong style={{ color: 'var(--text)' }}>{suggested.include_year ? 'Yes' : 'No'}</strong>
+                          </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px dashed rgba(245, 158, 11, 0.2)', paddingTop: 6, marginTop: 4 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>Default Format:</span>
+                          <code style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>
+                            {suggested.preview}
+                          </code>
+                          {!docSeqModal.isEdit && (
+                            <button
+                              type="button"
+                              onClick={handleApplySuggestedDefaults}
+                              style={{
+                                display: 'block',
+                                marginTop: 6,
+                                padding: '3px 8px',
+                                fontSize: 10,
+                                fontWeight: 600,
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: 'var(--amber)',
+                                border: '1px solid rgba(245, 158, 11, 0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              ↺ Reset to Suggested
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Live Next Number Preview */}
+                      <div
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.06)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: 6,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span>⚡</span> Live "Next Number" Preview
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                            First real number generated from current settings:
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'center', padding: '10px 6px', background: 'rgba(0,0,0,0.4)', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                          <code style={{ fontSize: 14, fontWeight: 800, color: '#10b981', wordBreak: 'break-all' }}>
+                            {livePreview}
+                          </code>
+                        </div>
+
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Next sequence count: #{ (Number(docSeqForm.current_number) || 0) + 1 }
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Editable Configuration Fields (Always fully customizable) */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--line)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                        ⚙️ Customizable Numbering Rules (Edit any field anytime)
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        {/* Prefix */}
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                            Prefix *
+                          </label>
+                          <input
+                            required
+                            value={docSeqForm.prefix}
+                            onChange={(e) => {
+                              setDocSeqTouched((t) => ({ ...t, prefix: true }));
+                              setDocSeqForm({ ...docSeqForm, prefix: e.target.value });
+                            }}
+                            placeholder="e.g. SHRP-INV-, SHRP-RFQ-"
+                            style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+                          />
+                        </div>
+
+                        {/* Suffix */}
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                            Suffix (Optional)
+                          </label>
+                          <input
+                            value={docSeqForm.suffix}
+                            onChange={(e) => setDocSeqForm({ ...docSeqForm, suffix: e.target.value })}
+                            placeholder="e.g. -A, /26"
+                            style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+                          />
+                        </div>
+
+                        {/* Padding Digits */}
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                            Padding Digits *
+                          </label>
+                          <select
+                            value={docSeqForm.padding_digits}
+                            onChange={(e) => {
+                              setDocSeqTouched((t) => ({ ...t, padding_digits: true }));
+                              setDocSeqForm({ ...docSeqForm, padding_digits: Number(e.target.value) });
+                            }}
+                            style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+                          >
+                            <option value={2}>2 digits (e.g. 01)</option>
+                            <option value={3}>3 digits (e.g. 001 - Masters)</option>
+                            <option value={4}>4 digits (e.g. 0001 - Transactional)</option>
+                            <option value={5}>5 digits (e.g. 00001)</option>
+                            <option value={6}>6 digits (e.g. 000001)</option>
+                          </select>
+                        </div>
+
+                        {/* Starting / Current Counter */}
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                            Current Counter ({docSeqModal.isEdit ? 'Last Issued' : 'Start before #1'})
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={docSeqForm.current_number}
+                            onChange={(e) => setDocSeqForm({ ...docSeqForm, current_number: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                            style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Checkboxes */}
+                      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', color: 'var(--text)' }}>
+                          <input
+                            type="checkbox"
+                            checked={docSeqForm.include_year}
+                            onChange={(e) => {
+                              setDocSeqTouched((t) => ({ ...t, include_year: true }));
+                              setDocSeqForm({ ...docSeqForm, include_year: e.target.checked });
+                            }}
+                          />
+                          <span>
+                            <strong>Include Year in Document Number</strong> (e.g. <code style={{ color: 'var(--amber)' }}>{currentYear}-</code>) — Recommended for Invoices, DCs, RFQs, Batches.
+                          </span>
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', color: 'var(--text)' }}>
+                          <input
+                            type="checkbox"
+                            checked={docSeqForm.active}
+                            onChange={(e) => setDocSeqForm({ ...docSeqForm, active: e.target.checked })}
+                          />
+                          <span>Active / Available for Number Generation</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ width: 'auto', padding: '8px 14px' }}
+                        onClick={() => setDocSeqModal(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ width: 'auto', padding: '8px 18px', fontWeight: 700 }}
+                      >
+                        {docSeqModal.isEdit ? 'Save Changes' : 'Confirm & Save Document Type'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -4,6 +4,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { optimizeImage } = require('../lib/imageProcessor');
 const { isValidGSTIN } = require('../lib/gstinValidator');
 const { uploadFile, getFile, deleteFile, isR2Configured } = require('../lib/r2');
+const { getSuggestedDocFormat, formatDocumentNumber } = require('../lib/docSequenceHelper');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -588,4 +589,240 @@ router.post('/compress-images', requireRole('admin'), async (req, res) => {
   }
 });
 
+// ============================================================
+// Master Document Numbering & Sequences Configuration
+// ============================================================
+
+// Suggest sensible default format based on document type name
+router.get('/document-sequences/suggest', (req, res) => {
+  const { type } = req.query;
+  const suggestion = getSuggestedDocFormat(type || '');
+  res.json(suggestion);
+});
+
+// List all configured document sequences with live next previews
+router.get('/document-sequences', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM document_sequences ORDER BY active DESC, document_type ASC'
+    );
+    const enriched = rows.map((r) => ({
+      ...r,
+      next_number: Number(r.current_number || 0) + 1,
+      preview_next: formatDocumentNumber({
+        prefix: r.prefix,
+        padding_digits: r.padding_digits,
+        include_year: r.include_year,
+        suffix: r.suffix,
+        number: Number(r.current_number || 0) + 1,
+      }),
+    }));
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch document sequences: ' + err.message });
+  }
+});
+
+// Create a new document sequence configuration
+router.post('/document-sequences', requireRole('admin', 'supervisor'), async (req, res) => {
+  const {
+    document_type,
+    type_label,
+    prefix,
+    suffix,
+    padding_digits,
+    include_year,
+    year_format,
+    current_number,
+    active,
+  } = req.body;
+
+  if (!document_type || !document_type.trim()) {
+    return res.status(400).json({ error: 'Document type is required' });
+  }
+  if (!prefix || !prefix.trim()) {
+    return res.status(400).json({ error: 'Prefix is required' });
+  }
+
+  const cleanType = document_type.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  const cleanPrefix = prefix.trim();
+  const digits = Math.max(1, Math.min(10, Number(padding_digits) || 4));
+  const startingNum = Math.max(0, Number(current_number) || 0);
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO document_sequences (
+         document_type, type_label, prefix, suffix, padding_digits, include_year,
+         year_format, current_number, active, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+       ON CONFLICT (document_type) DO UPDATE SET
+         type_label = COALESCE(EXCLUDED.type_label, document_sequences.type_label),
+         prefix = EXCLUDED.prefix,
+         suffix = EXCLUDED.suffix,
+         padding_digits = EXCLUDED.padding_digits,
+         include_year = EXCLUDED.include_year,
+         year_format = EXCLUDED.year_format,
+         current_number = COALESCE(EXCLUDED.current_number, document_sequences.current_number),
+         active = COALESCE(EXCLUDED.active, document_sequences.active),
+         updated_at = now()
+       RETURNING *`,
+      [
+        cleanType,
+        type_label ? type_label.trim() : cleanType,
+        cleanPrefix,
+        suffix ? suffix.trim() : '',
+        digits,
+        include_year !== false,
+        year_format || 'YYYY',
+        startingNum,
+        active !== false,
+      ]
+    );
+
+    const saved = rows[0];
+    res.status(201).json({
+      ...saved,
+      next_number: Number(saved.current_number || 0) + 1,
+      preview_next: formatDocumentNumber({
+        prefix: saved.prefix,
+        padding_digits: saved.padding_digits,
+        include_year: saved.include_year,
+        suffix: saved.suffix,
+        number: Number(saved.current_number || 0) + 1,
+      }),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create document sequence: ' + err.message });
+  }
+});
+
+// Update an existing document sequence
+router.put('/document-sequences/:id', requireRole('admin', 'supervisor'), async (req, res) => {
+  const { id } = req.params;
+  const {
+    type_label,
+    prefix,
+    suffix,
+    padding_digits,
+    include_year,
+    year_format,
+    current_number,
+    active,
+  } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE document_sequences SET
+         type_label = COALESCE($1, type_label),
+         prefix = COALESCE($2, prefix),
+         suffix = COALESCE($3, suffix),
+         padding_digits = COALESCE($4, padding_digits),
+         include_year = COALESCE($5, include_year),
+         year_format = COALESCE($6, year_format),
+         current_number = COALESCE($7, current_number),
+         active = COALESCE($8, active),
+         updated_at = now()
+       WHERE id = $9
+       RETURNING *`,
+      [
+        type_label != null ? type_label.trim() : null,
+        prefix != null ? prefix.trim() : null,
+        suffix != null ? suffix.trim() : null,
+        padding_digits != null ? Number(padding_digits) : null,
+        include_year != null ? Boolean(include_year) : null,
+        year_format || null,
+        current_number != null ? Number(current_number) : null,
+        active != null ? Boolean(active) : null,
+        id,
+      ]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Document sequence record not found' });
+    }
+
+    const saved = rows[0];
+    res.json({
+      ...saved,
+      next_number: Number(saved.current_number || 0) + 1,
+      preview_next: formatDocumentNumber({
+        prefix: saved.prefix,
+        padding_digits: saved.padding_digits,
+        include_year: saved.include_year,
+        suffix: saved.suffix,
+        number: Number(saved.current_number || 0) + 1,
+      }),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update document sequence: ' + err.message });
+  }
+});
+
+// Delete a document sequence
+router.delete('/document-sequences/:id', requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query('DELETE FROM document_sequences WHERE id = $1 RETURNING *', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Document sequence record not found' });
+    }
+    res.json({ ok: true, message: `Document sequence '${rows[0].document_type}' deleted.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete document sequence: ' + err.message });
+  }
+});
+
+// Generate and reserve the next real document number atomically
+router.post('/document-sequences/:type/next', async (req, res) => {
+  const typeParam = req.params.type.trim().toUpperCase();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const selRes = await client.query(
+      'SELECT * FROM document_sequences WHERE document_type = $1 FOR UPDATE',
+      [typeParam]
+    );
+
+    let seq = selRes.rows[0];
+    if (!seq) {
+      // Auto-initialize sequence if missing
+      const def = getSuggestedDocFormat(typeParam);
+      const insRes = await client.query(
+        `INSERT INTO document_sequences (document_type, type_label, prefix, padding_digits, include_year, current_number)
+         VALUES ($1, $2, $3, $4, $5, 0)
+         RETURNING *`,
+        [typeParam, typeParam, def.prefix, def.padding_digits, def.include_year]
+      );
+      seq = insRes.rows[0];
+    }
+
+    const nextVal = Number(seq.current_number || 0) + 1;
+    await client.query(
+      'UPDATE document_sequences SET current_number = $1, updated_at = now() WHERE id = $2',
+      [nextVal, seq.id]
+    );
+    await client.query('COMMIT');
+
+    const formatted = formatDocumentNumber({
+      prefix: seq.prefix,
+      padding_digits: seq.padding_digits,
+      include_year: seq.include_year,
+      suffix: seq.suffix,
+      number: nextVal,
+    });
+
+    res.json({
+      document_type: seq.document_type,
+      sequence_number: nextVal,
+      formatted_number: formatted,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Failed to generate next document number: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
+
