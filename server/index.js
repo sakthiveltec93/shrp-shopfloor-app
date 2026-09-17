@@ -24,6 +24,7 @@ const supplierRoutes = require('./routes/suppliers');
 const planningRoutes = require('./routes/planning');
 const fpaRoutes = require('./routes/fpa');
 const securityRoutes = require('./routes/security');
+const gstRoutes = require('./routes/gst');
 
 const fs = require('fs');
 
@@ -65,6 +66,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/fpa', fpaRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/gst', gstRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

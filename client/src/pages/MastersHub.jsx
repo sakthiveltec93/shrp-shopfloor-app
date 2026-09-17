@@ -4,6 +4,22 @@ import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
+import { isValidGSTIN, extractPanFromGSTIN } from '../utils/gstinValidator';
+
+function formatGstAddress(addr) {
+  if (!addr) return '';
+  if (typeof addr === 'string') return addr;
+  const parts = [
+    addr.bno ? `Door ${addr.bno}` : '',
+    addr.bnm,
+    addr.st,
+    addr.loc,
+    addr.dst,
+    addr.stcd,
+    addr.pncd,
+  ].filter(Boolean);
+  return parts.join(', ');
+}
 
 const TABS = [
   { key: 'parts', label: 'Parts', icon: '📋' },
@@ -88,6 +104,9 @@ export default function MastersHub() {
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierModal, setSupplierModal] = useState(null);
+  const [supplierGstVerifying, setSupplierGstVerifying] = useState(false);
+  const [supplierGstResult, setSupplierGstResult] = useState(null);
+  const [supplierGstError, setSupplierGstError] = useState('');
   const [supplierForm, setSupplierForm] = useState({
     supplier_code: '',
     supplier_name: '',
@@ -106,6 +125,8 @@ export default function MastersHub() {
     vendor_rating: 100,
     iso_iatf_certified: true,
     active: true,
+    gst_last_verified_at: null,
+    gst_verification_status: null,
   });
 
   // 5. CUSTOMERS STATE
@@ -113,6 +134,9 @@ export default function MastersHub() {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerModal, setCustomerModal] = useState(null);
+  const [customerGstVerifying, setCustomerGstVerifying] = useState(false);
+  const [customerGstResult, setCustomerGstResult] = useState(null);
+  const [customerGstError, setCustomerGstError] = useState('');
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [customerForm, setCustomerForm] = useState({
     customer_code: '',
@@ -128,6 +152,8 @@ export default function MastersHub() {
     pincode: '',
     payment_terms: '30 Days',
     active: true,
+    gst_last_verified_at: null,
+    gst_verification_status: null,
   });
 
   // 6. MACHINES STATE
@@ -405,6 +431,45 @@ export default function MastersHub() {
   };
 
   // --- SUPPLIER ACTIONS ---
+  const handleVerifySupplierGST = async () => {
+    if (!isValidGSTIN(supplierForm.gstin)) return;
+    setSupplierGstVerifying(true);
+    setSupplierGstError('');
+    setSupplierGstResult(null);
+    try {
+      const data = await api.gst.verify(supplierForm.gstin);
+      setSupplierGstResult(data);
+      const status = data.sts || (data.status === 'Active' ? 'Active' : (data.status || 'Verified'));
+      setSupplierForm((prev) => ({
+        ...prev,
+        gst_verification_status: status,
+        gst_last_verified_at: new Date().toISOString(),
+      }));
+    } catch (err) {
+      setSupplierGstError(err.message || 'GST verification failed');
+    } finally {
+      setSupplierGstVerifying(false);
+    }
+  };
+
+  const handleAutofillSupplierFromGST = () => {
+    if (!supplierGstResult) return;
+    const r = supplierGstResult;
+    const addrObj = r.pradr?.addr || r.pradr || {};
+    const fullAddr = formatGstAddress(addrObj);
+    const derivedPan = extractPanFromGSTIN(supplierForm.gstin);
+
+    setSupplierForm((prev) => ({
+      ...prev,
+      supplier_name: r.tradeNam || r.lgnm || prev.supplier_name,
+      pan_no: derivedPan || prev.pan_no,
+      address: fullAddr || prev.address,
+      city: addrObj.dst || addrObj.loc || prev.city,
+      state: addrObj.stcd || prev.state,
+      pincode: addrObj.pncd ? String(addrObj.pncd) : prev.pincode,
+    }));
+  };
+
   const handleSaveSupplier = async (e) => {
     e.preventDefault();
     setError('');
@@ -435,6 +500,45 @@ export default function MastersHub() {
   };
 
   // --- CUSTOMER ACTIONS ---
+  const handleVerifyCustomerGST = async () => {
+    if (!isValidGSTIN(customerForm.gstin)) return;
+    setCustomerGstVerifying(true);
+    setCustomerGstError('');
+    setCustomerGstResult(null);
+    try {
+      const data = await api.gst.verify(customerForm.gstin);
+      setCustomerGstResult(data);
+      const status = data.sts || (data.status === 'Active' ? 'Active' : (data.status || 'Verified'));
+      setCustomerForm((prev) => ({
+        ...prev,
+        gst_verification_status: status,
+        gst_last_verified_at: new Date().toISOString(),
+      }));
+    } catch (err) {
+      setCustomerGstError(err.message || 'GST verification failed');
+    } finally {
+      setCustomerGstVerifying(false);
+    }
+  };
+
+  const handleAutofillCustomerFromGST = () => {
+    if (!customerGstResult) return;
+    const r = customerGstResult;
+    const addrObj = r.pradr?.addr || r.pradr || {};
+    const fullAddr = formatGstAddress(addrObj);
+    const derivedPan = extractPanFromGSTIN(customerForm.gstin);
+
+    setCustomerForm((prev) => ({
+      ...prev,
+      name: r.tradeNam || r.lgnm || prev.name,
+      pan_no: derivedPan || prev.pan_no,
+      address: fullAddr || prev.address,
+      city: addrObj.dst || addrObj.loc || prev.city,
+      state: addrObj.stcd || prev.state,
+      pincode: addrObj.pncd ? String(addrObj.pncd) : prev.pincode,
+    }));
+  };
+
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
     setError('');
@@ -1455,7 +1559,12 @@ export default function MastersHub() {
                   vendor_rating: 100,
                   iso_iatf_certified: true,
                   active: true,
+                  gst_last_verified_at: null,
+                  gst_verification_status: null,
                 });
+                setSupplierGstResult(null);
+                setSupplierGstError('');
+                setSupplierGstVerifying(false);
                 setSupplierModal({ isEdit: false });
               }}
             >
@@ -1539,7 +1648,12 @@ export default function MastersHub() {
                                 vendor_rating: s.vendor_rating || 100,
                                 iso_iatf_certified: s.iso_iatf_certified !== false,
                                 active: s.active !== false,
+                                gst_last_verified_at: s.gst_last_verified_at || null,
+                                gst_verification_status: s.gst_verification_status || null,
                               });
+                              setSupplierGstResult(null);
+                              setSupplierGstError('');
+                              setSupplierGstVerifying(false);
                               setSupplierModal({ isEdit: true, data: s });
                             }}
                           >
@@ -1567,10 +1681,20 @@ export default function MastersHub() {
                       </div>
 
                       {/* Chips Row: GSTIN, Contact, Materials, IATF */}
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
                         {s.gstin && (
                           <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', color: '#38bdf8' }}>
                             GST: {s.gstin}
+                          </span>
+                        )}
+                        {s.gstin && s.gst_verification_status === 'Active' && (
+                          <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            ✓ Verified Active
+                          </span>
+                        )}
+                        {s.gstin && s.gst_verification_status && s.gst_verification_status !== 'Active' && (
+                          <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            ⚠️ {s.gst_verification_status}
                           </span>
                         )}
                         {s.contact_person && (
@@ -1610,6 +1734,11 @@ export default function MastersHub() {
                           {s.address && <div><strong>Address:</strong> {s.address}</div>}
                           <div><strong>Terms:</strong> {s.payment_terms || '30 Days'} · Lead Time: {s.lead_time_days || 7} days</div>
                           <div><strong>Certification:</strong> {s.iso_iatf_certified !== false ? '✓ IATF/ISO Certified' : '✕ Uncertified'}</div>
+                          {s.gst_last_verified_at && (
+                            <div style={{ color: '#94a3b8' }}>
+                              GST Verified: {new Date(s.gst_last_verified_at).toLocaleDateString()} ({s.gst_verification_status || 'OK'})
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1621,7 +1750,7 @@ export default function MastersHub() {
           {/* Supplier Modal */}
           {supplierModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-              <div className="panel" style={{ width: '100%', maxWidth: 540, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 580, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
                   {supplierModal.isEdit ? '✏️ Edit Supplier / Vendor' : '➕ Register Supplier / Vendor Master'}
                 </h3>
@@ -1649,27 +1778,110 @@ export default function MastersHub() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
-                      <input
-                        value={supplierForm.gstin}
-                        onChange={(e) => setSupplierForm({ ...supplierForm, gstin: e.target.value.toUpperCase() })}
-                        placeholder="33AAAAA0000A1Z5"
-                        maxLength={15}
-                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
-                      />
+                  {/* GSTIN & PAN row with Live Verification */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 8, border: '1px solid var(--line)', display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 8, alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                          <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
+                          {supplierForm.gstin && (
+                            <span style={{ fontSize: 10, fontWeight: 700 }}>
+                              {isValidGSTIN(supplierForm.gstin) ? (
+                                <span style={{ color: '#34d399' }}>✓ Valid Checksum</span>
+                              ) : supplierForm.gstin.length === 15 ? (
+                                <span style={{ color: '#f87171' }}>✕ Invalid Checksum</span>
+                              ) : (
+                                <span style={{ color: '#94a3b8' }}>({supplierForm.gstin.length}/15)</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            value={supplierForm.gstin}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase().trim();
+                              setSupplierForm({ ...supplierForm, gstin: val });
+                              setSupplierGstError('');
+                            }}
+                            placeholder="33AAAAA0000A1Z5"
+                            maxLength={15}
+                            style={{ flex: 1, padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifySupplierGST}
+                            disabled={!isValidGSTIN(supplierForm.gstin) || supplierGstVerifying}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              background: isValidGSTIN(supplierForm.gstin) ? 'var(--amber)' : 'rgba(255,255,255,0.08)',
+                              color: isValidGSTIN(supplierForm.gstin) ? '#000' : 'var(--text-muted)',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: isValidGSTIN(supplierForm.gstin) && !supplierGstVerifying ? 'pointer' : 'not-allowed',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {supplierGstVerifying ? '⏳ Checking…' : '🔍 Verify'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
+                        <input
+                          value={supplierForm.pan_no}
+                          onChange={(e) => setSupplierForm({ ...supplierForm, pan_no: e.target.value.toUpperCase() })}
+                          placeholder="AAAAA0000A"
+                          maxLength={10}
+                          style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace', marginTop: 17 }}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
-                      <input
-                        value={supplierForm.pan_no}
-                        onChange={(e) => setSupplierForm({ ...supplierForm, pan_no: e.target.value.toUpperCase() })}
-                        placeholder="AAAAA0000A"
-                        maxLength={10}
-                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
-                      />
-                    </div>
+
+                    {/* GST Error Banner */}
+                    {supplierGstError && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#f87171', padding: '6px 10px', borderRadius: 6, fontSize: 11 }}>
+                        ⚠️ {supplierGstError}
+                      </div>
+                    )}
+
+                    {/* GST Verified Preview Card */}
+                    {supplierGstResult && (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, color: supplierGstResult.sts === 'Active' ? '#34d399' : '#f87171' }}>
+                            Status: {supplierGstResult.sts || 'Verified'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleAutofillSupplierFromGST}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ⚡ Auto-fill Form
+                          </button>
+                        </div>
+                        {supplierGstResult.sts && supplierGstResult.sts !== 'Active' && (
+                          <div style={{ color: '#f87171', fontWeight: 700 }}>
+                            ⚠️ Warning: GSTIN status is {supplierGstResult.sts}! Tax compliance may be impacted.
+                          </div>
+                        )}
+                        <div><strong>Legal Name:</strong> {supplierGstResult.lgnm || '—'}</div>
+                        {supplierGstResult.tradeNam && <div><strong>Trade Name:</strong> {supplierGstResult.tradeNam}</div>}
+                        {supplierGstResult.pradr && <div><strong>Address:</strong> {formatGstAddress(supplierGstResult.pradr.addr || supplierGstResult.pradr)}</div>}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
@@ -1837,7 +2049,12 @@ export default function MastersHub() {
                   pincode: '',
                   payment_terms: '30 Days',
                   active: true,
+                  gst_last_verified_at: null,
+                  gst_verification_status: null,
                 });
+                setCustomerGstResult(null);
+                setCustomerGstError('');
+                setCustomerGstVerifying(false);
                 setCustomerModal({ isEdit: false });
               }}
             >
@@ -1919,7 +2136,12 @@ export default function MastersHub() {
                                 pincode: c.pincode || '',
                                 payment_terms: c.payment_terms || '30 Days',
                                 active: c.active !== false,
+                                gst_last_verified_at: c.gst_last_verified_at || null,
+                                gst_verification_status: c.gst_verification_status || null,
                               });
+                              setCustomerGstResult(null);
+                              setCustomerGstError('');
+                              setCustomerGstVerifying(false);
                               setCustomerModal({ isEdit: true, data: c });
                             }}
                           >
@@ -1936,6 +2158,25 @@ export default function MastersHub() {
                             </button>
                           )}
                         </div>
+                      </div>
+
+                      {/* Chips / Status Row */}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', fontSize: 11 }}>
+                        {c.gstin && (
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', color: '#38bdf8' }}>
+                            GST: {c.gstin}
+                          </span>
+                        )}
+                        {c.gstin && c.gst_verification_status === 'Active' && (
+                          <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            ✓ Verified Active
+                          </span>
+                        )}
+                        {c.gstin && c.gst_verification_status && c.gst_verification_status !== 'Active' && (
+                          <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            ⚠️ {c.gst_verification_status}
+                          </span>
+                        )}
                       </div>
 
                       {/* Expand/Collapse Toggle */}
@@ -1957,6 +2198,11 @@ export default function MastersHub() {
                           <div>Terms: <strong style={{ color: 'var(--text)' }}>{c.payment_terms || '30 Days'}</strong></div>
                           <div>Email: <strong style={{ color: 'var(--text)' }}>{c.email || '—'}</strong></div>
                           {c.address && <div style={{ gridColumn: 'span 2' }}>Address: <span style={{ color: 'var(--text)' }}>{c.address}</span></div>}
+                          {c.gst_last_verified_at && (
+                            <div style={{ gridColumn: 'span 2', color: '#94a3b8' }}>
+                              GST Verified: {new Date(c.gst_last_verified_at).toLocaleDateString()} ({c.gst_verification_status || 'OK'})
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1968,7 +2214,7 @@ export default function MastersHub() {
           {/* Customer Modal */}
           {customerModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-              <div className="panel" style={{ width: '100%', maxWidth: 540, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="panel" style={{ width: '100%', maxWidth: 580, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>
                   {customerModal.isEdit ? '✏️ Edit Customer Master' : '➕ Register Customer Master'}
                 </h3>
@@ -1996,27 +2242,110 @@ export default function MastersHub() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
-                      <input
-                        value={customerForm.gstin}
-                        onChange={(e) => setCustomerForm({ ...customerForm, gstin: e.target.value.toUpperCase() })}
-                        placeholder="33AAAAA0000A1Z5"
-                        maxLength={15}
-                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
-                      />
+                  {/* GSTIN & PAN row with Live Verification */}
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 8, border: '1px solid var(--line)', display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 8, alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                          <label style={{ fontSize: 11, fontWeight: 700 }}>GSTIN (GST Number)</label>
+                          {customerForm.gstin && (
+                            <span style={{ fontSize: 10, fontWeight: 700 }}>
+                              {isValidGSTIN(customerForm.gstin) ? (
+                                <span style={{ color: '#34d399' }}>✓ Valid Checksum</span>
+                              ) : customerForm.gstin.length === 15 ? (
+                                <span style={{ color: '#f87171' }}>✕ Invalid Checksum</span>
+                              ) : (
+                                <span style={{ color: '#94a3b8' }}>({customerForm.gstin.length}/15)</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            value={customerForm.gstin}
+                            onChange={(e) => {
+                              const val = e.target.value.toUpperCase().trim();
+                              setCustomerForm({ ...customerForm, gstin: val });
+                              setCustomerGstError('');
+                            }}
+                            placeholder="33AAAAA0000A1Z5"
+                            maxLength={15}
+                            style={{ flex: 1, padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyCustomerGST}
+                            disabled={!isValidGSTIN(customerForm.gstin) || customerGstVerifying}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              background: isValidGSTIN(customerForm.gstin) ? 'var(--amber)' : 'rgba(255,255,255,0.08)',
+                              color: isValidGSTIN(customerForm.gstin) ? '#000' : 'var(--text-muted)',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: isValidGSTIN(customerForm.gstin) && !customerGstVerifying ? 'pointer' : 'not-allowed',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {customerGstVerifying ? '⏳ Checking…' : '🔍 Verify'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
+                        <input
+                          value={customerForm.pan_no}
+                          onChange={(e) => setCustomerForm({ ...customerForm, pan_no: e.target.value.toUpperCase() })}
+                          placeholder="AAAAA0000A"
+                          maxLength={10}
+                          style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace', marginTop: 17 }}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700 }}>PAN Number</label>
-                      <input
-                        value={customerForm.pan_no}
-                        onChange={(e) => setCustomerForm({ ...customerForm, pan_no: e.target.value.toUpperCase() })}
-                        placeholder="AAAAA0000A"
-                        maxLength={10}
-                        style={{ width: '100%', padding: '6px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontFamily: 'monospace' }}
-                      />
-                    </div>
+
+                    {/* GST Error Banner */}
+                    {customerGstError && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#f87171', padding: '6px 10px', borderRadius: 6, fontSize: 11 }}>
+                        ⚠️ {customerGstError}
+                      </div>
+                    )}
+
+                    {/* GST Verified Preview Card */}
+                    {customerGstResult && (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, color: customerGstResult.sts === 'Active' ? '#34d399' : '#f87171' }}>
+                            Status: {customerGstResult.sts || 'Verified'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleAutofillCustomerFromGST}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ⚡ Auto-fill Form
+                          </button>
+                        </div>
+                        {customerGstResult.sts && customerGstResult.sts !== 'Active' && (
+                          <div style={{ color: '#f87171', fontWeight: 700 }}>
+                            ⚠️ Warning: GSTIN status is {customerGstResult.sts}! Tax compliance may be impacted.
+                          </div>
+                        )}
+                        <div><strong>Legal Name:</strong> {customerGstResult.lgnm || '—'}</div>
+                        {customerGstResult.tradeNam && <div><strong>Trade Name:</strong> {customerGstResult.tradeNam}</div>}
+                        {customerGstResult.pradr && <div><strong>Address:</strong> {formatGstAddress(customerGstResult.pradr.addr || customerGstResult.pradr)}</div>}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>

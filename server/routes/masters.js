@@ -2,6 +2,8 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { optimizeImage } = require('../lib/imageProcessor');
+const { isValidGSTIN } = require('../lib/gstinValidator');
+const { uploadFile, getFile, deleteFile, isR2Configured } = require('../lib/r2');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -28,15 +30,23 @@ router.post('/customers', requireRole('admin', 'supervisor'), async (req, res) =
   const {
     customer_code, name, gstin, pan_no, contact_person, phone, email,
     address, city, state, pincode, payment_terms, active,
+    gst_last_verified_at, gst_verification_status,
   } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Customer name is required' });
+
+  const cleanGstin = gstin ? gstin.trim().toUpperCase() : null;
+  if (cleanGstin && !isValidGSTIN(cleanGstin)) {
+    return res.status(400).json({ error: 'Invalid GSTIN format or checksum digit. Please verify the 15-character GST number.' });
+  }
+
   const code = (customer_code && customer_code.trim()) || ('CUST-' + name.trim().slice(0, 4).toUpperCase());
   const { rows } = await pool.query(
     `INSERT INTO customers (
        customer_code, name, gstin, pan_no, contact_person, phone, email,
-       address, city, state, pincode, payment_terms, active
+       address, city, state, pincode, payment_terms, active,
+       gst_last_verified_at, gst_verification_status
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13, TRUE))
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13, TRUE), $14, $15)
      ON CONFLICT (name) DO UPDATE SET
        customer_code = COALESCE(EXCLUDED.customer_code, customers.customer_code),
        gstin = COALESCE(EXCLUDED.gstin, customers.gstin),
@@ -49,12 +59,15 @@ router.post('/customers', requireRole('admin', 'supervisor'), async (req, res) =
        state = COALESCE(EXCLUDED.state, customers.state),
        pincode = COALESCE(EXCLUDED.pincode, customers.pincode),
        payment_terms = COALESCE(EXCLUDED.payment_terms, customers.payment_terms),
-       active = COALESCE(EXCLUDED.active, customers.active)
+       active = COALESCE(EXCLUDED.active, customers.active),
+       gst_last_verified_at = COALESCE(EXCLUDED.gst_last_verified_at, customers.gst_last_verified_at),
+       gst_verification_status = COALESCE(EXCLUDED.gst_verification_status, customers.gst_verification_status)
      RETURNING *`,
     [
-      code, name.trim(), gstin || null, pan_no || null, contact_person || null, phone || null,
+      code, name.trim(), cleanGstin, pan_no || null, contact_person || null, phone || null,
       email || null, address || null, city || null, state || 'Tamil Nadu', pincode || null,
-      payment_terms || '30 Days', active !== false
+      payment_terms || '30 Days', active !== false,
+      gst_last_verified_at || null, gst_verification_status || null,
     ]
   );
   res.status(201).json(rows[0]);
@@ -65,7 +78,14 @@ router.put('/customers/:id', requireRole('admin', 'supervisor'), async (req, res
   const {
     customer_code, name, gstin, pan_no, contact_person, phone, email,
     address, city, state, pincode, payment_terms, active,
+    gst_last_verified_at, gst_verification_status,
   } = req.body;
+
+  const cleanGstin = gstin ? gstin.trim().toUpperCase() : null;
+  if (cleanGstin && !isValidGSTIN(cleanGstin)) {
+    return res.status(400).json({ error: 'Invalid GSTIN format or checksum digit. Please verify the 15-character GST number.' });
+  }
+
   const { rows } = await pool.query(
     `UPDATE customers SET
        customer_code = COALESCE($1, customer_code),
@@ -80,13 +100,15 @@ router.put('/customers/:id', requireRole('admin', 'supervisor'), async (req, res
        state = COALESCE($10, state),
        pincode = $11,
        payment_terms = COALESCE($12, payment_terms),
-       active = COALESCE($13, active)
-     WHERE id = $14 RETURNING *`,
+       active = COALESCE($13, active),
+       gst_last_verified_at = COALESCE($14, gst_last_verified_at),
+       gst_verification_status = COALESCE($15, gst_verification_status)
+     WHERE id = $16 RETURNING *`,
     [
-      customer_code, name ? name.trim() : null, gstin || null, pan_no || null,
+      customer_code, name ? name.trim() : null, cleanGstin, pan_no || null,
       contact_person || null, phone || null, email || null, address || null,
       city || null, state || null, pincode || null, payment_terms || null,
-      active, id
+      active, gst_last_verified_at || null, gst_verification_status || null, id
     ]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
@@ -427,10 +449,23 @@ router.post('/parts/:id/files', requireRole('admin', 'supervisor'), async (req, 
   }
   const rawBuffer = Buffer.from(data_base64, 'base64');
   const { buffer, mime_type: finalMimeType } = await optimizeImage(rawBuffer, mime_type);
+
+  let storageKey = null;
+  if (isR2Configured()) {
+    try {
+      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      storageKey = `part-files/${id}/${Date.now()}_${sanitizedFilename}`;
+      await uploadFile(storageKey, buffer, finalMimeType);
+    } catch (r2Err) {
+      console.warn('[R2-UPLOAD] Cloudflare R2 upload failed, saving to DB bytea fallback:', r2Err.message);
+      storageKey = null;
+    }
+  }
+
   const { rows } = await pool.query(
-    `INSERT INTO part_files (part_id, file_type, filename, mime_type, data, uploaded_by_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, file_type, filename, mime_type, uploaded_at`,
-    [id, file_type, filename, finalMimeType, buffer, req.user.id]
+    `INSERT INTO part_files (part_id, file_type, filename, mime_type, data, storage_key, uploaded_by_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, file_type, filename, mime_type, storage_key, uploaded_at`,
+    [id, file_type, filename, finalMimeType, buffer, storageKey, req.user.id]
   );
   res.status(201).json(rows[0]);
 });
@@ -441,6 +476,21 @@ router.get('/parts/:partId/files/:fileId', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM part_files WHERE id = $1', [fileId]);
   const file = rows[0];
   if (!file) return res.status(404).send('Not found');
+
+  // Try streaming from Cloudflare R2 if storage_key is present
+  if (file.storage_key && isR2Configured()) {
+    try {
+      const r2File = await getFile(file.storage_key);
+      res.setHeader('Content-Type', r2File.contentType || file.mime_type);
+      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+      return res.send(r2File.buffer);
+    } catch (r2Err) {
+      console.warn(`[R2-STREAM] Failed to fetch key ${file.storage_key} from R2, falling back to database bytea:`, r2Err.message);
+    }
+  }
+
+  // Fallback to database bytea data column
+  if (!file.data) return res.status(404).send('File content not found');
   res.setHeader('Content-Type', file.mime_type);
   res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
   res.send(file.data);
@@ -448,6 +498,10 @@ router.get('/parts/:partId/files/:fileId', async (req, res) => {
 
 router.delete('/parts/:partId/files/:fileId', requireRole('admin', 'supervisor'), async (req, res) => {
   const { fileId } = req.params;
+  const { rows } = await pool.query('SELECT storage_key FROM part_files WHERE id = $1', [fileId]);
+  if (rows[0]?.storage_key && isR2Configured()) {
+    deleteFile(rows[0].storage_key).catch(() => {});
+  }
   await pool.query('DELETE FROM part_files WHERE id = $1', [fileId]);
   res.status(204).send();
 });

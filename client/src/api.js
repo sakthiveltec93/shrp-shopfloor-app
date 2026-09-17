@@ -413,7 +413,10 @@ export const api = {
     read: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
     readAll: () => request('/notifications/read-all', { method: 'POST' }),
   },
-  getAlerts: () => request('/notifications/alerts'),
+  gst: {
+    verify: (gstin) => request(`/gst/verify/${encodeURIComponent(gstin)}`),
+    validate: (gstin) => request(`/gst/validate/${encodeURIComponent(gstin)}`),
+  },
 
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),

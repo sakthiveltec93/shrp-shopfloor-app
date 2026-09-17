@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { isValidGSTIN } = require('../lib/gstinValidator');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -21,23 +22,30 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
     supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
     address, city, state, pincode, materials_supplied, payment_terms,
     lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active,
+    gst_last_verified_at, gst_verification_status,
   } = req.body;
 
   if (!supplier_code || !supplier_name) {
     return res.status(400).json({ error: 'supplier_code and supplier_name are required' });
   }
 
+  const cleanGstin = gstin ? gstin.trim().toUpperCase() : null;
+  if (cleanGstin && !isValidGSTIN(cleanGstin)) {
+    return res.status(400).json({ error: 'Invalid GSTIN format or checksum digit. Please verify the 15-character GST number.' });
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO suppliers
       (supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
        address, city, state, pincode, materials_supplied, payment_terms,
-       lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18, TRUE))
+       lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active,
+       gst_last_verified_at, gst_verification_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18, TRUE), $19, $20)
      RETURNING *`,
     [
       supplier_code.trim(),
       supplier_name.trim(),
-      gstin || null,
+      cleanGstin,
       pan_no || null,
       contact_person || null,
       phone || null,
@@ -53,6 +61,8 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
       iso_iatf_certified !== false,
       cert_valid_upto || null,
       active !== false,
+      gst_last_verified_at || null,
+      gst_verification_status || null,
     ]
   );
   res.status(201).json(rows[0]);
@@ -64,7 +74,13 @@ router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
     supplier_code, supplier_name, gstin, pan_no, contact_person, phone, email,
     address, city, state, pincode, materials_supplied, payment_terms,
     lead_time_days, vendor_rating, iso_iatf_certified, cert_valid_upto, active,
+    gst_last_verified_at, gst_verification_status,
   } = req.body;
+
+  const cleanGstin = gstin ? gstin.trim().toUpperCase() : null;
+  if (cleanGstin && !isValidGSTIN(cleanGstin)) {
+    return res.status(400).json({ error: 'Invalid GSTIN format or checksum digit. Please verify the 15-character GST number.' });
+  }
 
   const { rows } = await pool.query(
     `UPDATE suppliers SET
@@ -85,12 +101,14 @@ router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
        vendor_rating = COALESCE($15, vendor_rating),
        iso_iatf_certified = COALESCE($16, iso_iatf_certified),
        cert_valid_upto = $17,
-       active = COALESCE($18, active)
-     WHERE id = $19 RETURNING *`,
+       active = COALESCE($18, active),
+       gst_last_verified_at = COALESCE($19, gst_last_verified_at),
+       gst_verification_status = COALESCE($20, gst_verification_status)
+     WHERE id = $21 RETURNING *`,
     [
       supplier_code ? supplier_code.trim() : null,
       supplier_name ? supplier_name.trim() : null,
-      gstin || null,
+      cleanGstin,
       pan_no || null,
       contact_person || null,
       phone || null,
@@ -106,6 +124,8 @@ router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
       iso_iatf_certified != null ? Boolean(iso_iatf_certified) : null,
       cert_valid_upto || null,
       active,
+      gst_last_verified_at || null,
+      gst_verification_status || null,
       id,
     ]
   );

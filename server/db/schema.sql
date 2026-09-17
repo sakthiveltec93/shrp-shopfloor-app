@@ -326,10 +326,14 @@ CREATE TABLE IF NOT EXISTS part_files (
   file_type TEXT NOT NULL CHECK (file_type IN ('photo', 'sop', 'ppap')),
   filename TEXT NOT NULL,
   mime_type TEXT NOT NULL,
-  data BYTEA NOT NULL,
+  data BYTEA,
+  storage_key TEXT,
   uploaded_by_user_id INTEGER NOT NULL REFERENCES users(id),
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE part_files ADD COLUMN IF NOT EXISTS storage_key TEXT;
+ALTER TABLE part_files ALTER COLUMN data DROP NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_part_files_part ON part_files(part_id, file_type);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_part_params_unique ON part_process_parameters(part_id, parameter_name);
@@ -981,6 +985,8 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'Tamil Nadu';
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS pincode TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT '30 Days';
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS gst_last_verified_at TIMESTAMPTZ;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS gst_verification_status TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- Auto-populate customer_code if missing
@@ -994,6 +1000,8 @@ ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS pincode TEXT;
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS vendor_rating NUMERIC DEFAULT 100;
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS iso_iatf_certified BOOLEAN DEFAULT TRUE;
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS cert_valid_upto DATE;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS gst_last_verified_at TIMESTAMPTZ;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS gst_verification_status TEXT;
 
 -- Raw Materials drying parameters
 ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS drying_temp_c NUMERIC DEFAULT 80;
