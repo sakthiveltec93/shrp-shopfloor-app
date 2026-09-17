@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const pool = require('./pool');
 
@@ -107,20 +107,20 @@ async function syncPartPhotos(closePool = false) {
     }
 
     // Get an admin or system user for uploaded_by_user_id
-    const userRes = await client.query(
+    const userRes = await client.query(`
       SELECT id FROM users 
       WHERE role = 'admin' 
       ORDER BY id ASC 
       LIMIT 1
-    );
+    `);
     const adminUserId = userRes.rows[0]?.id || 1;
 
     // Fetch all active parts from database
-    const partsRes = await client.query(
+    const partsRes = await client.query(`
       SELECT id, part_code, shrp_part_code, customer_part_no, part_name, batch_part_code
       FROM parts
       WHERE active = TRUE
-    );
+    `);
     const parts = partsRes.rows;
 
     // Build lookup maps for parts
@@ -190,7 +190,7 @@ async function syncPartPhotos(closePool = false) {
       }
 
       if (!targetPart) {
-        console.log([PHOTO-SYNC] Unmatched photo: );
+        console.log(`[PHOTO-SYNC] Unmatched photo: ${filename}`);
         continue;
       }
 
@@ -199,32 +199,32 @@ async function syncPartPhotos(closePool = false) {
       const fileBuffer = fs.readFileSync(filePath);
 
       // Check if photo already exists for this part in part_files
-      const existingRes = await client.query(
+      const existingRes = await client.query(`
         SELECT id, filename FROM part_files
-        WHERE part_id =  AND file_type = 'photo'
+        WHERE part_id = $1 AND file_type = 'photo'
         LIMIT 1
-      , [targetPart.id]);
+      `, [targetPart.id]);
 
       if (existingRes.rows.length > 0) {
         // Update existing photo
-        await client.query(
+        await client.query(`
           UPDATE part_files
-          SET filename = , mime_type = , data = , uploaded_at = now()
-          WHERE id = 
-        , [filename, mimeType, fileBuffer, existingRes.rows[0].id]);
+          SET filename = $1, mime_type = $2, data = $3, uploaded_at = now()
+          WHERE id = $4
+        `, [filename, mimeType, fileBuffer, existingRes.rows[0].id]);
         updatedCount++;
       } else {
         // Insert new photo
-        await client.query(
+        await client.query(`
           INSERT INTO part_files (part_id, file_type, filename, mime_type, data, uploaded_by_user_id)
-          VALUES (, 'photo', , , , )
-        , [targetPart.id, filename, mimeType, fileBuffer, adminUserId]);
+          VALUES ($1, 'photo', $2, $3, $4, $5)
+        `, [targetPart.id, filename, mimeType, fileBuffer, adminUserId]);
         updatedCount++;
       }
     }
 
     await client.query('COMMIT');
-    console.log([PHOTO-SYNC] Photo sync completed! Matched:  photos across  parts (Saved/Updated: ).);
+    console.log(`[PHOTO-SYNC] Photo sync completed! Matched: ${matchedCount} photos across ${parts.length} parts (Saved/Updated: ${updatedCount}).`);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[PHOTO-SYNC] Error during photo sync:', err.message || err);
