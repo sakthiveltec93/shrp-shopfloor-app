@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -248,7 +248,7 @@ export default function Alerts() {
         {/* 1. Pending FPA Approvals */}
         {(activeTab === 'all' || activeTab === 'fpa') && alertsData.pendingFpa?.map((item) => (
           <div
-            key={pa-}
+            key={`fpa-${item.fpa_id || item.assignment_id}`}
             style={{
               background: 'var(--panel)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -269,7 +269,7 @@ export default function Alerts() {
                   Machine {item.machine_code} · {item.part_name || item.customer_part_no || item.part_code}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Mould: {item.mould_name || item.mould_code || 'Standard'} {item.submitted_by_name ? · Tech:  : ''}
+                  Mould: {item.mould_name || item.mould_code || 'Standard'} {item.submitted_by_name ? `· Tech: ${item.submitted_by_name}` : ''}
                 </div>
               </div>
               <button
@@ -301,7 +301,7 @@ export default function Alerts() {
         {/* 2. Mould PM Overdue Alerts */}
         {(activeTab === 'all' || activeTab === 'moulds') && alertsData.overdueMoulds?.map((mould) => (
           <div
-            key={mould-}
+            key={`mould-${mould.id}`}
             style={{
               background: 'var(--panel)',
               border: '1px solid rgba(245, 158, 11, 0.4)',
@@ -349,7 +349,7 @@ export default function Alerts() {
         {/* 3. Regrind / Quality Deviations */}
         {(activeTab === 'all' || activeTab === 'regrind') && alertsData.regrindDeviations?.map((dev, idx) => (
           <div
-            key={egrind-}
+            key={`regrind-${dev.fpa_id || idx}`}
             style={{
               background: 'var(--panel)',
               border: '1px solid rgba(139, 92, 246, 0.4)',
@@ -370,7 +370,7 @@ export default function Alerts() {
                   Machine {dev.machine_code} · {dev.part_name || dev.customer_part_no}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Regrind: <strong style={{ color: '#c4b5fd' }}>{dev.regrind_pct}%</strong> {dev.deviation_no ? · Deviation #:  : '· Awaiting QA Authorization'}
+                  Regrind: <strong style={{ color: '#c4b5fd' }}>{dev.regrind_pct}%</strong> {dev.deviation_no ? `· Deviation #: ${dev.deviation_no}` : '· Awaiting QA Authorization'}
                 </div>
               </div>
               <button
@@ -397,7 +397,7 @@ export default function Alerts() {
         {/* 4. Pending Mould Setup Authorizations */}
         {(activeTab === 'all' || activeTab === 'setups') && alertsData.pendingSetups?.map((setup) => (
           <div
-            key={setup-}
+            key={`setup-${setup.assignment_id}`}
             style={{
               background: 'var(--panel)',
               border: '1px solid rgba(59, 130, 246, 0.4)',
@@ -445,7 +445,7 @@ export default function Alerts() {
         {/* 5. Pending Deletions */}
         {isSupervisorOrAdmin && (activeTab === 'all' || activeTab === 'deletions') && alertsData.pendingDeletions?.map((del) => (
           <div
-            key={del-}
+            key={`del-${del.id}`}
             style={{
               background: 'var(--panel)',
               border: '1px solid rgba(236, 72, 153, 0.4)',
@@ -466,7 +466,7 @@ export default function Alerts() {
                   {del.record_type?.toUpperCase()} #{del.id}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Reason: "{del.reason}" {del.requested_by_name ? · Requested by  : ''}
+                  Reason: "{del.reason}" {del.requested_by_name ? `· Requested by ${del.requested_by_name}` : ''}
                 </div>
               </div>
               <button
