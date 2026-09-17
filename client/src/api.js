@@ -22,8 +22,22 @@ function isQueueable(path, method) {
   );
 }
 
-async function request(path, { method = 'GET', body, isOfflineReplay = false, description } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+export function getOrCreateDeviceId() {
+  if (typeof localStorage === 'undefined') return 'unknown';
+  let deviceId = localStorage.getItem('shrp_device_id');
+  if (!deviceId) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      deviceId = crypto.randomUUID();
+    } else {
+      deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    }
+    localStorage.setItem('shrp_device_id', deviceId);
+  }
+  return deviceId;
+}
+
+async function request(path, { method = 'GET', body, isOfflineReplay = false, description, headers: customHeaders } = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(customHeaders || {}) };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -116,7 +130,21 @@ if (typeof window !== 'undefined') {
 
 export const api = {
   request,
-  login: (username, pin) => request('/auth/login', { method: 'POST', body: { username, pin } }),
+  login: (username, pin) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: { username, pin },
+      headers: { 'X-Device-Id': getOrCreateDeviceId() },
+    }),
+  security: {
+    getAllowedIps: () => request('/security/allowed-ips'),
+    addAllowedIp: (payload) => request('/security/allowed-ips', { method: 'POST', body: payload }),
+    deleteAllowedIp: (id) => request(`/security/allowed-ips/${id}`, { method: 'DELETE' }),
+    getLoginHistory: (limit) => request(`/security/login-history${limit ? `?limit=${limit}` : ''}`),
+    getBlockedDevices: () => request('/security/blocked-devices'),
+    blockDevice: (payload) => request('/security/blocked-devices', { method: 'POST', body: payload }),
+    unblockDevice: (id) => request(`/security/blocked-devices/${id}`, { method: 'DELETE' }),
+  },
   users: () => request('/users'),
   createUser: (payload) => request('/users', { method: 'POST', body: payload }),
   updateUser: (id, payload) => request(`/users/${id}`, { method: 'PUT', body: payload }),

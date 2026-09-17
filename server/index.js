@@ -23,10 +23,12 @@ const gaugeRoutes = require('./routes/gauges');
 const supplierRoutes = require('./routes/suppliers');
 const planningRoutes = require('./routes/planning');
 const fpaRoutes = require('./routes/fpa');
+const securityRoutes = require('./routes/security');
 
 const fs = require('fs');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 // Higher limit than Express's 100kb default - photo/SOP/PPAP uploads arrive
 // as base64 JSON, which inflates file size by roughly a third.
@@ -62,6 +64,7 @@ app.use('/api/gauges', gaugeRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/fpa', fpaRoutes);
+app.use('/api/security', securityRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

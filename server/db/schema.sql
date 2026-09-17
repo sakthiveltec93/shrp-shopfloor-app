@@ -1145,3 +1145,31 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
+-- 11. Private Office Premises & Device Security Management
+CREATE TABLE IF NOT EXISTS allowed_ips (
+  id SERIAL PRIMARY KEY,
+  ip_address TEXT NOT NULL,
+  label TEXT,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS login_history (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  device_id TEXT NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  device_label TEXT,
+  login_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS blocked_devices (
+  id SERIAL PRIMARY KEY,
+  device_id TEXT UNIQUE NOT NULL,
+  blocked_by_user_id INTEGER REFERENCES users(id),
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+

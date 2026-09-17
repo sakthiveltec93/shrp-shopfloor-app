@@ -10,7 +10,17 @@ export default function UsersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [activeTab, setActiveTab] = useState('accounts'); // 'accounts' | 'activity'
+  const [activeTab, setActiveTab] = useState('accounts'); // 'accounts' | 'activity' | 'security'
+  const [allowedIps, setAllowedIps] = useState([]);
+  const [blockedDevices, setBlockedDevices] = useState([]);
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [loadingSecurity, setLoadingSecurity] = useState(false);
+  const [newIpAddress, setNewIpAddress] = useState('');
+  const [newIpLabel, setNewIpLabel] = useState('');
+  const [addingIp, setAddingIp] = useState(false);
+  const [deviceToBlock, setDeviceToBlock] = useState(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [blockingDevice, setBlockingDevice] = useState(false);
 
   // Dropdown Filters
   const [search, setSearch] = useState('');
@@ -22,6 +32,90 @@ export default function UsersList() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+
+  const loadSecurityData = async () => {
+    if (currentUser?.role !== 'admin') return;
+    setLoadingSecurity(true);
+    try {
+      const [ips, blocked, history] = await Promise.all([
+        api.security.getAllowedIps(),
+        api.security.getBlockedDevices(),
+        api.security.getLoginHistory(100),
+      ]);
+      setAllowedIps(Array.isArray(ips) ? ips : []);
+      setBlockedDevices(Array.isArray(blocked) ? blocked : []);
+      setLoginHistory(Array.isArray(history) ? history : []);
+    } catch (err) {
+      console.error('Failed to load security data', err);
+    } finally {
+      setLoadingSecurity(false);
+    }
+  };
+
+  const handleAddIp = async (e) => {
+    e?.preventDefault?.();
+    if (!newIpAddress.trim()) return;
+    setAddingIp(true);
+    setError('');
+    try {
+      await api.security.addAllowedIp({ ip_address: newIpAddress.trim(), label: newIpLabel.trim() });
+      setNewIpAddress('');
+      setNewIpLabel('');
+      setSuccessMsg('Office IP added successfully.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await loadSecurityData();
+    } catch (err) {
+      setError(err.message || 'Failed to add allowed IP');
+    } finally {
+      setAddingIp(false);
+    }
+  };
+
+  const handleDeleteIp = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this allowed IP?')) return;
+    setError('');
+    try {
+      await api.security.deleteAllowedIp(id);
+      setSuccessMsg('Allowed IP removed.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      setAllowedIps((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err.message || 'Failed to delete allowed IP');
+    }
+  };
+
+  const handleBlockDevice = async () => {
+    if (!deviceToBlock?.device_id) return;
+    setBlockingDevice(true);
+    setError('');
+    try {
+      await api.security.blockDevice({
+        device_id: deviceToBlock.device_id,
+        reason: blockReason || 'Blocked by administrator',
+      });
+      setSuccessMsg(`Device ${deviceToBlock.device_id.slice(0, 8)}… blocked successfully.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+      setDeviceToBlock(null);
+      setBlockReason('');
+      await loadSecurityData();
+    } catch (err) {
+      setError(err.message || 'Failed to block device');
+    } finally {
+      setBlockingDevice(false);
+    }
+  };
+
+  const handleUnblockDevice = async (id) => {
+    setError('');
+    try {
+      await api.security.unblockDevice(id);
+      setSuccessMsg('Device unblocked successfully.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await loadSecurityData();
+    } catch (err) {
+      setError(err.message || 'Failed to unblock device');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -48,6 +142,12 @@ export default function UsersList() {
     }, 30000);
     return () => clearInterval(timer);
   }, [reportDate]);
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      loadSecurityData();
+    }
+  }, [activeTab]);
 
   const handleToggleActive = async (targetUser) => {
     setTogglingId(targetUser.id);
@@ -149,160 +249,8 @@ export default function UsersList() {
         </div>
       )}
 
-      {/* 3 Color KPI Counters */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'ONLINE_ACTIVE' ? 'ALL' : 'ONLINE_ACTIVE')}
-          style={{
-            background: 'var(--panel)',
-            border: `1px solid ${statusFilter === 'ONLINE_ACTIVE' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
-            borderRadius: 8,
-            padding: '10px 8px',
-            textAlign: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#10b981', textTransform: 'uppercase' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
-            Online
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981', marginTop: 2 }}>{onlineActiveCount}</div>
-        </div>
-
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'ONLINE_IDLE' ? 'ALL' : 'ONLINE_IDLE')}
-          style={{
-            background: 'var(--panel)',
-            border: `1px solid ${statusFilter === 'ONLINE_IDLE' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'}`,
-            borderRadius: 8,
-            padding: '10px 8px',
-            textAlign: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
-            Idle
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b', marginTop: 2 }}>{onlineIdleCount}</div>
-        </div>
-
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'OFFLINE' ? 'ALL' : 'OFFLINE')}
-          style={{
-            background: 'var(--panel)',
-            border: `1px solid ${statusFilter === 'OFFLINE' ? '#f43f5e' : 'rgba(244, 63, 94, 0.3)'}`,
-            borderRadius: 8,
-            padding: '10px 8px',
-            textAlign: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#f43f5e', textTransform: 'uppercase' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
-            Offline
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f43f5e', marginTop: 2 }}>{offlineCount}</div>
-        </div>
-      </div>
-
-      {/* Filter Bar */}
-      <div
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid var(--line)',
-          borderRadius: 8,
-          padding: '10px 12px',
-          marginBottom: 12,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 130,
-            padding: '6px 8px',
-            fontSize: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--line)',
-            color: 'var(--text)',
-            borderRadius: 6,
-          }}
-        >
-          <option value="ALL">All Status ({users.length})</option>
-          <option value="ONLINE_ACTIVE">🟢 Online Active ({onlineActiveCount})</option>
-          <option value="ONLINE_IDLE">🟡 Idle in Tab ({onlineIdleCount})</option>
-          <option value="OFFLINE">🔴 Offline ({offlineCount})</option>
-          <option value="ACTIVE">🟢 Active Accounts</option>
-          <option value="INACTIVE">⚪ Deactivated Accounts</option>
-        </select>
-
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 110,
-            padding: '6px 8px',
-            fontSize: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--line)',
-            color: 'var(--text)',
-            borderRadius: 6,
-          }}
-        >
-          <option value="ALL">All Roles</option>
-          <option value="operator">Operators</option>
-          <option value="supervisor">Supervisors</option>
-          <option value="admin">Admins</option>
-        </select>
-
-        <div style={{ width: '100%', position: 'relative' }}>
-          <input
-            type="text"
-            placeholder="🔍 Search name or @username..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '6px 24px 6px 10px',
-              fontSize: 12,
-              background: 'var(--bg)',
-              border: '1px solid var(--line)',
-              color: 'var(--text)',
-              borderRadius: 6,
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              style={{
-                position: 'absolute',
-                right: 6,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              ×
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
         <button
           onClick={() => setActiveTab('accounts')}
           style={{
@@ -335,9 +283,179 @@ export default function UsersList() {
         >
           📊 Daily Report
         </button>
+        {currentUser?.role === 'admin' && (
+          <button
+            onClick={() => setActiveTab('security')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: 12,
+              fontWeight: 700,
+              borderRadius: 6,
+              background: activeTab === 'security' ? 'var(--amber)' : 'var(--panel)',
+              color: activeTab === 'security' ? '#1c1500' : 'var(--text-muted)',
+              border: '1px solid var(--line)',
+              cursor: 'pointer',
+            }}
+          >
+            🛡️ Devices & Access
+          </button>
+        )}
       </div>
 
-      {activeTab === 'accounts' ? (
+      {activeTab === 'accounts' && (
+        <>
+          {/* 3 Color KPI Counters */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+            <div
+              onClick={() => setStatusFilter(statusFilter === 'ONLINE_ACTIVE' ? 'ALL' : 'ONLINE_ACTIVE')}
+              style={{
+                background: 'var(--panel)',
+                border: `1px solid ${statusFilter === 'ONLINE_ACTIVE' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
+                borderRadius: 8,
+                padding: '10px 8px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#10b981', textTransform: 'uppercase' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                Online
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981', marginTop: 2 }}>{onlineActiveCount}</div>
+            </div>
+
+            <div
+              onClick={() => setStatusFilter(statusFilter === 'ONLINE_IDLE' ? 'ALL' : 'ONLINE_IDLE')}
+              style={{
+                background: 'var(--panel)',
+                border: `1px solid ${statusFilter === 'ONLINE_IDLE' ? '#f59e0b' : 'rgba(245, 158, 11, 0.3)'}`,
+                borderRadius: 8,
+                padding: '10px 8px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+                Idle
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b', marginTop: 2 }}>{onlineIdleCount}</div>
+            </div>
+
+            <div
+              onClick={() => setStatusFilter(statusFilter === 'OFFLINE' ? 'ALL' : 'OFFLINE')}
+              style={{
+                background: 'var(--panel)',
+                border: `1px solid ${statusFilter === 'OFFLINE' ? '#f43f5e' : 'rgba(244, 63, 94, 0.3)'}`,
+                borderRadius: 8,
+                padding: '10px 8px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#f43f5e', textTransform: 'uppercase' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
+                Offline
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#f43f5e', marginTop: 2 }}>{offlineCount}</div>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              marginBottom: 12,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 130,
+                padding: '6px 8px',
+                fontSize: 12,
+                background: 'var(--bg)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                borderRadius: 6,
+              }}
+            >
+              <option value="ALL">All Status ({users.length})</option>
+              <option value="ONLINE_ACTIVE">🟢 Online Active ({onlineActiveCount})</option>
+              <option value="ONLINE_IDLE">🟡 Idle in Tab ({onlineIdleCount})</option>
+              <option value="OFFLINE">🔴 Offline ({offlineCount})</option>
+              <option value="ACTIVE">🟢 Active Accounts</option>
+              <option value="INACTIVE">⚪ Deactivated Accounts</option>
+            </select>
+
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 110,
+                padding: '6px 8px',
+                fontSize: 12,
+                background: 'var(--bg)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                borderRadius: 6,
+              }}
+            >
+              <option value="ALL">All Roles</option>
+              <option value="operator">Operators</option>
+              <option value="supervisor">Supervisors</option>
+              <option value="admin">Admins</option>
+            </select>
+
+            <div style={{ width: '100%', position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="🔍 Search name or @username..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 24px 6px 10px',
+                  fontSize: 12,
+                  background: 'var(--bg)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: 6,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>Loading staff...</div>
@@ -589,7 +707,10 @@ export default function UsersList() {
             })
           )}
         </div>
-      ) : (
+        </>
+      )}
+
+      {activeTab === 'activity' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <input
@@ -647,6 +768,432 @@ export default function UsersList() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Allowed IPs Section */}
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              padding: '14px 16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🌐</span> Allowed Office IP Addresses
+              </h2>
+              <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                {allowedIps.length} Active {allowedIps.length === 1 ? 'Rule' : 'Rules'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Non-admin staff (operators and supervisors) can only log in from these whitelisted office IP addresses. Admin logins are always exempt.
+            </div>
+
+            {/* Add IP Form */}
+            <form
+              onSubmit={handleAddIp}
+              style={{
+                display: 'flex',
+                gap: 8,
+                flexWrap: 'wrap',
+                background: 'var(--bg)',
+                padding: 10,
+                borderRadius: 6,
+                border: '1px solid var(--line)',
+                marginBottom: 12,
+              }}
+            >
+              <input
+                type="text"
+                placeholder="e.g. 103.21.144.20"
+                value={newIpAddress}
+                onChange={(e) => setNewIpAddress(e.target.value)}
+                required
+                style={{
+                  flex: '1 1 140px',
+                  padding: '7px 10px',
+                  fontSize: 12,
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Label (e.g. Factory Main Wi-Fi)"
+                value={newIpLabel}
+                onChange={(e) => setNewIpLabel(e.target.value)}
+                style={{
+                  flex: '1 1 180px',
+                  padding: '7px 10px',
+                  fontSize: 12,
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={addingIp}
+                className="btn btn-primary"
+                style={{
+                  width: 'auto',
+                  padding: '7px 14px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {addingIp ? 'Adding…' : '+ Add IP'}
+              </button>
+            </form>
+
+            {/* IP Table */}
+            {allowedIps.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 8px', color: 'var(--text-muted)', fontSize: 12, background: 'rgba(245, 158, 11, 0.05)', border: '1px dashed var(--line)', borderRadius: 6 }}>
+                ⚠️ No IP restrictions currently configured. Anyone with credentials can log in from any network. Add your office public IP above to restrict access.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {allowedIps.map((ip) => (
+                  <div
+                    key={ip.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 10px',
+                      background: 'var(--bg)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: 'var(--text)', fontFamily: 'monospace', fontSize: 13 }}>{ip.ip_address}</strong>
+                      {ip.label && <span style={{ marginLeft: 8, color: 'var(--text-muted)', fontSize: 11 }}>({ip.label})</span>}
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Added {new Date(ip.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteIp(ip.id)}
+                      style={{
+                        background: 'rgba(244, 63, 94, 0.1)',
+                        color: '#f43f5e',
+                        border: '1px solid rgba(244, 63, 94, 0.3)',
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Blocked Devices Section */}
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              padding: '14px 16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🚫</span> Blocked Devices
+              </h2>
+              <span style={{ fontSize: 11, background: blockedDevices.length > 0 ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255, 255, 255, 0.06)', color: blockedDevices.length > 0 ? '#f43f5e' : 'var(--text-muted)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                {blockedDevices.length} Blocked
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Blocked devices are prevented from logging into any account regardless of correct credentials.
+            </div>
+
+            {blockedDevices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '14px 8px', color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg)', borderRadius: 6 }}>
+                ✓ No devices currently blocked.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {blockedDevices.map((dev) => (
+                  <div
+                    key={dev.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 10px',
+                      background: 'var(--bg)',
+                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <code style={{ fontSize: 12, color: '#f43f5e', fontWeight: 700 }}>{dev.device_id}</code>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Reason: <span style={{ color: 'var(--text)' }}>{dev.reason || 'None specified'}</span>
+                        {dev.blocked_by_name && <span> · by {dev.blocked_by_name}</span>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUnblockDevice(dev.id)}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Unblock
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Logins & Device Activity */}
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              padding: '14px 16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>📋</span> Recent Login Activity & Devices
+              </h2>
+              <button
+                type="button"
+                onClick={loadSecurityData}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text-muted)',
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Audit trail of logins with recognized device models and IP addresses.
+            </div>
+
+            {loadingSecurity ? (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>Loading security history…</div>
+            ) : loginHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 14, color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg)', borderRadius: 6 }}>
+                No login records tracked yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+                {loginHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 10px',
+                      background: 'var(--bg)',
+                      border: `1px solid ${item.is_blocked ? 'rgba(244,63,94,0.3)' : 'var(--line)'}`,
+                      borderRadius: 6,
+                      fontSize: 12,
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <strong style={{ color: 'var(--text)' }}>{item.full_name || 'Unknown'}</strong>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>@{item.username}</span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: '1px 5px',
+                            borderRadius: 3,
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            color: 'var(--text-muted)',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {item.role || 'USER'}
+                        </span>
+                        {item.is_blocked && (
+                          <span style={{ fontSize: 10, color: '#f43f5e', background: 'rgba(244, 63, 94, 0.15)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>
+                            BLOCKED
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        📱 <strong style={{ color: 'var(--text)' }}>{item.device_label || 'Unknown Device'}</strong> · IP: <code>{item.ip_address}</code>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Device ID: <code style={{ fontSize: 10 }}>{item.device_id ? item.device_id.slice(0, 16) + '…' : '—'}</code> · {new Date(item.login_at).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div style={{ flexShrink: 0 }}>
+                      {item.is_blocked ? (
+                        <span style={{ fontSize: 11, color: '#f43f5e', fontWeight: 600 }}>Blocked</span>
+                      ) : item.device_id ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeviceToBlock({
+                              device_id: item.device_id,
+                              label: `${item.device_label || 'Device'} (${item.full_name})`,
+                            });
+                            setBlockReason(`Blocked from recent login (${item.full_name})`);
+                          }}
+                          style={{
+                            background: 'rgba(244, 63, 94, 0.1)',
+                            color: '#f43f5e',
+                            border: '1px solid rgba(244, 63, 94, 0.3)',
+                            padding: '4px 8px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Block Device
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Block Device Modal */}
+      {deviceToBlock && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 10,
+              padding: 18,
+              maxWidth: 420,
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#f43f5e', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🚫</span> Block Device Access
+            </div>
+
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 12 }}>
+              Are you sure you want to block <strong style={{ color: 'var(--text)' }}>{deviceToBlock.label}</strong>?
+              <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                Device ID: <code>{deviceToBlock.device_id}</code>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+                Reason for blocking:
+              </label>
+              <input
+                type="text"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="e.g. Unauthorized personal device"
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  fontSize: 12,
+                  background: 'var(--bg)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setDeviceToBlock(null)}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: 'none',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={blockingDevice}
+                onClick={handleBlockDevice}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: '#f43f5e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                {blockingDevice ? 'Blocking…' : 'Confirm Block'}
+              </button>
+            </div>
           </div>
         </div>
       )}
