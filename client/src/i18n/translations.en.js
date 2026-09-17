@@ -83,8 +83,12 @@ export const en = {
         tagline: "RM Inward QA · Stock Register · Blend Recipes"
       },
       tooling: {
-        title: "Tooling, TPM & Management",
-        tagline: "Fleet Status · Tool Life · Reports · Part Master"
+        title: "Tooling & TPM",
+        tagline: "Fleet Status · Tool Life · Breakdown Logs"
+      },
+      masters: {
+        title: "Master Data & Items",
+        tagline: "Part Master · Gauges · Customers · Suppliers · Raw Materials"
       },
       commercial: {
         title: "Commercial & Orders",
@@ -122,7 +126,13 @@ export const en = {
       reports: { label: "Daily Reports", hint: "Shift summary & graphs" },
       machines: { label: "Machines & TPM", hint: "Machine status, MTBF & breakdowns" },
       moulds: { label: "Moulds & Tool Life", hint: "Shot count, PM & history" },
-      masters_hub: { label: "Masters Hub", hint: "Parts, RM, Gauges, Suppliers & more" }
+      masters_hub: { label: "Masters Hub", hint: "Parts, RM, Gauges, Suppliers & more" },
+      master_parts: { label: "Part Master", hint: "Part codes, cycle times, weights & specs" },
+      master_gauges: { label: "Gauges & Instruments", hint: "Calibration dates, ranges & gauge master" },
+      master_customers: { label: "Customers", hint: "Customer GSTIN, billing & part mappings" },
+      master_suppliers: { label: "Suppliers", hint: "Vendor master, GSTIN & material supply" },
+      master_rm: { label: "Raw Materials", hint: "Polymers, masterbatches & grades" },
+      master_defaults: { label: "Checksheets & Defaults", hint: "Daily check items & standard lists" }
     }
   },
   mouldSetup: {

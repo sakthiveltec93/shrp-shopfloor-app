@@ -83,8 +83,12 @@ export const or = {
         tagline: "Inward Check · Stock Register · Recipe"
       },
       tooling: {
-        title: "Machine & Mould Parichalana",
-        tagline: "Machine Status · Mould Ayusha · Part Master"
+        title: "Tooling & TPM",
+        tagline: "Machine Status · Mould Ayusha · Breakdown Log"
+      },
+      masters: {
+        title: "Master Data & Items",
+        tagline: "Part Master · Gauges · Customers · Suppliers · Raw Materials"
       },
       commercial: {
         title: "Banijyika Bibhaga (Commercial)",
@@ -122,7 +126,13 @@ export const or = {
       reports: { label: "Dainika Report", hint: "Summary & graphs" },
       machines: { label: "Machine & TPM", hint: "Machine status & maintenance" },
       moulds: { label: "Mould Ayusha", hint: "Shot count & itihasa" },
-      masters_hub: { label: "Masters Hub", hint: "Part, RM, Gauge, Supplier & adhika" }
+      masters_hub: { label: "Masters Hub", hint: "Part, RM, Gauge, Supplier & adhika" },
+      master_parts: { label: "Part Master", hint: "Part code, cycle time, sthula ojon" },
+      master_gauges: { label: "Gauges & Jantrapati", hint: "Calibration o range master" },
+      master_customers: { label: "Customers", hint: "Customer GSTIN & billing details" },
+      master_suppliers: { label: "Suppliers", hint: "Vendor master & GSTIN" },
+      master_rm: { label: "Kanchamal (Raw Material)", hint: "Polymer, masterbatch o grade" },
+      master_defaults: { label: "Checksheets & Defaults", hint: "Dainika check item o talika" }
     }
   },
   mouldSetup: {

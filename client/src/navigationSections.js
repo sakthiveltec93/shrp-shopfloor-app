@@ -63,15 +63,31 @@ export const ERP_SECTIONS = [
   {
     id: 'tooling_mgmt',
     sectionKey: 'tooling',
-    title: 'Tooling, TPM & Management',
-    tagline: 'Fleet Status · Tool Life · Reports · Part Master',
+    title: 'Tooling & TPM',
+    tagline: 'Fleet Status · Tool Life · Breakdown Logs',
     icon: '⚙️',
     accentColor: '#a855f7', // purple
     badgeBg: 'rgba(168, 85, 247, 0.15)',
     tiles: [
       { key: 'machines', to: '/machines', icon: '🖥️', label: 'Machines & TPM', hint: 'Machine fleet status, MTBF & breakdowns', supervisorOnly: true },
       { key: 'moulds', to: '/moulds', icon: '⚙️', label: 'Moulds & Tool Life', hint: 'Cumulative shots, PM overdue & storage', supervisorOnly: true },
-      { key: 'masters_hub', to: '/masters', icon: '🗂️', label: 'Item & Masters Hub', hint: 'Part Master, RM, Gauges, Customers, Tooling', supervisorOnly: true },
+    ],
+  },
+  {
+    id: 'masters',
+    sectionKey: 'masters',
+    title: 'Master Data & Items',
+    tagline: 'Part Master · Gauges · Customers · Suppliers · Raw Materials',
+    icon: '🗂️',
+    accentColor: '#6366f1', // indigo
+    badgeBg: 'rgba(99, 102, 241, 0.15)',
+    tiles: [
+      { key: 'master_parts', to: '/masters?tab=parts', icon: '🧩', label: 'Part Master', hint: 'Part codes, cycle times, weights & specs', supervisorOnly: true },
+      { key: 'master_gauges', to: '/masters?tab=gauges', icon: '📏', label: 'Gauges & Instruments', hint: 'Calibration dates, ranges & gauge master', supervisorOnly: true },
+      { key: 'master_customers', to: '/masters?tab=customers', icon: '🏢', label: 'Customers', hint: 'Customer GSTIN, billing & part mappings', supervisorOnly: true },
+      { key: 'master_suppliers', to: '/masters?tab=suppliers', icon: '🏭', label: 'Suppliers', hint: 'Vendor master, GSTIN & material supply', supervisorOnly: true },
+      { key: 'master_rm', to: '/masters?tab=raw_materials', icon: '🧱', label: 'Raw Materials', hint: 'Polymers, masterbatches & grades', supervisorOnly: true },
+      { key: 'master_defaults', to: '/masters?tab=defaults', icon: '📋', label: 'Checksheets & Defaults', hint: 'Daily check items & standard lists', supervisorOnly: true },
     ],
   },
   {

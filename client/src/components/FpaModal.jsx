@@ -87,22 +87,25 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
 
         let defaultDims = [];
         if (res.standardDimensions && res.standardDimensions.length > 0) {
-          defaultDims = res.standardDimensions.map((sd) => ({
-            parameter_name: sd.dimension_name,
-            spec: `${sd.nominal_value} (+${sd.tol_plus}/-${sd.tol_minus}) ${sd.unit || 'mm'}`,
-            nominal: Number(sd.nominal_value) || 0,
-            lsl: Number(sd.lsl) || 0,
-            usl: Number(sd.usl) || 0,
-            gauge_code: '',
-            cavities: Array(cavityCount).fill(''),
-          }));
+          defaultDims = res.standardDimensions.map((sd) => {
+            const nominal = Number(sd.nominal_value) || 0;
+            const tolPlus = Number(sd.tol_plus) || 0;
+            const tolMinus = Number(sd.tol_minus) || 0;
+            const lsl = sd.lsl != null && !isNaN(Number(sd.lsl)) ? Number(sd.lsl) : (nominal - tolMinus);
+            const usl = sd.usl != null && !isNaN(Number(sd.usl)) ? Number(sd.usl) : (nominal + tolPlus);
+            return {
+              parameter_name: sd.dimension_name,
+              spec: `${sd.nominal_value ?? '—'} (+${sd.tol_plus ?? 0}/-${sd.tol_minus ?? 0}) ${sd.unit || 'mm'}`,
+              nominal,
+              lsl,
+              usl,
+              gauge_code: '',
+              cavities: Array(cavityCount).fill(''),
+            };
+          });
         } else {
-          defaultDims = [
-            { parameter_name: 'Outer Diameter (OD)', spec: '25.0 ± 0.2 mm', nominal: 25.0, lsl: 24.8, usl: 25.2, gauge_code: '', cavities: Array(cavityCount).fill('') },
-            { parameter_name: 'Wall Thickness', spec: '2.5 ± 0.1 mm', nominal: 2.5, lsl: 2.4, usl: 2.6, gauge_code: '', cavities: Array(cavityCount).fill('') },
-            { parameter_name: 'Total Height / Length', spec: '50.0 ± 0.3 mm', nominal: 50.0, lsl: 49.7, usl: 50.3, gauge_code: '', cavities: Array(cavityCount).fill('') },
-            { parameter_name: 'Inner Diameter (ID)', spec: '15.0 ± 0.15 mm', nominal: 15.0, lsl: 14.85, usl: 15.15, gauge_code: '', cavities: Array(cavityCount).fill('') },
-          ];
+          // Zero fake fallback rows — must come from master or operator input
+          defaultDims = [];
         }
 
         if (res.standardProcessParameters && res.standardProcessParameters.length > 0) {
@@ -209,6 +212,9 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
     const maxRegrind = Number(fpaData.recipe?.max_allowed_regrind_pct) || 0;
     if (Number(regrindPercentage) > maxRegrind) {
       return `Regrind % (${regrindPercentage}%) exceeds the approved maximum of ${maxRegrind}% for this part recipe.`;
+    }
+    if (!dimensionReadings || dimensionReadings.length === 0 || dimensionReadings.every((d) => !d.parameter_name || !d.parameter_name.trim())) {
+      return 'Cannot submit FPA: No critical dimensions are configured for this part. Please configure dimensions in Part Master or click "+ Add Parameter" before submitting.';
     }
     return null;
   };
@@ -451,74 +457,106 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
 
               {/* SECTION C: Critical Process Parameters */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
-                <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
-                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
-                    Section C: Injection Molding Process Parameter Verification
-                  </strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
+                  <div>
+                    <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
+                      Section C: Injection Molding Process Parameter Verification
+                    </strong>
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      {fpaData.standardProcessParameters?.length > 0
+                        ? `${fpaData.standardProcessParameters.length} standard parameters configured in Part Master`
+                        : 'Standard Injection Machine Parameters (Configure in Part Master to set targets)'}
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 1 Temp (°C)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 190"
-                      value={processParameters.zone1_temp}
-                      onChange={(e) => setProcessParameters({ ...processParameters, zone1_temp: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
+                {fpaData.standardProcessParameters && fpaData.standardProcessParameters.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                    {fpaData.standardProcessParameters.map((sp, pIdx) => {
+                      const k = sp.parameter_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                      return (
+                        <div key={pIdx} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6, padding: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{sp.parameter_name}</label>
+                            <span style={{ fontSize: 10, color: 'var(--amber)', background: 'rgba(245,158,11,0.1)', padding: '1px 5px', borderRadius: 4 }}>
+                              Target: {sp.value} {sp.unit || ''}
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder={`Actual (${sp.unit || 'val'})`}
+                            value={processParameters[k] ?? ''}
+                            onChange={(e) => setProcessParameters({ ...processParameters, [k]: e.target.value })}
+                            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 2 Temp (°C)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 200"
-                      value={processParameters.zone2_temp}
-                      onChange={(e) => setProcessParameters({ ...processParameters, zone2_temp: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 1 Temp (°C)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual °C"
+                        value={processParameters.zone1_temp ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, zone1_temp: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 2 Temp (°C)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual °C"
+                        value={processParameters.zone2_temp ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, zone2_temp: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 3 Temp (°C)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual °C"
+                        value={processParameters.zone3_temp ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, zone3_temp: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Nozzle Temp (°C)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual °C"
+                        value={processParameters.nozzle_temp ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, nozzle_temp: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Inj Pressure (bar)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual bar"
+                        value={processParameters.injection_pressure ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, injection_pressure: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Cooling Time (s)</label>
+                      <input
+                        type="number"
+                        placeholder="Actual sec"
+                        value={processParameters.cooling_time_sec ?? ''}
+                        onChange={(e) => setProcessParameters({ ...processParameters, cooling_time_sec: e.target.value })}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 3 Temp (°C)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 210"
-                      value={processParameters.zone3_temp}
-                      onChange={(e) => setProcessParameters({ ...processParameters, zone3_temp: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Nozzle Temp (°C)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 215"
-                      value={processParameters.nozzle_temp}
-                      onChange={(e) => setProcessParameters({ ...processParameters, nozzle_temp: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Inj Pressure (bar)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 95"
-                      value={processParameters.injection_pressure}
-                      onChange={(e) => setProcessParameters({ ...processParameters, injection_pressure: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Cooling Time (s)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 18"
-                      value={processParameters.cooling_time_sec}
-                      onChange={(e) => setProcessParameters({ ...processParameters, cooling_time_sec: e.target.value })}
-                      style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* SECTION D: Multi-Cavity Dimensional Inspection */}
@@ -540,22 +578,40 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                   </button>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--line)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '6px 8px' }}>Param & Spec</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Nominal</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>LSL</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>USL</th>
-                        <th style={{ padding: '6px 8px', width: 110 }}>Gauge</th>
-                        {Array.from({ length: cavityCount }).map((_, cIdx) => (
-                          <th key={cIdx} style={{ padding: '6px 8px', textAlign: 'center', width: 70 }}>Cav #{cIdx + 1}</th>
-                        ))}
-                        <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Status</th>
-                        <th style={{ padding: '6px 8px', width: 30 }}></th>
-                      </tr>
-                    </thead>
+                {dimensionReadings.length === 0 ? (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--red)', borderRadius: 8, padding: '14px 16px', color: 'var(--red)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6, margin: '8px 0' }}>
+                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚠️</span>
+                      <span>No critical dimensions have been configured for this part</span>
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                      IATF 16949 requires verified dimensional specifications before First-Piece Approval. Please configure critical dimensions in Part Master before running FPA, or click <strong>+ Add Parameter</strong> above to add dimension rows for this setup.
+                    </div>
+                    {effPartId && (
+                      <div style={{ marginTop: 4 }}>
+                        <a href={`/parts/${effPartId}/edit`} target="_blank" rel="noreferrer" style={{ color: 'var(--amber)', fontSize: 12, fontWeight: 700, textDecoration: 'underline' }}>
+                          ⚙️ Open Part Master to configure dimensions →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--line)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '6px 8px' }}>Param & Spec</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Nominal</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>LSL</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>USL</th>
+                          <th style={{ padding: '6px 8px', width: 110 }}>Gauge</th>
+                          {Array.from({ length: cavityCount }).map((_, cIdx) => (
+                            <th key={cIdx} style={{ padding: '6px 8px', textAlign: 'center', width: 70 }}>Cav #{cIdx + 1}</th>
+                          ))}
+                          <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Status</th>
+                          <th style={{ padding: '6px 8px', width: 30 }}></th>
+                        </tr>
+                      </thead>
                     <tbody>
                       {dimensionReadings.map((dim, dIdx) => {
                         const hasValues = dim.cavities.some((c) => c !== '');
@@ -686,7 +742,8 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     </tbody>
                   </table>
                 </div>
-              </div>
+              )}
+            </div>
 
               {/* SECTION E: Digital Sign-off & Overall Decision */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>

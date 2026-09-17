@@ -24,6 +24,7 @@ export default function Home() {
       planning: true,
       materials: false,
       tooling_mgmt: false,
+      masters: false,
       commercial: false,
       reports: false,
       staff_hr: false,

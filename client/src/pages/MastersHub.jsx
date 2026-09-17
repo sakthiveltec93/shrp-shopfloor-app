@@ -362,8 +362,8 @@ export default function MastersHub() {
   const handleDeletePart = async (part) => {
     if (!window.confirm(`Are you sure you want to delete part [${part.shrp_part_code || part.part_code}] ${part.part_name}?`)) return;
     try {
-      await api.deletePart(part.id);
-      setSuccess(`✅ Part '${part.part_name}' deleted.`);
+      const res = await api.deletePart(part.id);
+      setSuccess(`✅ ${res?.message || `Part '${part.part_name}' deleted.`}`);
       loadParts();
     } catch (err) {
       setError(err.message || 'Cannot delete part with active records.');
@@ -828,6 +828,26 @@ export default function MastersHub() {
                           <span style={{ color: p.trim_required ? '#34d399' : '#888' }}>{p.trim_required ? '✓ Trim' : '✕ No Trim'}</span>
                           <span style={{ color: p.inspection_required ? '#34d399' : '#888' }}>{p.inspection_required ? '✓ Inspect' : '✕ No Inspect'}</span>
                           <span style={{ color: p.packing_required !== false ? '#34d399' : '#888' }}>{p.packing_required !== false ? '✓ Pack' : '✕ No Pack'}</span>
+                        </div>
+                        <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <Link
+                            to={`/parts/${p.id}/edit`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: '#fbbf24',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              padding: '3px 8px',
+                              borderRadius: 4,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            📐 Configure Dimensions & Parameters →
+                          </Link>
                         </div>
                       </div>
                     )}

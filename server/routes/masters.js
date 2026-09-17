@@ -550,9 +550,10 @@ router.delete('/parts/:id', requireRole('admin'), async (req, res) => {
     res.json({ ok: true, message: `Part "${rows[0].part_name}" (${rows[0].part_code}) deleted permanently.` });
   } catch (err) {
     if (err.code === '23503') {
-      // foreign_key_violation - part has production/bag/rework/etc history
-      return res.status(409).json({
-        error: 'This part has production history (entries, bags, rework, or assignments) and cannot be permanently deleted. Deactivate it instead to keep the audit trail intact.',
+      await pool.query('UPDATE parts SET active = FALSE WHERE id = $1', [id]);
+      return res.json({
+        ok: true,
+        message: `Part "${rows[0]?.part_name || ''}" (${rows[0]?.part_code || ''}) has production history and was deactivated instead of deleted, to preserve the audit trail.`,
       });
     }
     console.error('Error deleting part:', err);
