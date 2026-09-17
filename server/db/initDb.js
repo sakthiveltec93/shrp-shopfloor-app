@@ -6,7 +6,6 @@ const { syncMoulds } = require('./sync_moulds');
 const { syncMaterials } = require('./seed_materials');
 const { syncPartPhotos } = require('./seed_photos');
 const { syncDocSequences } = require('./seed_doc_sequences');
-const { runMasterReconciliation } = require('./reconcile_masters');
 
 async function initDb() {
   try {
@@ -48,13 +47,21 @@ async function initDb() {
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
-    console.log('[DB-INIT] Running Master Data Reconciliation (Parts, Machines, Moulds, Customers, Suppliers, Gauges)...');
-    try {
-      await runMasterReconciliation(true, false);
-      console.log('[DB-INIT] Master Data Reconciliation successfully applied to database.');
-    } catch (reconcileErr) {
-      console.warn('[DB-INIT] Reconcile masters note:', reconcileErr.message);
+    const reconcileSqlPath = path.join(__dirname, 'seed_reconcile_erp_masters.sql');
+    if (fs.existsSync(reconcileSqlPath)) {
+      console.log('[DB-INIT] Applying Master Data Reconciliation migration (seed_reconcile_erp_masters.sql)...');
+      const reconcileSql = fs.readFileSync(reconcileSqlPath, 'utf8');
+      await pool.query(reconcileSql);
+      console.log('[DB-INIT] Master Data Reconciliation migration applied successfully.');
     }
+
+    console.log('[DB-INIT] Syncing clean 76 master parts...');
+    await syncParts(false);
+    console.log('[DB-INIT] Master parts synced.');
+
+    console.log('[DB-INIT] Syncing 69 tooling masters & part linkages...');
+    await syncMoulds(false);
+    console.log('[DB-INIT] Moulds and part linkages synced successfully.');
 
     console.log('[DB-INIT] Syncing standard raw materials & default recipes...');
     await syncMaterials();
