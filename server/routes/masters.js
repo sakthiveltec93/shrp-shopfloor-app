@@ -534,9 +534,11 @@ router.put('/parts/:id/mould', requireRole('admin', 'supervisor'), async (req, r
 // blocks deletion of any part that has real IATF traceability records.
 router.delete('/parts/:id', requireRole('admin'), async (req, res) => {
   const { id } = req.params;
+  let partInfo = null;
   try {
     const { rows } = await pool.query('SELECT id, part_code, part_name FROM parts WHERE id = $1', [id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Part not found' });
+    partInfo = rows[0];
 
     // Clean up dependent metadata tables that shouldn't block deleting an unused duplicate part
     await pool.query('DELETE FROM part_process_parameters WHERE part_id = $1', [id]);
@@ -547,13 +549,13 @@ router.delete('/parts/:id', requireRole('admin'), async (req, res) => {
     await pool.query('DELETE FROM part_recipes WHERE part_id = $1', [id]);
 
     await pool.query('DELETE FROM parts WHERE id = $1', [id]);
-    res.json({ ok: true, message: `Part "${rows[0].part_name}" (${rows[0].part_code}) deleted permanently.` });
+    res.json({ ok: true, message: `Part "${partInfo.part_name}" (${partInfo.part_code}) deleted permanently.` });
   } catch (err) {
     if (err.code === '23503') {
       await pool.query('UPDATE parts SET active = FALSE WHERE id = $1', [id]);
       return res.json({
         ok: true,
-        message: `Part "${rows[0]?.part_name || ''}" (${rows[0]?.part_code || ''}) has production history and was deactivated instead of deleted, to preserve the audit trail.`,
+        message: `Part "${partInfo?.part_name || ''}" (${partInfo?.part_code || ''}) has production history and was deactivated instead of deleted, to preserve the audit trail.`,
       });
     }
     console.error('Error deleting part:', err);

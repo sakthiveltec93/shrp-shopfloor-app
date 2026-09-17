@@ -6,21 +6,6 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
 import { isValidGSTIN, extractPanFromGSTIN } from '../utils/gstinValidator';
 
-function formatGstAddress(addr) {
-  if (!addr) return '';
-  if (typeof addr === 'string') return addr;
-  const parts = [
-    addr.bno ? `Door ${addr.bno}` : '',
-    addr.bnm,
-    addr.st,
-    addr.loc,
-    addr.dst,
-    addr.stcd,
-    addr.pncd,
-  ].filter(Boolean);
-  return parts.join(', ');
-}
-
 const TABS = [
   { key: 'parts', label: 'Parts', icon: '📋' },
   { key: 'raw_materials', label: 'Raw Materials', icon: '🧪' },
@@ -455,18 +440,16 @@ export default function MastersHub() {
   const handleAutofillSupplierFromGST = () => {
     if (!supplierGstResult) return;
     const r = supplierGstResult;
-    const addrObj = r.pradr?.addr || r.pradr || {};
-    const fullAddr = formatGstAddress(addrObj);
     const derivedPan = extractPanFromGSTIN(supplierForm.gstin);
 
     setSupplierForm((prev) => ({
       ...prev,
-      supplier_name: r.tradeNam || r.lgnm || prev.supplier_name,
+      supplier_name: r.trade_name || r.legal_name || prev.supplier_name,
       pan_no: derivedPan || prev.pan_no,
-      address: fullAddr || prev.address,
-      city: addrObj.dst || addrObj.loc || prev.city,
-      state: addrObj.stcd || prev.state,
-      pincode: addrObj.pncd ? String(addrObj.pncd) : prev.pincode,
+      address: r.address || prev.address,
+      city: r.city || prev.city,
+      state: r.state_code || prev.state,
+      pincode: r.pincode ? String(r.pincode) : prev.pincode,
     }));
   };
 
@@ -524,18 +507,16 @@ export default function MastersHub() {
   const handleAutofillCustomerFromGST = () => {
     if (!customerGstResult) return;
     const r = customerGstResult;
-    const addrObj = r.pradr?.addr || r.pradr || {};
-    const fullAddr = formatGstAddress(addrObj);
     const derivedPan = extractPanFromGSTIN(customerForm.gstin);
 
     setCustomerForm((prev) => ({
       ...prev,
-      name: r.tradeNam || r.lgnm || prev.name,
+      name: r.trade_name || r.legal_name || prev.name,
       pan_no: derivedPan || prev.pan_no,
-      address: fullAddr || prev.address,
-      city: addrObj.dst || addrObj.loc || prev.city,
-      state: addrObj.stcd || prev.state,
-      pincode: addrObj.pncd ? String(addrObj.pncd) : prev.pincode,
+      address: r.address || prev.address,
+      city: r.city || prev.city,
+      state: r.state_code || prev.state,
+      pincode: r.pincode ? String(r.pincode) : prev.pincode,
     }));
   };
 
@@ -1872,8 +1853,8 @@ export default function MastersHub() {
                     {supplierGstResult && (
                       <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, color: supplierGstResult.sts === 'Active' ? '#34d399' : '#f87171' }}>
-                            Status: {supplierGstResult.sts || 'Verified'}
+                          <span style={{ fontWeight: 800, color: supplierGstResult.status === 'Active' ? '#34d399' : '#f87171' }}>
+                            Status: {supplierGstResult.status || 'Verified'}
                           </span>
                           <button
                             type="button"
@@ -1892,14 +1873,14 @@ export default function MastersHub() {
                             ⚡ Auto-fill Form
                           </button>
                         </div>
-                        {supplierGstResult.sts && supplierGstResult.sts !== 'Active' && (
+                        {supplierGstResult.status && supplierGstResult.status !== 'Active' && (
                           <div style={{ color: '#f87171', fontWeight: 700 }}>
-                            ⚠️ Warning: GSTIN status is {supplierGstResult.sts}! Tax compliance may be impacted.
+                            ⚠️ Warning: GSTIN status is {supplierGstResult.status}! Tax compliance may be impacted.
                           </div>
                         )}
-                        <div><strong>Legal Name:</strong> {supplierGstResult.lgnm || '—'}</div>
-                        {supplierGstResult.tradeNam && <div><strong>Trade Name:</strong> {supplierGstResult.tradeNam}</div>}
-                        {supplierGstResult.pradr && <div><strong>Address:</strong> {formatGstAddress(supplierGstResult.pradr.addr || supplierGstResult.pradr)}</div>}
+                        <div><strong>Legal Name:</strong> {supplierGstResult.legal_name || '—'}</div>
+                        {supplierGstResult.trade_name && <div><strong>Trade Name:</strong> {supplierGstResult.trade_name}</div>}
+                        {supplierGstResult.address && <div><strong>Address:</strong> {supplierGstResult.address}</div>}
                       </div>
                     )}
                   </div>
@@ -2336,8 +2317,8 @@ export default function MastersHub() {
                     {customerGstResult && (
                       <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gap: 4 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, color: customerGstResult.sts === 'Active' ? '#34d399' : '#f87171' }}>
-                            Status: {customerGstResult.sts || 'Verified'}
+                          <span style={{ fontWeight: 800, color: customerGstResult.status === 'Active' ? '#34d399' : '#f87171' }}>
+                            Status: {customerGstResult.status || 'Verified'}
                           </span>
                           <button
                             type="button"
@@ -2356,14 +2337,14 @@ export default function MastersHub() {
                             ⚡ Auto-fill Form
                           </button>
                         </div>
-                        {customerGstResult.sts && customerGstResult.sts !== 'Active' && (
+                        {customerGstResult.status && customerGstResult.status !== 'Active' && (
                           <div style={{ color: '#f87171', fontWeight: 700 }}>
-                            ⚠️ Warning: GSTIN status is {customerGstResult.sts}! Tax compliance may be impacted.
+                            ⚠️ Warning: GSTIN status is {customerGstResult.status}! Tax compliance may be impacted.
                           </div>
                         )}
-                        <div><strong>Legal Name:</strong> {customerGstResult.lgnm || '—'}</div>
-                        {customerGstResult.tradeNam && <div><strong>Trade Name:</strong> {customerGstResult.tradeNam}</div>}
-                        {customerGstResult.pradr && <div><strong>Address:</strong> {formatGstAddress(customerGstResult.pradr.addr || customerGstResult.pradr)}</div>}
+                        <div><strong>Legal Name:</strong> {customerGstResult.legal_name || '—'}</div>
+                        {customerGstResult.trade_name && <div><strong>Trade Name:</strong> {customerGstResult.trade_name}</div>}
+                        {customerGstResult.address && <div><strong>Address:</strong> {customerGstResult.address}</div>}
                       </div>
                     )}
                   </div>
