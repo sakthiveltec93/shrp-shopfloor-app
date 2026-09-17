@@ -1511,19 +1511,19 @@ async function syncMoulds(closePool = false) {
           storage_location, status, notes
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT (mould_code) DO UPDATE SET
-          mould_name = EXCLUDED.mould_name,
-          ownership = COALESCE(EXCLUDED.ownership, moulds.ownership),
-          customer_name = COALESCE(EXCLUDED.customer_name, moulds.customer_name),
-          tool_maker = COALESCE(EXCLUDED.tool_maker, moulds.tool_maker),
-          funded_by = COALESCE(EXCLUDED.funded_by, moulds.funded_by),
-          tool_type = COALESCE(EXCLUDED.tool_type, moulds.tool_type),
-          suitable_machines = COALESCE(EXCLUDED.suitable_machines, moulds.suitable_machines),
-          total_cavities = EXCLUDED.total_cavities,
-          active_cavities = EXCLUDED.active_cavities,
+          mould_name = COALESCE(moulds.mould_name, EXCLUDED.mould_name),
+          ownership = COALESCE(moulds.ownership, EXCLUDED.ownership),
+          customer_name = COALESCE(moulds.customer_name, EXCLUDED.customer_name),
+          tool_maker = COALESCE(moulds.tool_maker, EXCLUDED.tool_maker),
+          funded_by = COALESCE(moulds.funded_by, EXCLUDED.funded_by),
+          tool_type = COALESCE(moulds.tool_type, EXCLUDED.tool_type),
+          suitable_machines = COALESCE(moulds.suitable_machines, EXCLUDED.suitable_machines),
+          total_cavities = COALESCE(moulds.total_cavities, EXCLUDED.total_cavities),
+          active_cavities = COALESCE(moulds.active_cavities, EXCLUDED.active_cavities),
           total_rated_life_shots = COALESCE(moulds.total_rated_life_shots, EXCLUDED.total_rated_life_shots),
           pm_interval_shots = COALESCE(moulds.pm_interval_shots, EXCLUDED.pm_interval_shots),
           storage_location = COALESCE(moulds.storage_location, EXCLUDED.storage_location),
-          notes = COALESCE(EXCLUDED.notes, moulds.notes)
+          notes = COALESCE(moulds.notes, EXCLUDED.notes)
         RETURNING id
       `, [
         m.mould_code,
@@ -1564,8 +1564,7 @@ async function syncMoulds(closePool = false) {
           await client.query(`
             INSERT INTO mould_parts (mould_id, part_id, cavities_for_part)
             VALUES ($1, $2, $3)
-            ON CONFLICT (mould_id, part_id) DO UPDATE SET
-              cavities_for_part = EXCLUDED.cavities_for_part
+            ON CONFLICT (mould_id, part_id) DO NOTHING
           `, [mouldId, partId, cavities]);
 
           partsLinked++;

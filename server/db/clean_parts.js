@@ -87,10 +87,9 @@ async function syncParts(closePool = false) {
   try {
     await client.query('BEGIN');
 
-    // First: Deactivate ALL parts
-    await client.query('UPDATE parts SET active = FALSE');
-
-    // Second: Upsert exact clean parts
+    // Upsert clean parts: only insert full defaults for brand-new parts,
+    // and never overwrite physical specs (cavity_count, part_weight_g, unit_weight_g, cycle time)
+    // for existing parts that may have been calibrated or edited through the app.
     for (const p of EXCEL_PARTS) {
       const [shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode] = p;
 
@@ -101,28 +100,18 @@ async function syncParts(closePool = false) {
       );
 
       if (existing.rows.length > 0) {
-        // Update existing row
+        // Safe UPDATE path: Reactivate part and backfill missing identifiers,
+        // but NEVER overwrite cavity_count, part_weight_g, unit_weight_g, cycle times, or stage flags
         await client.query(
           `UPDATE parts SET
-            shrp_part_code = $1,
-            customer_part_no = $2,
-            part_name = $2,
-            part_weight_g = $3,
-            trim_required = $4,
-            inspection_required = $5,
-            packing_required = $6,
-            dispatch_required = $7,
-            tolerance_pct = $8,
-            standard_pack_qty = $9,
-            cavity_count = $10,
-            unit_weight_g = $11,
-            batch_part_code = $12,
+            shrp_part_code = COALESCE(shrp_part_code, $1),
+            customer_part_no = COALESCE(customer_part_no, $2),
             active = TRUE
-          WHERE id = $13`,
-          [shrpCode, custPartNo, pWt, trimReq, inspReq, packReq, dispReq, tol, stdPack, cavity, shotWt, batchCode, existing.rows[0].id]
+          WHERE id = $3`,
+          [shrpCode, custPartNo, existing.rows[0].id]
         );
       } else {
-        // Insert new row
+        // INSERT path: Only used when first creating a brand new part
         await client.query(
           `INSERT INTO parts (
             part_code, shrp_part_code, customer_part_no, part_name,

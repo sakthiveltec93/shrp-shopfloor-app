@@ -207,16 +207,8 @@ async function syncPartPhotos(closePool = false) {
         LIMIT 1
       `, [targetPart.id]);
 
-      if (existingRes.rows.length > 0) {
-        // Update existing photo
-        await client.query(`
-          UPDATE part_files
-          SET filename = $1, mime_type = $2, data = $3, uploaded_at = now()
-          WHERE id = $4
-        `, [filename, mimeType, fileBuffer, existingRes.rows[0].id]);
-        updatedCount++;
-      } else {
-        // Insert new photo
+      if (existingRes.rows.length === 0) {
+        // Insert new photo only if no photo exists for this part
         await client.query(`
           INSERT INTO part_files (part_id, file_type, filename, mime_type, data, uploaded_by_user_id)
           VALUES ($1, 'photo', $2, $3, $4, $5)

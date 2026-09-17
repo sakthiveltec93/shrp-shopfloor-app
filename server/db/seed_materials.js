@@ -116,13 +116,13 @@ async function syncMaterials() {
            color, density_g_cm3, mfi_g_10min, standard_bag_wt_kg, min_stock_kg, default_parameters, active
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,TRUE)
          ON CONFLICT (material_code) DO UPDATE SET
-           material_name = EXCLUDED.material_name,
-           supplier_name = EXCLUDED.supplier_name,
-           grade_code = EXCLUDED.grade_code,
-           density_g_cm3 = EXCLUDED.density_g_cm3,
-           mfi_g_10min = EXCLUDED.mfi_g_10min,
-           min_stock_kg = EXCLUDED.min_stock_kg,
-           default_parameters = EXCLUDED.default_parameters`,
+           material_name = COALESCE(raw_materials.material_name, EXCLUDED.material_name),
+           supplier_name = COALESCE(raw_materials.supplier_name, EXCLUDED.supplier_name),
+           grade_code = COALESCE(raw_materials.grade_code, EXCLUDED.grade_code),
+           density_g_cm3 = COALESCE(raw_materials.density_g_cm3, EXCLUDED.density_g_cm3),
+           mfi_g_10min = COALESCE(raw_materials.mfi_g_10min, EXCLUDED.mfi_g_10min),
+           min_stock_kg = COALESCE(raw_materials.min_stock_kg, EXCLUDED.min_stock_kg),
+           default_parameters = COALESCE(raw_materials.default_parameters, EXCLUDED.default_parameters)`,
         [
           m.material_code, m.material_name, m.category, m.supplier_name, m.grade_code,
           m.color, m.density_g_cm3, m.mfi_g_10min, m.standard_bag_wt_kg, m.min_stock_kg, m.default_parameters,
