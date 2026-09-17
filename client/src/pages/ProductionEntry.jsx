@@ -228,6 +228,9 @@ export default function ProductionEntry() {
     } catch (err) {
       if (err.data?.code === 'below_target') {
         setBelowTargetPrompt(err.data);
+      } else if (err.data?.code === 'fpa_required') {
+        setFpaBlockedInfo(err.data);
+        setError(err.message);
       } else {
         setError(err.message);
       }
@@ -526,6 +529,24 @@ export default function ProductionEntry() {
               <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', padding: '3px 10px', borderRadius: 12, fontWeight: 600 }}>
                 ✓ BOM Material Allocated
               </span>
+            </div>
+          )}
+
+          {fpaBlockedInfo && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+              <div style={{ color: '#f87171', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                🛡️ IATF 16949 Clause 8.5.1.1 First-Piece Approval Required
+              </div>
+              <div style={{ color: '#fca5a5', fontSize: 12, marginTop: 4 }}>
+                Production entry logging is blocked. Initial setup, visual workmanship, and multi-cavity dimensional inspection must be approved before logging production.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFpaModal(true)}
+                style={{ marginTop: 8, padding: '8px 14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                📝 Open Digital FPA Sheet & Submit QA Approval
+              </button>
             </div>
           )}
 
@@ -1128,14 +1149,14 @@ export default function ProductionEntry() {
 
       {showFpaModal && (
         <FpaModal
-          machine={machines.find((m) => String(m.id) === String(machineId))}
-          part={assigned ? { id: assigned.part_id, part_code: assigned.part_code, shrp_part_code: assigned.shrp_part_code, part_name: assigned.part_name, cavity_count: assigned.cavity_count } : null}
-          mould={assigned?.mould_id ? { id: assigned.mould_id } : null}
+          machine={machines.find((m) => String(m.id) === String(machineId || session?.machine_id))}
+          part={assigned ? { id: assigned.part_id, part_code: assigned.part_code, shrp_part_code: assigned.shrp_part_code, part_name: assigned.part_name, cavity_count: assigned.cavity_count } : (session ? { id: session.part_id, part_code: session.part_code, shrp_part_code: session.shrp_part_code, part_name: session.part_name } : null)}
+          mould={assigned?.mould_id ? { id: assigned.mould_id } : (session?.mould_id ? { id: session.mould_id } : null)}
           onClose={() => setShowFpaModal(false)}
           onSuccess={() => {
             setShowFpaModal(false);
             setFpaBlockedInfo(null);
-            setSuccess('✅ FPA Approved! You can now start the machine session.');
+            setSuccess('✅ FPA Approved! You can now proceed with production.');
           }}
         />
       )}

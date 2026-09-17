@@ -59,6 +59,34 @@ router.post('/', async (req, res) => {
     return res.status(403).json({ error: 'This machine is running under another operator. You cannot log entries for it.' });
   }
 
+  // Hard IATF 16949 Gate: Check if FPA has been approved for the current machine assignment
+  const assignment = await pool.query(
+    `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
+    [session.machine_id]
+  );
+
+  let fpaCheck = { rows: [] };
+  try {
+    fpaCheck = await pool.query(
+      `SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [assignment.rows[0]?.id]
+    );
+  } catch (fpaErr) {
+    console.warn('Could not query fpa_submissions during entry creation:', fpaErr.message);
+  }
+
+  if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+    return res.status(403).json({
+      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED before logging production entries.',
+      code: 'fpa_required',
+      fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
+      part_id: assignment.rows[0]?.part_id || session.part_id,
+      machine_id: Number(session.machine_id),
+      mould_id: assignment.rows[0]?.mould_id || null,
+      assignment_id: assignment.rows[0]?.id || null,
+    });
+  }
+
   const lastEntryRes = await pool.query(
     `SELECT * FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [session_id]

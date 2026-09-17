@@ -93,15 +93,15 @@ router.post('/start', async (req, res) => {
       return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
     }
 
-    // Hard IATF 16949 Gate: Check if FPA has been approved for this machine & part
+    // Hard IATF 16949 Gate: Check if FPA has been approved for this specific assignment
     let fpaCheck = { rows: [] };
     try {
       fpaCheck = await pool.query(
         `SELECT id, approval_status 
          FROM fpa_submissions 
-         WHERE machine_id = $1 AND part_id = $2 
+         WHERE assignment_id = $1 
          ORDER BY created_at DESC LIMIT 1`,
-        [machine_id, assignment.rows[0].part_id]
+        [assignment.rows[0].id]
       );
     } catch (fpaErr) {
       console.warn('Could not query fpa_submissions during machine start:', fpaErr.message);
@@ -114,7 +114,8 @@ router.post('/start', async (req, res) => {
         fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
         part_id: assignment.rows[0].part_id,
         machine_id: Number(machine_id),
-        mould_id: assignment.rows[0].mould_id
+        mould_id: assignment.rows[0].mould_id,
+        assignment_id: assignment.rows[0].id
       });
     }
 
