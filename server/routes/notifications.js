@@ -29,7 +29,8 @@ router.get('/alerts', async (req, res) => {
           f.id AS fpa_id,
           f.assignment_id,
           f.approval_status,
-          f.submitted_at,
+          f.created_at AS submitted_at,
+          f.created_at,
           f.regrind_pct,
           f.regrind_exceeded_allowed,
           f.mould_pm_overdue,
@@ -49,7 +50,7 @@ router.get('/alerts', async (req, res) => {
         LEFT JOIN moulds mo ON ma.mould_id = mo.id
         LEFT JOIN users u ON f.technician_user_id = u.id
         WHERE f.approval_status = 'PENDING'
-        ORDER BY f.submitted_at DESC
+        ORDER BY f.created_at DESC
       `);
       pendingFpa = fpaRes.rows;
     } catch (e) {
@@ -86,7 +87,8 @@ router.get('/alerts', async (req, res) => {
           f.regrind_pct,
           f.deviation_no,
           f.remarks,
-          f.submitted_at,
+          f.created_at AS submitted_at,
+          f.created_at,
           m.machine_code,
           p.part_code,
           p.customer_part_no,
@@ -96,7 +98,7 @@ router.get('/alerts', async (req, res) => {
         JOIN machines m ON ma.machine_id = m.id
         JOIN parts p ON ma.part_id = p.id
         WHERE f.regrind_exceeded_allowed = TRUE AND (f.deviation_no IS NULL OR f.deviation_no = '' OR f.approval_status = 'PENDING')
-        ORDER BY f.submitted_at DESC
+        ORDER BY f.created_at DESC
         LIMIT 20
       `);
       regrindDeviations = regrindRes.rows;
@@ -136,10 +138,10 @@ router.get('/alerts', async (req, res) => {
     try {
       const delsRes = await pool.query(`
         SELECT 
-          d.id, d.record_type, d.reason, d.created_at, d.details,
+          d.id, d.entity_type AS record_type, d.entity_type, d.reason, d.created_at, d.details,
           u.full_name AS requested_by_name
         FROM deletion_requests d
-        LEFT JOIN users u ON d.user_id = u.id
+        LEFT JOIN users u ON d.requested_by = u.id
         WHERE d.status = 'pending'
         ORDER BY d.created_at DESC
       `);

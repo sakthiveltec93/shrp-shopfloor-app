@@ -73,45 +73,51 @@ router.get('/suggested-start-count', async (req, res) => {
 
 // Start Machine - creates a new running session.
 router.post('/start', async (req, res) => {
-  const { machine_id, start_count, operator_user_id } = req.body;
-  if (!machine_id || start_count == null) {
-    return res.status(400).json({ error: 'machine_id and start_count are required' });
-  }
-
-  // Determine assigned operator
-  let assignedOperatorId = req.user.id;
-  if (operator_user_id && (req.user.role === 'admin' || req.user.role === 'supervisor')) {
-    assignedOperatorId = Number(operator_user_id);
-  }
-
-  const assignment = await pool.query(
-    `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
-    [machine_id]
-  );
-  if (!assignment.rows[0]) {
-    return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
-  }
-
-  // Hard IATF 16949 Gate: Check if FPA has been approved for this machine & part
-  const fpaCheck = await pool.query(
-    `SELECT id, approval_status, inspection_no 
-     FROM fpa_submissions 
-     WHERE machine_id = $1 AND part_id = $2 
-     ORDER BY created_at DESC LIMIT 1`,
-    [machine_id, assignment.rows[0].part_id]
-  );
-  if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
-    return res.status(403).json({
-      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED by QA / Supervisor before starting production session.',
-      code: 'fpa_required',
-      fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
-      part_id: assignment.rows[0].part_id,
-      machine_id: Number(machine_id),
-      mould_id: assignment.rows[0].mould_id
-    });
-  }
-
   try {
+    const { machine_id, start_count, operator_user_id } = req.body;
+    if (!machine_id || start_count == null) {
+      return res.status(400).json({ error: 'machine_id and start_count are required' });
+    }
+
+    // Determine assigned operator
+    let assignedOperatorId = req.user.id;
+    if (operator_user_id && (req.user.role === 'admin' || req.user.role === 'supervisor')) {
+      assignedOperatorId = Number(operator_user_id);
+    }
+
+    const assignment = await pool.query(
+      `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
+      [machine_id]
+    );
+    if (!assignment.rows[0]) {
+      return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
+    }
+
+    // Hard IATF 16949 Gate: Check if FPA has been approved for this machine & part
+    let fpaCheck = { rows: [] };
+    try {
+      fpaCheck = await pool.query(
+        `SELECT id, approval_status 
+         FROM fpa_submissions 
+         WHERE machine_id = $1 AND part_id = $2 
+         ORDER BY created_at DESC LIMIT 1`,
+        [machine_id, assignment.rows[0].part_id]
+      );
+    } catch (fpaErr) {
+      console.warn('Could not query fpa_submissions during machine start:', fpaErr.message);
+    }
+
+    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+      return res.status(403).json({
+        error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED by QA / Supervisor before starting production session.',
+        code: 'fpa_required',
+        fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
+        part_id: assignment.rows[0].part_id,
+        machine_id: Number(machine_id),
+        mould_id: assignment.rows[0].mould_id
+      });
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)
        VALUES ($1,$2,$3,now(),$4) RETURNING *`,
@@ -130,16 +136,21 @@ router.post('/start', async (req, res) => {
     res.status(201).json(fullSession.rows[0] || rows[0]);
   } catch (err) {
     if (err.code === '23505') { // unique_violation on the partial index
-      const active = await pool.query(
-        `SELECT ms.*, u.full_name AS operator_name FROM machine_sessions ms
-         JOIN users u ON u.id = ms.operator_user_id
-         WHERE ms.machine_id = $1 AND ms.status = 'RUNNING'`,
-        [machine_id]
-      );
-      const who = active.rows[0]?.operator_name || 'another operator';
-      return res.status(409).json({ error: `This machine is already running under ${who}. They need to submit Change Operator or Off Machine first.` });
+      try {
+        const active = await pool.query(
+          `SELECT ms.*, u.full_name AS operator_name FROM machine_sessions ms
+           JOIN users u ON u.id = ms.operator_user_id
+           WHERE ms.machine_id = $1 AND ms.status = 'RUNNING'`,
+          [req.body.machine_id]
+        );
+        const who = active.rows[0]?.operator_name || 'another operator';
+        return res.status(409).json({ error: `This machine is already running under ${who}. They need to submit Change Operator or Off Machine first.` });
+      } catch (innerErr) {
+        return res.status(409).json({ error: 'This machine is already running under another active session.' });
+      }
     }
-    throw err;
+    console.error('Error starting machine session:', err);
+    res.status(500).json({ error: 'Failed to start machine session: ' + err.message });
   }
 });
 

@@ -8,7 +8,49 @@ const PDFDocument = require('pdfkit');
 router.use(requireAuth);
 
 // -------------------------------------------------------------
-// 1. GET FPA INITIAL DATA OR EXISTING SUBMISSION FOR ASSIGNMENT
+// 1. FPA AUDIT TRAIL HISTORY (Must be declared before /:assignmentId)
+// -------------------------------------------------------------
+router.get('/history', async (req, res) => {
+  try {
+    const { machineId, partId, status } = req.query;
+    let query = `
+      SELECT fpa.id, fpa.assignment_id, fpa.machine_id, m.machine_code,
+             fpa.part_id, p.part_code, p.part_name, p.shrp_part_code,
+             fpa.approval_status, fpa.deviation_no, fpa.created_at, fpa.approved_at,
+             u_qa.full_name AS approved_by_name
+      FROM fpa_submissions fpa
+      JOIN machines m ON fpa.machine_id = m.id
+      JOIN parts p ON fpa.part_id = p.id
+      LEFT JOIN users u_qa ON fpa.quality_inspector_user_id = u_qa.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (machineId) {
+      params.push(machineId);
+      query += ` AND fpa.machine_id = $${params.length}`;
+    }
+    if (partId) {
+      params.push(partId);
+      query += ` AND fpa.part_id = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      query += ` AND fpa.approval_status = $${params.length}`;
+    }
+
+    query += ` ORDER BY fpa.created_at DESC LIMIT 100`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching FPA history:', err);
+    res.status(500).json({ error: 'Failed to fetch FPA history: ' + err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 2. GET FPA INITIAL DATA OR EXISTING SUBMISSION FOR ASSIGNMENT
 // -------------------------------------------------------------
 router.get('/:assignmentId', async (req, res) => {
   try {
@@ -492,48 +534,6 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Error generating FPA PDF:', err);
     res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
-  }
-});
-
-// -------------------------------------------------------------
-// 4. FPA AUDIT TRAIL HISTORY
-// -------------------------------------------------------------
-router.get('/history', requireAuth, async (req, res) => {
-  try {
-    const { machineId, partId, status } = req.query;
-    let query = `
-      SELECT fpa.id, fpa.assignment_id, fpa.machine_id, m.machine_code,
-             fpa.part_id, p.part_code, p.part_name, p.shrp_part_code,
-             fpa.approval_status, fpa.deviation_no, fpa.created_at, fpa.approved_at,
-             u_qa.full_name AS approved_by_name
-      FROM fpa_submissions fpa
-      JOIN machines m ON fpa.machine_id = m.id
-      JOIN parts p ON fpa.part_id = p.id
-      LEFT JOIN users u_qa ON fpa.quality_inspector_user_id = u_qa.id
-      WHERE 1=1
-    `;
-    const params = [];
-
-    if (machineId) {
-      params.push(machineId);
-      query += ` AND fpa.machine_id = $${params.length}`;
-    }
-    if (partId) {
-      params.push(partId);
-      query += ` AND fpa.part_id = $${params.length}`;
-    }
-    if (status) {
-      params.push(status);
-      query += ` AND fpa.approval_status = $${params.length}`;
-    }
-
-    query += ` ORDER BY fpa.created_at DESC LIMIT 100`;
-
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching FPA history:', err);
-    res.status(500).json({ error: 'Failed to fetch FPA history: ' + err.message });
   }
 });
 
