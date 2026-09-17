@@ -171,6 +171,17 @@ router.get('/activity-report', async (req, res) => {
       return res.json([]);
     }
   }
+// ============================================================
+// 3.1 Audit Duplicates & Foreign Key Reference Check
+// ============================================================
+router.get('/audit-duplicates', async (req, res) => {
+  try {
+    const { auditDuplicates } = require('../db/audit_duplicates');
+    const report = await auditDuplicates();
+    res.json(report || { error: 'Audit execution returned empty result' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ============================================================
@@ -249,8 +260,9 @@ router.put('/:id', async (req, res) => {
          pin_hash = COALESCE($5, pin_hash),
          can_override_fifo = COALESCE($6, can_override_fifo),
          can_approve_tolerance = COALESCE($7, can_approve_tolerance),
-         default_language = COALESCE($8, default_language)
-       WHERE id = $9 RETURNING id, username, full_name, role, assigned_process, active, default_language, can_override_fifo, can_approve_tolerance, created_at`,
+         default_language = COALESCE($8, default_language),
+         updated_at = now()
+       WHERE id = $9 RETURNING id, username, full_name, role, assigned_process, active, default_language, can_override_fifo, can_approve_tolerance, created_at, updated_at`,
       [
         full_name || null,
         role || null,
@@ -305,9 +317,7 @@ router.post('/:id/toggle-active', async (req, res) => {
 });
 
 // ============================================================
-// ============================================================
-// ============================================================
-// 7. Delete User (Guaranteed Safe Delete / Purge for any account)
+// 7. Soft Delete User
 // ============================================================
 router.delete('/:id', async (req, res) => {
   const targetParam = req.params.id;
@@ -316,7 +326,7 @@ router.delete('/:id', async (req, res) => {
   try {
     // 1. Fetch user info by id OR username
     const { rows: userRows } = await pool.query(
-      `SELECT * FROM users WHERE id = $1 OR username = $2`,
+      `SELECT * FROM users WHERE (id = $1 OR username = $2) AND deleted_at IS NULL`,
       [isNaN(numId) ? -1 : numId, targetParam]
     );
     if (userRows.length === 0) {
@@ -332,110 +342,22 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Child tables where records owned by this user should be deleted:
-    const childTablesToDelete = [
-      'user_page_access',
-      'notifications',
-      'user_activity_log',
-      'attendance',
-      'leave_requests',
-      'user_leave_balances',
-    ];
+    // Soft delete: mark inactive and record deleted_at + updated_at timestamp
+    await pool.query(
+      `UPDATE users SET active = FALSE, deleted_at = now(), updated_at = now() WHERE id = $1`,
+      [userId]
+    );
 
-    for (const tbl of childTablesToDelete) {
-      try {
-        await pool.query(`DELETE FROM ${tbl} WHERE user_id = $1`, [userId]);
-      } catch (e) {
-        // Table or col may not exist; safe to continue
-      }
-    }
-
-    // Operational/audit tables and columns to unlink (SET column = NULL):
-    const unlinks = [
-      ['production_entries', 'operator_user_id'],
-      ['machine_assignments', 'set_by_user_id'],
-      ['machine_assignments', 'approved_by_user_id'],
-      ['bags', 'operator_user_id'],
-      ['bags', 'tolerance_approved_by'],
-      ['bags', 'fifo_override_by'],
-      ['bag_hold_log', 'hold_by_user_id'],
-      ['bag_hold_log', 'released_by_user_id'],
-      ['trim_entries', 'operator_user_id'],
-      ['inspection_entries', 'operator_user_id'],
-      ['packing_entries', 'operator_user_id'],
-      ['packing_balance_pool', 'operator_user_id'],
-      ['machine_sessions', 'operator_user_id'],
-      ['rework_log', 'created_by_user_id'],
-      ['rework_log', 'worked_by_user_id'],
-      ['rework_entries', 'operator_user_id'],
-      ['dispatch_attachments', 'uploaded_by_user_id'],
-      ['dispatch_entries', 'operator_user_id'],
-      ['shift_handover_notes', 'operator_user_id'],
-      ['attendance', 'approved_by'],
-      ['parts', 'deleted_by'],
-      ['deletion_requests', 'requested_by'],
-      ['deletion_requests', 'reviewed_by'],
-      ['machine_breakdowns', 'logged_by'],
-      ['mould_maintenance_logs', 'logged_by'],
-      ['mould_files', 'uploaded_by_user_id'],
-      ['rm_inward_entries', 'inspector_user_id'],
-      ['rm_inward_entries', 'approved_by_user_id'],
-      ['rm_stock_movements', 'operator_user_id'],
-      ['rm_batch_dispense', 'over_consumed_approved_by'],
-      ['leave_requests', 'reviewed_by'],
-      ['users', 'deleted_by'],
-    ];
-
-    for (const [tbl, col] of unlinks) {
-      try {
-        await pool.query(`ALTER TABLE ${tbl} ALTER COLUMN ${col} DROP NOT NULL`);
-      } catch (e) {
-        // already nullable or doesn't exist
-      }
-      try {
-        await pool.query(`UPDATE ${tbl} SET ${col} = NULL WHERE ${col} = $1`, [userId]);
-      } catch (e) {
-        // table or column doesn't exist
-      }
-    }
-
-    // Dynamic catalog inspection: Find ANY other table in Postgres with foreign keys pointing to users(id)
+    // Clean up user page access
     try {
-      const { rows: fkRows } = await pool.query(`
-        SELECT
-          tc.table_name,
-          kcu.column_name
-        FROM information_schema.table_constraints AS tc
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        JOIN information_schema.constraint_column_usage AS ccu
-          ON ccu.constraint_name = tc.constraint_name
-          AND ccu.table_schema = tc.table_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-          AND ccu.table_name = 'users'
-          AND ccu.column_name = 'id'
-          AND tc.table_name != 'users'
-      `);
-
-      for (const fk of fkRows) {
-        try {
-          await pool.query(`ALTER TABLE "${fk.table_name}" ALTER COLUMN "${fk.column_name}" DROP NOT NULL`);
-          await pool.query(`UPDATE "${fk.table_name}" SET "${fk.column_name}" = NULL WHERE "${fk.column_name}" = $1`, [userId]);
-        } catch (e) {
-          // ignore
-        }
-      }
-    } catch (catalogErr) {
-      console.warn('Catalog FK lookup skipped:', catalogErr.message);
+      await pool.query(`DELETE FROM user_page_access WHERE user_id = $1`, [userId]);
+    } catch (e) {
+      // ignore
     }
-
-    // Delete the user record
-    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 
     return res.json({
       ok: true,
-      message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted permanently.`,
+      message: `User "${targetUser.full_name}" (@${targetUser.username}) deleted successfully.`,
     });
   } catch (err) {
     console.error('Error in user deletion:', err);

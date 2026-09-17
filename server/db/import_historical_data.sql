@@ -35,7 +35,6 @@ INSERT INTO users (username, pin_hash, full_name, role, active) VALUES ('SUJATHA
 INSERT INTO users (username, pin_hash, full_name, role, active) VALUES ('THILAKA', '$2a$10$wN9c737B55r0mGq85Xj0y.uKiqH0k6rKkG3oN/u5pY8rGZfA1k8e2', 'THILAKA', 'operator', TRUE) ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 INSERT INTO users (username, pin_hash, full_name, role, active) VALUES ('VIDHYA', '$2a$10$wN9c737B55r0mGq85Xj0y.uKiqH0k6rKkG3oN/u5pY8rGZfA1k8e2', 'VIDHYA', 'admin', TRUE) ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 INSERT INTO users (username, pin_hash, full_name, role, active) VALUES ('VIJAYA', '$2a$10$wN9c737B55r0mGq85Xj0y.uKiqH0k6rKkG3oN/u5pY8rGZfA1k8e2', 'VIJAYA', 'operator', TRUE) ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
-INSERT INTO users (username, pin_hash, full_name, role, active) VALUES ('JANANI', '$2a$10$wN9c737B55r0mGq85Xj0y.uKiqH0k6rKkG3oN/u5pY8rGZfA1k8e2', 'JANANI', 'supervisor', TRUE) ON CONFLICT (username) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
 
 
 -- 3. Sync Machines

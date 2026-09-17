@@ -5,6 +5,7 @@ const { syncParts } = require('./clean_parts');
 const { syncMoulds } = require('./sync_moulds');
 const { syncMaterials } = require('./seed_materials');
 const { syncPartPhotos } = require('./seed_photos');
+const { auditDuplicates } = require('./audit_duplicates');
 
 async function initDb() {
   try {
@@ -13,6 +14,8 @@ async function initDb() {
     await pool.query(schemaSql);
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_process TEXT NOT NULL DEFAULT 'PRODUCTION';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
@@ -50,6 +53,8 @@ async function initDb() {
       WHERE (bag_code ILIKE '%-SCRAP%' OR bag_code ILIKE '%SCRAP%') AND bag_type != 'SCRAP'
     `);
     console.log('[DB-INIT] Bag types cleaned up successfully.');
+
+    await auditDuplicates();
   } catch (err) {
     console.error('[DB-INIT] Warning during database init:', err.message || err);
   }

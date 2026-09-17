@@ -28,8 +28,7 @@ INSERT INTO users (username, pin_hash, full_name, role) VALUES
   ('sujatha', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'SUJATHA', 'operator'),
   ('thilaka', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'THILAKA', 'operator'),
   ('vidhya', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'VIDHYA', 'admin'),
-  ('vijaya', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'VIJAYA', 'operator'),
-  ('janani', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'JANANI', 'supervisor')
+  ('vijaya', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'VIJAYA', 'operator')
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO user_page_access (user_id, page_key)
@@ -115,15 +114,7 @@ JOIN (VALUES
   ('vidhya', 'parts'),
   ('vidhya', 'users'),
   ('vijaya', 'entry'),
-  ('vijaya', 'log'),
-  ('janani', 'mould_setup'),
-  ('janani', 'entry'),
-  ('janani', 'bag_entry'),
-  ('janani', 'trimming'),
-  ('janani', 'inspection'),
-  ('janani', 'packing'),
-  ('janani', 'log'),
-  ('janani', 'approvals'),
-  ('janani', 'parts')
+  ('vijaya', 'log')
 ) AS v(username, page_key) ON v.username = u.username
+WHERE u.deleted_at IS NULL AND u.active = TRUE
 ON CONFLICT (user_id, page_key) DO NOTHING;
