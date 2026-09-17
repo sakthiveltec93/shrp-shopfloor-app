@@ -141,6 +141,37 @@ export default function Approvals() {
                   Approve
                 </button>
                 <button
+                  className="btn"
+                  style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', fontWeight: 600, width: 'auto', padding: '8px 14px' }}
+                  disabled={busyId === p.id}
+                  onClick={async () => {
+                    setError('');
+                    setBusyId(p.id);
+                    try {
+                      await api.decideAssignment(p.id, 'approved');
+                      await load();
+                      setSelectedFpaAssignment({
+                        assignment_id: p.id,
+                        machine_id: p.machine_id,
+                        machine_code: p.machine_code,
+                        part_id: p.part_id,
+                        part_code: p.part_code,
+                        shrp_part_code: p.shrp_part_code,
+                        part_name: p.part_name,
+                        cavity_count: p.cavity_count,
+                        mould_id: p.mould_id,
+                        mould_code: p.mould_code,
+                      });
+                    } catch (err) {
+                      setError(err.message);
+                    } finally {
+                      setBusyId(null);
+                    }
+                  }}
+                >
+                  🛡️ Approve & Open FPA
+                </button>
+                <button
                   className="btn btn-secondary"
                   disabled={busyId === p.id}
                   onClick={() => decide(p.id, 'rejected')}

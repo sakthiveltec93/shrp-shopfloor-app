@@ -282,7 +282,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
               </span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Machine: <strong style={{ color: '#fff' }}>{machine?.machine_code}</strong> · Part: <span className="shrp-code-pill" style={{ fontSize: 11, marginLeft: 4 }}>{part?.shrp_part_code || part?.part_code}</span> {part?.part_name}
+              Machine: <strong style={{ color: '#fff' }}>{machine?.machine_code || assignment?.machine_code || fpaData.machine?.machine_code || fpaData.assignment?.machine_code || 'Machine'}</strong> · Part: <span className="shrp-code-pill" style={{ fontSize: 11, marginLeft: 4 }}>{part?.shrp_part_code || part?.part_code || assignment?.shrp_part_code || assignment?.part_code || fpaData.part?.shrp_part_code || fpaData.part?.part_code || 'Part'}</span> {part?.part_name || assignment?.part_name || fpaData.part?.part_name || ''}
             </div>
           </div>
           <button

@@ -78,6 +78,12 @@ export default function MouldSetup() {
       loadData();
     } catch (err) {
       setError(err.message);
+      if (err.message && (err.message.toLowerCase().includes('fpa') || err.message.toLowerCase().includes('first-piece') || err.message.toLowerCase().includes('first piece'))) {
+        const assign = current.find((c) => c.assignment_id === assignmentId);
+        if (assign) {
+          setSelectedFpaAssignment(assign);
+        }
+      }
     } finally {
       setMarkingId(null);
     }
@@ -92,7 +98,25 @@ export default function MouldSetup() {
       <h1 className="screen-title">{t('mouldSetup.title')}</h1>
       <p className="screen-sub">{t('mouldSetup.subtitle')}</p>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+          <div>{error}</div>
+          {(error.toLowerCase().includes('fpa') || error.toLowerCase().includes('first-piece') || error.toLowerCase().includes('first piece')) && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ width: 'auto', padding: '6px 14px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={() => {
+                const target = (markingId ? current.find((c) => c.assignment_id === markingId) : null) || current[0];
+                if (target) setSelectedFpaAssignment(target);
+              }}
+            >
+              <span>📝</span>
+              <span>Open Digital FPA Sheet Now</span>
+            </button>
+          )}
+        </div>
+      )}
       {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
 
       <form onSubmit={handleSubmit} className="panel">
