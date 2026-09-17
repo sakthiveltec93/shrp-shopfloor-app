@@ -76,25 +76,63 @@ router.post('/login', async (req, res) => {
   const ok = await bcrypt.compare(pin, user.pin_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid username or PIN' });
 
-  // 3. Office Premises IP Check (Admin exempt)
+  // 3. Office Premises IP Check (Admin exempt) - DISABLED in favor of Device-Allowlist enforcement
   const clientIp = (req.ip || '').replace(/^::ffff:/, '').trim();
+  const userAgent = req.headers['user-agent'] || null;
+  const deviceLabel = parseDeviceLabel(userAgent);
+
+  // [DISABLED IP CHECK - DO NOT DELETE]
+  // if (user.role !== 'admin') {
+  //   try {
+  //     const { rows: ipRows } = await pool.query(
+  //       'SELECT id FROM allowed_ips WHERE (ip_address = $1 OR ip_address = $2) AND active = TRUE',
+  //       [req.ip, clientIp]
+  //     );
+  //     if (ipRows.length === 0) {
+  //       return res.status(403).json({ error: 'This app can only be accessed from office premises.' });
+  //     }
+  //   } catch (ipErr) {
+  //     console.warn('Allowed IP check warning:', ipErr.message);
+  //   }
+  // }
+
+  // 4. Strict Device Allowlist Gate (Admin exempt)
   if (user.role !== 'admin') {
-    try {
-      const { rows: ipRows } = await pool.query(
-        'SELECT id FROM allowed_ips WHERE (ip_address = $1 OR ip_address = $2) AND active = TRUE',
-        [req.ip, clientIp]
-      );
-      if (ipRows.length === 0) {
-        return res.status(403).json({ error: 'This app can only be accessed from office premises.' });
+    let isApproved = false;
+    if (deviceId && deviceId !== 'unknown') {
+      try {
+        const { rows: approvedRows } = await pool.query(
+          'SELECT id FROM approved_devices WHERE device_id = $1',
+          [deviceId]
+        );
+        if (approvedRows.length > 0) {
+          isApproved = true;
+        }
+      } catch (devErr) {
+        console.warn('Approved device check error:', devErr.message);
       }
-    } catch (ipErr) {
-      console.warn('Allowed IP check warning:', ipErr.message);
+    }
+
+    if (!isApproved) {
+      // Record attempt in login_history so it appears in admin pending approval list
+      try {
+        await pool.query(
+          `INSERT INTO login_history (user_id, device_id, ip_address, user_agent, device_label)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [user.id, deviceId, clientIp, userAgent, deviceLabel]
+        );
+      } catch (histErr) {
+        console.warn('Failed to log login history for unapproved device:', histErr.message);
+      }
+
+      return res.status(403).json({
+        error: 'This device is not approved. Ask an admin to approve it before you can log in.',
+        code: 'device_not_approved',
+      });
     }
   }
 
-  // 4. Log to login_history
-  const userAgent = req.headers['user-agent'] || null;
-  const deviceLabel = parseDeviceLabel(userAgent);
+  // 5. Log successful login to login_history
   try {
     await pool.query(
       `INSERT INTO login_history (user_id, device_id, ip_address, user_agent, device_label)

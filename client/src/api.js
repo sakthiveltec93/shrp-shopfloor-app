@@ -137,6 +137,10 @@ export const api = {
       headers: { 'X-Device-Id': getOrCreateDeviceId() },
     }),
   security: {
+    getApprovedDevices: () => request('/security/approved-devices'),
+    getPendingDevices: () => request('/security/pending-devices'),
+    approveDevice: (payload) => request('/security/approved-devices', { method: 'POST', body: payload }),
+    revokeApprovedDevice: (id) => request(`/security/approved-devices/${id}`, { method: 'DELETE' }),
     getAllowedIps: () => request('/security/allowed-ips'),
     addAllowedIp: (payload) => request('/security/allowed-ips', { method: 'POST', body: payload }),
     deleteAllowedIp: (id) => request(`/security/allowed-ips/${id}`, { method: 'DELETE' }),

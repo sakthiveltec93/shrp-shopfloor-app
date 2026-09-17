@@ -11,6 +11,10 @@ export default function UsersList() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [activeTab, setActiveTab] = useState('accounts'); // 'accounts' | 'activity' | 'security'
+  const [approvedDevices, setApprovedDevices] = useState([]);
+  const [pendingDevices, setPendingDevices] = useState([]);
+  const [approvingDeviceId, setApprovingDeviceId] = useState(null);
+  const [revokingDeviceId, setRevokingDeviceId] = useState(null);
   const [allowedIps, setAllowedIps] = useState([]);
   const [blockedDevices, setBlockedDevices] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
@@ -37,18 +41,78 @@ export default function UsersList() {
     if (currentUser?.role !== 'admin') return;
     setLoadingSecurity(true);
     try {
-      const [ips, blocked, history] = await Promise.all([
-        api.security.getAllowedIps(),
-        api.security.getBlockedDevices(),
-        api.security.getLoginHistory(100),
+      const [approved, pending, blocked, history, ips] = await Promise.all([
+        api.security.getApprovedDevices().catch(() => []),
+        api.security.getPendingDevices().catch(() => []),
+        api.security.getBlockedDevices().catch(() => []),
+        api.security.getLoginHistory(100).catch(() => []),
+        api.security.getAllowedIps().catch(() => []),
       ]);
-      setAllowedIps(Array.isArray(ips) ? ips : []);
+      setApprovedDevices(Array.isArray(approved) ? approved : []);
+      setPendingDevices(Array.isArray(pending) ? pending : []);
       setBlockedDevices(Array.isArray(blocked) ? blocked : []);
       setLoginHistory(Array.isArray(history) ? history : []);
+      setAllowedIps(Array.isArray(ips) ? ips : []);
     } catch (err) {
       console.error('Failed to load security data', err);
     } finally {
       setLoadingSecurity(false);
+    }
+  };
+
+  const handleApproveDevice = (dev) => {
+    if (!dev?.device_id) return;
+    setApprovingDeviceId(dev.device_id);
+    setError('');
+
+    const doApprove = async (lat = null, lng = null) => {
+      try {
+        const res = await api.security.approveDevice({
+          device_id: dev.device_id,
+          device_label: dev.device_label,
+          lat,
+          lng,
+        });
+        setSuccessMsg(res.message || `Device '${dev.device_label || dev.device_id}' approved successfully.`);
+        setTimeout(() => setSuccessMsg(''), 5000);
+        await loadSecurityData();
+      } catch (err) {
+        setError(err.message || 'Failed to approve device');
+      } finally {
+        setApprovingDeviceId(null);
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          doApprove(pos.coords.latitude, pos.coords.longitude);
+        },
+        (geoErr) => {
+          console.warn('Geolocation error during device approval:', geoErr);
+          // Try approving without GPS (server will enforce geofence if configured)
+          doApprove(null, null);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    } else {
+      doApprove(null, null);
+    }
+  };
+
+  const handleRevokeApprovedDevice = async (dev) => {
+    if (!window.confirm(`Revoke approval for device "${dev.device_label || dev.device_id}"?\n\nNon-admin staff will no longer be able to log in from this device until re-approved.`)) return;
+    setRevokingDeviceId(dev.id || dev.device_id);
+    setError('');
+    try {
+      const res = await api.security.revokeApprovedDevice(dev.id || dev.device_id);
+      setSuccessMsg(res.message || 'Device approval revoked.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      await loadSecurityData();
+    } catch (err) {
+      setError(err.message || 'Failed to revoke device approval');
+    } finally {
+      setRevokingDeviceId(null);
     }
   };
 
@@ -774,7 +838,30 @@ export default function UsersList() {
 
       {activeTab === 'security' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Allowed IPs Section */}
+          {/* Security Banner */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1))',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: 8,
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 24 }}>🛡️</span>
+            <div>
+              <strong style={{ fontSize: 13, color: '#a5b4fc', display: 'block' }}>
+                Strict Device-Allowlist Authentication Enforced
+              </strong>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Only explicitly approved devices can log into operator and supervisor accounts. Device approvals verify physical presence inside factory GPS geofence. Admin logins bypass device restrictions.
+              </div>
+            </div>
+          </div>
+
+          {/* 1. Pending Device Approvals Section */}
           <div
             style={{
               background: 'var(--panel)',
@@ -785,120 +872,234 @@ export default function UsersList() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>🌐</span> Allowed Office IP Addresses
+                <span>⏳</span> Pending Device Approvals
               </h2>
-              <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-                {allowedIps.length} Active {allowedIps.length === 1 ? 'Rule' : 'Rules'}
+              <span
+                style={{
+                  fontSize: 11,
+                  background: pendingDevices.length > 0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                  color: pendingDevices.length > 0 ? 'var(--amber)' : 'var(--text-muted)',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  fontWeight: 700,
+                }}
+              >
+                {pendingDevices.length} Pending
               </span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-              Non-admin staff (operators and supervisors) can only log in from these whitelisted office IP addresses. Admin logins are always exempt.
+              Devices that attempted login with valid user credentials but were refused because the device is not yet approved.
             </div>
 
-            {/* Add IP Form */}
-            <form
-              onSubmit={handleAddIp}
-              style={{
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap',
-                background: 'var(--bg)',
-                padding: 10,
-                borderRadius: 6,
-                border: '1px solid var(--line)',
-                marginBottom: 12,
-              }}
-            >
-              <input
-                type="text"
-                placeholder="e.g. 103.21.144.20"
-                value={newIpAddress}
-                onChange={(e) => setNewIpAddress(e.target.value)}
-                required
-                style={{
-                  flex: '1 1 140px',
-                  padding: '7px 10px',
-                  fontSize: 12,
-                  background: 'var(--panel)',
-                  border: '1px solid var(--line)',
-                  color: 'var(--text)',
-                  borderRadius: 6,
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Label (e.g. Factory Main Wi-Fi)"
-                value={newIpLabel}
-                onChange={(e) => setNewIpLabel(e.target.value)}
-                style={{
-                  flex: '1 1 180px',
-                  padding: '7px 10px',
-                  fontSize: 12,
-                  background: 'var(--panel)',
-                  border: '1px solid var(--line)',
-                  color: 'var(--text)',
-                  borderRadius: 6,
-                }}
-              />
-              <button
-                type="submit"
-                disabled={addingIp}
-                className="btn btn-primary"
-                style={{
-                  width: 'auto',
-                  padding: '7px 14px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {addingIp ? 'Adding…' : '+ Add IP'}
-              </button>
-            </form>
-
-            {/* IP Table */}
-            {allowedIps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '16px 8px', color: 'var(--text-muted)', fontSize: 12, background: 'rgba(245, 158, 11, 0.05)', border: '1px dashed var(--line)', borderRadius: 6 }}>
-                ⚠️ No IP restrictions currently configured. Anyone with credentials can log in from any network. Add your office public IP above to restrict access.
+            {pendingDevices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 8px', color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg)', borderRadius: 6 }}>
+                ✓ No pending device approvals. All active devices are authorized.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {allowedIps.map((ip) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pendingDevices.map((dev) => {
+                  const isApproving = approvingDeviceId === dev.device_id;
+                  const users = Array.isArray(dev.attempted_users) ? dev.attempted_users : [];
+
+                  return (
+                    <div
+                      key={dev.device_id}
+                      style={{
+                        padding: '12px 14px',
+                        background: 'var(--bg)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: 6,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <strong style={{ color: 'var(--text)', fontSize: 13 }}>
+                              📱 {dev.device_label || 'Unknown Device'}
+                            </strong>
+                            <span style={{ fontSize: 10, background: 'rgba(245, 158, 11, 0.15)', color: 'var(--amber)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                              {dev.attempt_count} {dev.attempt_count === 1 ? 'Attempt' : 'Attempts'}
+                            </span>
+                            {dev.latest_ip && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                IP: <code>{dev.latest_ip}</code>
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                            Device ID: <code style={{ fontSize: 11, color: '#38bdf8' }}>{dev.device_id}</code>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Last login attempt: {new Date(dev.last_attempt_at).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveDevice(dev)}
+                            disabled={isApproving}
+                            style={{
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '6px 12px',
+                              borderRadius: 4,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: isApproving ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span>✓</span>
+                            <span>{isApproving ? 'Verifying GPS…' : 'Approve Device'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeviceToBlock({
+                                device_id: dev.device_id,
+                                label: dev.device_label || 'Unapproved Device',
+                              });
+                              setBlockReason('Blocked from pending device authorizations');
+                            }}
+                            style={{
+                              background: 'rgba(244, 63, 94, 0.1)',
+                              color: '#f43f5e',
+                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              padding: '6px 10px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                            }}
+                          >
+                            🚫 Block
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Attempted Users */}
+                      {users.length > 0 && (
+                        <div style={{ borderTop: '1px dashed var(--line)', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 11 }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Login attempted by:</span>
+                          {users.map((u, uIdx) => (
+                            <span
+                              key={uIdx}
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                color: 'var(--text)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <strong>{u.full_name || u.username}</strong>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>@{u.username}</span>
+                              {u.role && (
+                                <span style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--amber)' }}>
+                                  ({u.role})
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Approved Devices Section */}
+          <div
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              padding: '14px 16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>✅</span> Approved Shop-Floor Devices
+              </h2>
+              <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+                {approvedDevices.length} Authorized
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Authorized shop-floor tablets and workstations. Any valid operator or supervisor can log in from these approved devices.
+            </div>
+
+            {approvedDevices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 8px', color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg)', borderRadius: 6 }}>
+                No devices approved yet. When staff attempt login from a new device, it will appear in Pending Approvals above.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {approvedDevices.map((dev) => (
                   <div
-                    key={ip.id}
+                    key={dev.id}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      padding: '8px 10px',
+                      padding: '10px 12px',
                       background: 'var(--bg)',
                       border: '1px solid var(--line)',
                       borderRadius: 6,
                       fontSize: 12,
+                      flexWrap: 'wrap',
+                      gap: 8,
                     }}
                   >
                     <div>
-                      <strong style={{ color: 'var(--text)', fontFamily: 'monospace', fontSize: 13 }}>{ip.ip_address}</strong>
-                      {ip.label && <span style={{ marginLeft: 8, color: 'var(--text-muted)', fontSize: 11 }}>({ip.label})</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <strong style={{ color: 'var(--text)', fontSize: 13 }}>
+                          📱 {dev.device_label || 'Approved Device'}
+                        </strong>
+                        <span style={{ fontSize: 10, background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                          AUTHORIZED
+                        </span>
+                        {dev.approval_distance_m != null && (
+                          <span style={{ fontSize: 11, color: '#34d399' }}>
+                            📍 {Math.round(dev.approval_distance_m)}m from factory center
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Device ID: <code style={{ fontSize: 11 }}>{dev.device_id}</code>
+                      </div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Added {new Date(ip.created_at).toLocaleDateString()}
+                        Approved by {dev.approved_by_name || 'Admin'} (@{dev.approved_by_username || 'admin'}) on {new Date(dev.approved_at).toLocaleString()}
                       </div>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => handleDeleteIp(ip.id)}
+                      onClick={() => handleRevokeApprovedDevice(dev)}
+                      disabled={revokingDeviceId === dev.id}
                       style={{
                         background: 'rgba(244, 63, 94, 0.1)',
                         color: '#f43f5e',
                         border: '1px solid rgba(244, 63, 94, 0.3)',
-                        padding: '4px 8px',
+                        padding: '4px 10px',
                         borderRadius: 4,
                         fontSize: 11,
                         cursor: 'pointer',
                         fontWeight: 600,
                       }}
                     >
-                      Remove
+                      {revokingDeviceId === dev.id ? 'Revoking…' : 'Revoke Approval'}
                     </button>
                   </div>
                 ))}

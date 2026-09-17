@@ -1,10 +1,152 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { haversineMeters } = require('../lib/geo');
 
 const router = express.Router();
 router.use(requireAuth);
 router.use(requireRole('admin'));
+
+// Helper to get factory geofence settings
+async function getGeofenceSettings() {
+  const { rows } = await pool.query(
+    "SELECT key, value FROM app_settings WHERE key IN ('geofence_lat','geofence_lng','geofence_radius_m')"
+  );
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return {
+    lat: map.geofence_lat != null ? Number(map.geofence_lat) : null,
+    lng: map.geofence_lng != null ? Number(map.geofence_lng) : null,
+    radius_m: map.geofence_radius_m != null ? Number(map.geofence_radius_m) : 200,
+  };
+}
+
+// ============================================================
+// 0. Approved & Pending Devices Management (Strict Allowlist)
+// ============================================================
+router.get('/approved-devices', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ad.id, ad.device_id, ad.device_label, ad.approved_at,
+              ad.approval_lat, ad.approval_lng, ad.approval_distance_m,
+              u.full_name AS approved_by_name, u.username AS approved_by_username
+       FROM approved_devices ad
+       LEFT JOIN users u ON u.id = ad.approved_by_user_id
+       ORDER BY ad.approved_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch approved devices: ' + err.message });
+  }
+});
+
+router.get('/pending-devices', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT 
+         lh.device_id,
+         COALESCE(MAX(lh.device_label), 'Unknown Device') AS device_label,
+         MAX(lh.login_at) AS last_attempt_at,
+         MIN(lh.login_at) AS first_seen_at,
+         COUNT(lh.id)::int AS attempt_count,
+         MAX(lh.ip_address) AS latest_ip,
+         EXISTS(SELECT 1 FROM blocked_devices bd WHERE bd.device_id = lh.device_id) AS is_blocked,
+         json_agg(DISTINCT jsonb_build_object(
+           'user_id', u.id,
+           'username', u.username,
+           'full_name', u.full_name,
+           'role', u.role
+         )) FILTER (WHERE u.id IS NOT NULL) AS attempted_users
+       FROM login_history lh
+       LEFT JOIN users u ON u.id = lh.user_id
+       WHERE NOT EXISTS (
+         SELECT 1 FROM approved_devices ad WHERE ad.device_id = lh.device_id
+       )
+       AND lh.device_id IS NOT NULL 
+       AND lh.device_id != 'unknown'
+       GROUP BY lh.device_id
+       ORDER BY MAX(lh.login_at) DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch pending devices: ' + err.message });
+  }
+});
+
+router.post('/approved-devices', async (req, res) => {
+  const { device_id, device_label, lat, lng } = req.body;
+  if (!device_id || !device_id.trim()) {
+    return res.status(400).json({ error: 'Device ID is required.' });
+  }
+
+  const cleanDeviceId = device_id.trim();
+  const settings = await getGeofenceSettings();
+  let distanceM = null;
+
+  if (settings.lat != null && settings.lng != null) {
+    if (lat == null || lng == null) {
+      return res.status(400).json({
+        error: 'GPS location is required to verify factory premises before approving a device.',
+      });
+    }
+    distanceM = Math.round(haversineMeters(Number(lat), Number(lng), settings.lat, settings.lng));
+    if (distanceM > settings.radius_m) {
+      return res.status(403).json({
+        error: `Device approval must be done within factory premises. You are ${distanceM}m away (allowed radius: ${settings.radius_m}m).`,
+        distance_m: distanceM,
+        radius_m: settings.radius_m,
+      });
+    }
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO approved_devices (device_id, device_label, approved_by_user_id, approved_at, approval_lat, approval_lng, approval_distance_m)
+       VALUES ($1, $2, $3, now(), $4, $5, $6)
+       ON CONFLICT (device_id) DO UPDATE SET
+         device_label = COALESCE(EXCLUDED.device_label, approved_devices.device_label),
+         approved_by_user_id = EXCLUDED.approved_by_user_id,
+         approved_at = EXCLUDED.approved_at,
+         approval_lat = EXCLUDED.approval_lat,
+         approval_lng = EXCLUDED.approval_lng,
+         approval_distance_m = EXCLUDED.approval_distance_m
+       RETURNING *`,
+      [
+        cleanDeviceId,
+        device_label ? device_label.trim() : 'Approved Device',
+        req.user.id,
+        lat != null ? Number(lat) : null,
+        lng != null ? Number(lng) : null,
+        distanceM,
+      ]
+    );
+
+    res.status(201).json({
+      ok: true,
+      approved_device: rows[0],
+      message: `Device '${rows[0].device_label || rows[0].device_id}' approved successfully${distanceM != null ? ` (${distanceM}m from factory center)` : ''}.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to approve device: ' + err.message });
+  }
+});
+
+router.delete('/approved-devices/:id', async (req, res) => {
+  const targetParam = req.params.id;
+  const numId = Number(targetParam);
+
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM approved_devices WHERE id = $1 OR device_id = $2',
+      [isNaN(numId) ? -1 : numId, targetParam]
+    );
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Approved device record not found' });
+    }
+    res.json({ ok: true, message: 'Device approval revoked successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to revoke device approval: ' + err.message });
+  }
+});
 
 // ============================================================
 // 1. Allowed Office IPs Management

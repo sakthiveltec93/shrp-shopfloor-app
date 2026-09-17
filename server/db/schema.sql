@@ -1180,4 +1180,18 @@ CREATE TABLE IF NOT EXISTS blocked_devices (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS approved_devices (
+  id SERIAL PRIMARY KEY,
+  device_id TEXT UNIQUE NOT NULL,
+  device_label TEXT,
+  approved_by_user_id INTEGER REFERENCES users(id),
+  approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  approval_lat NUMERIC,
+  approval_lng NUMERIC,
+  approval_distance_m NUMERIC
+);
+
+CREATE INDEX IF NOT EXISTS idx_approved_devices_id ON approved_devices(device_id);
+
+
 

@@ -15,6 +15,18 @@ async function initDb() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_process TEXT NOT NULL DEFAULT 'PRODUCTION';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
       ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+      CREATE TABLE IF NOT EXISTS approved_devices (
+        id SERIAL PRIMARY KEY,
+        device_id TEXT UNIQUE NOT NULL,
+        device_label TEXT,
+        approved_by_user_id INTEGER REFERENCES users(id),
+        approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        approval_lat NUMERIC,
+        approval_lng NUMERIC,
+        approval_distance_m NUMERIC
+      );
+      CREATE INDEX IF NOT EXISTS idx_approved_devices_id ON approved_devices(device_id);
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
