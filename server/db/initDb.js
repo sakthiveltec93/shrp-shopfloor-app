@@ -4,6 +4,7 @@ const pool = require('./pool');
 const { syncParts } = require('./clean_parts');
 const { syncMoulds } = require('./sync_moulds');
 const { syncMaterials } = require('./seed_materials');
+const { syncPartPhotos } = require('./seed_photos');
 
 async function initDb() {
   try {
@@ -23,6 +24,10 @@ async function initDb() {
     console.log('[DB-INIT] Syncing standard raw materials & default recipes...');
     await syncMaterials();
     console.log('[DB-INIT] Raw materials and default recipes synced successfully.');
+
+    console.log('[DB-INIT] Syncing part photos from PART PHOTO folder...');
+    await syncPartPhotos(false);
+    console.log('[DB-INIT] Part photos synced successfully.');
 
     console.log('[DB-INIT] Cleaning up bag types for historical rejection/runner/lump bags...');
     await pool.query(`
