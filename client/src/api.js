@@ -303,6 +303,15 @@ export const api = {
   inspectBag: (id, payload) => request(`/bags/${id}/inspect`, { method: 'POST', body: payload }),
   packBag: (id, payload) => request(`/bags/${id}/pack`, { method: 'POST', body: payload }),
   dispatchBag: (id, payload) => request(`/bags/${id}/dispatch`, { method: 'POST', body: payload }),
+
+  // Dispatch history & gate pass (Tab 2 & 3)
+  dispatchHistory: (query) => {
+    const qs = new URLSearchParams(query).toString();
+    return request(`/dispatch/history${qs ? `?${qs}` : ''}`);
+  },
+  dispatchGetById: (id) => request(`/dispatch/${id}`),
+  gatePasGenerate: (dispatchIds) => request('/dispatch/gate-pass', { method: 'POST', body: { dispatch_ids: dispatchIds } }),
+
   holdBag: (id, payload) => request(`/bags/${id}/hold`, { method: 'POST', body: payload }),
   releaseHoldBag: (id, payload) => request(`/bags/${id}/release-hold`, { method: 'POST', body: payload }),
   releaseHold: (id, payload) => request(`/bags/${id}/release-hold`, { method: 'POST', body: payload }),
