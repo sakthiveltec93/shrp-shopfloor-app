@@ -4,11 +4,14 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const pool = require('./pool');
+const { syncParts } = require('./clean_parts');
+
+const readSql = (p) => fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, '');
 
 async function main() {
   const dir = __dirname;
-  const schema = fs.readFileSync(path.join(dir, 'schema.sql'), 'utf8');
-  const seed = fs.readFileSync(path.join(dir, 'seed.sql'), 'utf8');
+  const schema = readSql(path.join(dir, 'schema.sql'));
+  const seed = readSql(path.join(dir, 'seed.sql'));
 
   console.log('Applying schema...');
   await pool.query(schema);
@@ -20,8 +23,11 @@ async function main() {
     .sort();
   for (const file of extraSeeds) {
     console.log(`Applying ${file}...`);
-    await pool.query(fs.readFileSync(path.join(dir, file), 'utf8'));
+    await pool.query(readSql(path.join(dir, file)));
   }
+
+  console.log('Synchronizing canonical master parts...');
+  await syncParts(false);
 
   console.log('Done.');
   await pool.end();
