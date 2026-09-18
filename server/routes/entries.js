@@ -263,7 +263,7 @@ router.get('/', async (req, res) => {
     JOIN parts p ON p.id = pe.part_id
     JOIN users u ON u.id = pe.operator_user_id
     WHERE ${where}
-    ORDER BY pe.machine_id, pe.hour_slot
+    ORDER BY pe.machine_id, COALESCE(pe.period_start_at, pe.start_time, pe.created_at) ASC, pe.hour_slot ASC
   `, params);
   res.json(rows);
 });
