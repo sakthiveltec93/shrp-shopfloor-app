@@ -435,7 +435,6 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     <span>📷</span>
                     <span>Scan RM Barcode</span>
                   </button>
-                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
