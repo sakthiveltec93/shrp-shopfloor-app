@@ -11,7 +11,7 @@
 
 | Pillar | Focus Area | Completion | Target Clauses | Status |
 |---|---|:---:|---|:---:|
-| **Pillar 1** | **IATF Shopfloor Quality & MES** | **85%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
+| **Pillar 1** | **IATF Shopfloor Quality & MES** | **90%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
 | **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **45%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
 | **Pillar 3** | **HR, Attendance & Operator Performance** | **60%** | Clause 7.2 (Competence & Training) | 🟡 In Progress |
 | **Pillar 4** | **Accounts, Finance & "Zero-Audit" Dossier** | **15%** | Statutory, GSTR-1, Financials | 🔴 Upcoming |
@@ -46,21 +46,24 @@
   - [x] Hard gate on production entry logging (blocks entry until FPA approved).
   - [x] Gate moved from machine start to first production entry (allows machine setup without FPA).
   - [x] Mould PM overdue warning integrated into FPA approval checks.
-- [x] **First-Off Sign-Off Form** (FpaModal component with 4-section workflow):
-  - [x] **Section A**: Raw Material & Lot Verification (resin grade, lot traceability, regrind %).
-  - [x] **Section B**: Visual Inspection (7-point defect checklist with Pass/Fail checkboxes).
-  - [x] **Section C**: Process Parameters with Min/Max Ranges:
-    - [x] Barrel Zone Temps (Z1-Z4): 180-240°C to 190-250°C
-    - [x] Nozzle Temp: 210-270°C
-    - [x] Injection Pressure: 500-1200 bar (with holding pressure 300-800 bar)
-    - [x] Cooling Time: 5-30 seconds
-    - [x] Multi-stage injection support (all parameters tracked in JSONB).
-  - [x] **Section D**: Multi-Cavity Dimensional Inspection:
-    - [x] Critical dimension specs from Part Master (Nominal, LSL, USL per dimension).
-    - [x] Cavity-wise readings with auto PASS/FAIL detection based on tolerance.
-    - [x] Gauge code assignment per dimension for traceability.
-  - [x] Stored in fpa_submissions JSONB fields: process_parameters, visual_checks, dimension_readings.
-  - [x] PDF report auto-generates all sections (Section A-F) for audit trail & digital filing.
+- [x] **First-Off Sign-Off Form & FPA Two-Tier Gate System**:
+  - [x] **Unified Gate Logic** (reuses fpa_submissions table with submission_type field):
+    - [x] `submission_type = 'FPA'` → Full First-Piece Approval workflow (all cavities)
+    - [x] `submission_type = 'FIRST_OFF_SIGNOFF'` → First-Off Sign-Off workflow (5 samples)
+    - [x] **Entry 1 Gate**: Requires `approval_status = 'VISUAL_APPROVED'` (either type)
+    - [x] **Entry 2+ Gate**: Requires `approval_status = 'APPROVED'` (full approval)
+    - [x] Same tier-2 logic: if visual only after 2nd entry or deadline expires → block with "Full approval required"
+  - [x] **4-Section FpaModal Workflow**:
+    - [x] **Section A**: Raw Material & Lot Verification (resin grade, lot traceability, regrind %).
+    - [x] **Section B**: Visual Inspection (7-point defect checklist: flash, sink marks, short shot, flow lines, burn marks, color, finish).
+    - [x] **Section C**: Process Parameters with Min/Max Ranges (barrel Z1-Z4, nozzle, pressures, cooling time).
+    - [x] **Section D**: Multi-Cavity Dimensional Inspection (cavity-wise readings, auto PASS/FAIL, gauge assignment).
+    - [x] Dual-mode: "First-Off (5 samples)" vs "Full FPA (all cavities)"
+    - [x] Cavity sampling guide: "Measure cavities 1, 7, 13, 19, and last cavity" for first-off
+  - [x] **Data Storage** (fpa_submissions table):
+    - [x] JSONB fields: process_parameters, visual_checks, dimension_readings (shared structure)
+    - [x] submission_type column for compliance tracking
+    - [x] PDF report auto-generates all sections (A-F) for audit trail & digital filing
 
 ### 1.4 Gauge & Instrument Calibration Vault (Clause 7.1.5.1.1)
 - [x] **Master Gauge Register**: 25 verified ERP gauges (Vernier calipers, micrometers, height gauges, weighing scales, pyrometers, thermometers, etc.).
@@ -138,12 +141,13 @@
 
 ## 📅 Daily Action Checklist & Next Sprints
 
-### 🟢 Current Sprint: Quality & Maintenance Automation — 80% Complete
-- [x] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** ✅ (cumulative_shots & shots_since_pm tracked, PM overdue flag in FPA workflow).
-- [x] **Task 2**: Build **First-Piece Approval Two-Tier System** ✅ (Visual + Full approval gates, moved from machine start to production entry).
-- [x] **Task 3**: Build **Gauge & Instrument Calibration Vault** ✅ (25 gauges tracked, calibration_status API active).
-- [x] **Task 4**: Add **First-Off Sign-Off Form** ✅ (4-section FpaModal: material, visual, process params, dimensional checks).
-- [ ] **Task 5**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
+### 🟢 Current Sprint: Quality & Maintenance Automation — 90% Complete
+- [x] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** ✅ (cumulative_shots & shots_since_pm tracked, PM overdue flag).
+- [x] **Task 2**: Build **First-Piece Approval Two-Tier System** ✅ (Visual + Full approval gates on entries).
+- [x] **Task 3**: Build **Gauge & Instrument Calibration Vault** ✅ (25 gauges with calibration tracking).
+- [x] **Task 4**: Add **First-Off Sign-Off Form** ✅ (4-section form: material, visual, process params, 5-sample dimensions).
+- [x] **Task 5**: Implement **Unified Two-Tier Gate** ✅ (FPA + First-Off both use same entry gates: VISUAL for #1, APPROVED for #2+).
+- [ ] **Task 6**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
 
 ---
 
