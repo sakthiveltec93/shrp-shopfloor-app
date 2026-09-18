@@ -560,67 +560,30 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     })}
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 1 Temp (°C)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual °C"
-                        value={processParameters.zone1_temp ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, zone1_temp: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 2 Temp (°C)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual °C"
-                        value={processParameters.zone2_temp ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, zone2_temp: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Zone 3 Temp (°C)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual °C"
-                        value={processParameters.zone3_temp ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, zone3_temp: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Nozzle Temp (°C)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual °C"
-                        value={processParameters.nozzle_temp ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, nozzle_temp: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Inj Pressure (bar)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual bar"
-                        value={processParameters.injection_pressure ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, injection_pressure: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Cooling Time (s)</label>
-                      <input
-                        type="number"
-                        placeholder="Actual sec"
-                        value={processParameters.cooling_time_sec ?? ''}
-                        onChange={(e) => setProcessParameters({ ...processParameters, cooling_time_sec: e.target.value })}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
-                      />
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                    {[
+                      { key: 'zone1_temp', label: 'Zone 1 Temp', unit: '°C', range: '180-240' },
+                      { key: 'zone2_temp', label: 'Zone 2 Temp', unit: '°C', range: '200-260' },
+                      { key: 'zone3_temp', label: 'Zone 3 Temp', unit: '°C', range: '190-250' },
+                      { key: 'nozzle_temp', label: 'Nozzle Temp', unit: '°C', range: '210-270' },
+                      { key: 'injection_pressure', label: 'Injection Pressure', unit: 'bar', range: '500-1200' },
+                      { key: 'holding_pressure', label: 'Holding Pressure', unit: 'bar', range: '300-800' },
+                      { key: 'cooling_time_sec', label: 'Cooling Time', unit: 's', range: '5-30' },
+                    ].map((param) => (
+                      <div key={param.key} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6, padding: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{param.label}</label>
+                          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Min-Max: {param.range} {param.unit}</span>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder={`Actual ${param.unit}`}
+                          value={processParameters[param.key] ?? ''}
+                          onChange={(e) => setProcessParameters({ ...processParameters, [param.key]: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontWeight: 600 }}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
