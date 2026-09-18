@@ -11,7 +11,7 @@
 
 | Pillar | Focus Area | Completion | Target Clauses | Status |
 |---|---|:---:|---|:---:|
-| **Pillar 1** | **IATF Shopfloor Quality & MES** | **75%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
+| **Pillar 1** | **IATF Shopfloor Quality & MES** | **85%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
 | **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **45%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
 | **Pillar 3** | **HR, Attendance & Operator Performance** | **60%** | Clause 7.2 (Competence & Training) | 🟡 In Progress |
 | **Pillar 4** | **Accounts, Finance & "Zero-Audit" Dossier** | **15%** | Statutory, GSTR-1, Financials | 🔴 Upcoming |
@@ -38,7 +38,7 @@
   - [x] Migration script auto-accumulates historical shots and recomputes PM status.
 - [ ] **MTBF & MTTR Charts**: Automated calculation of Mean Time Between Failures and Mean Time To Repair.
 
-### 1.3 First-Piece Approval (FPA) & Process Sheets (Clause 8.5.1.1)
+### 1.3 First-Piece Approval (FPA) & First-Off Sign-Off Form (Clause 8.5.1.1)
 - [x] **Mould Setup & Approval Workflow**: Request mould change $\to$ Supervisor approval.
 - [x] **Two-Tier FPA System** (fpa_submissions table):
   - [x] Tier 1: Visual Approval by supervisor (visual_approved_at, instant access to first 2 entries).
@@ -46,11 +46,21 @@
   - [x] Hard gate on production entry logging (blocks entry until FPA approved).
   - [x] Gate moved from machine start to first production entry (allows machine setup without FPA).
   - [x] Mould PM overdue warning integrated into FPA approval checks.
-- [ ] **Dimensional check form** (Upper/Lower spec limits with instant Pass/Fail color coding).
-- [ ] **Visual defect check form** (Flash, sink marks, flow lines, short shot).
-- [ ] **Process Parameter Recording Sheet**:
-  - [ ] Barrel Temperatures ($Z_1, Z_2, Z_3, Z_4$, Nozzle).
-  - [ ] Injection pressure, holding pressure, injection speed, cooling time.
+- [x] **First-Off Sign-Off Form** (FpaModal component with 4-section workflow):
+  - [x] **Section A**: Raw Material & Lot Verification (resin grade, lot traceability, regrind %).
+  - [x] **Section B**: Visual Inspection (7-point defect checklist with Pass/Fail checkboxes).
+  - [x] **Section C**: Process Parameters with Min/Max Ranges:
+    - [x] Barrel Zone Temps (Z1-Z4): 180-240°C to 190-250°C
+    - [x] Nozzle Temp: 210-270°C
+    - [x] Injection Pressure: 500-1200 bar (with holding pressure 300-800 bar)
+    - [x] Cooling Time: 5-30 seconds
+    - [x] Multi-stage injection support (all parameters tracked in JSONB).
+  - [x] **Section D**: Multi-Cavity Dimensional Inspection:
+    - [x] Critical dimension specs from Part Master (Nominal, LSL, USL per dimension).
+    - [x] Cavity-wise readings with auto PASS/FAIL detection based on tolerance.
+    - [x] Gauge code assignment per dimension for traceability.
+  - [x] Stored in fpa_submissions JSONB fields: process_parameters, visual_checks, dimension_readings.
+  - [x] PDF report auto-generates all sections (Section A-F) for audit trail & digital filing.
 
 ### 1.4 Gauge & Instrument Calibration Vault (Clause 7.1.5.1.1)
 - [x] **Master Gauge Register**: 25 verified ERP gauges (Vernier calipers, micrometers, height gauges, weighing scales, pyrometers, thermometers, etc.).
@@ -128,11 +138,11 @@
 
 ## 📅 Daily Action Checklist & Next Sprints
 
-### 🟢 Current Sprint: Quality & Maintenance Automation
+### 🟢 Current Sprint: Quality & Maintenance Automation — 80% Complete
 - [x] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** ✅ (cumulative_shots & shots_since_pm tracked, PM overdue flag in FPA workflow).
 - [x] **Task 2**: Build **First-Piece Approval Two-Tier System** ✅ (Visual + Full approval gates, moved from machine start to production entry).
 - [x] **Task 3**: Build **Gauge & Instrument Calibration Vault** ✅ (25 gauges tracked, calibration_status API active).
-- [ ] **Task 4**: Add **Digital First-Off Sign-off Form** with dimensional & visual defect checks.
+- [x] **Task 4**: Add **First-Off Sign-Off Form** ✅ (4-section FpaModal: material, visual, process params, dimensional checks).
 - [ ] **Task 5**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
 
 ---
