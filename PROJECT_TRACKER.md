@@ -3,7 +3,7 @@
 > **Strategic Goal**: **Zero-Audit Preparation** for IATF 16949 certification + Complete Tier-2 Automotive Operations ERP.  
 > **Last Updated**: 18-Sep-2026  
 > **Production Branch**: `main` (Live on Railway)  
-> **Latest Deployment**: Customer master consolidation (SHRP/C-01 to 08), FPA two-tier gates, mould change audit trail, live shot counters active
+> **Latest Deployment**: Dispatch 3-Subtabs (Ready | Completed | Gate Pass), Pillar 1 @ 100%, Customer consolidation, FPA two-tier gates active
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Pillar | Focus Area | Completion | Target Clauses | Status |
 |---|---|:---:|---|:---:|
-| **Pillar 1** | **IATF Shopfloor Quality & MES** | **90%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
+| **Pillar 1** | **IATF Shopfloor Quality & MES** | **100%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | ✅ Complete |
 | **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **50%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
 | **Pillar 3** | **HR, Attendance & Operator Performance** | **60%** | Clause 7.2 (Competence & Training) | 🟡 In Progress |
 | **Pillar 4** | **Accounts, Finance & "Zero-Audit" Dossier** | **15%** | Statutory, GSTR-1, Financials | 🔴 Upcoming |
@@ -147,13 +147,13 @@
 
 ## 📅 Daily Action Checklist & Next Sprints
 
-### 🟢 Current Sprint: Quality & Maintenance Automation — 90% Complete
+### ✅ Pillar 1 Complete: IATF Shopfloor Quality & MES — 100% Complete
 - [x] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** ✅ (cumulative_shots & shots_since_pm tracked, PM overdue flag).
 - [x] **Task 2**: Build **First-Piece Approval Two-Tier System** ✅ (Visual + Full approval gates on entries).
 - [x] **Task 3**: Build **Gauge & Instrument Calibration Vault** ✅ (25 gauges with calibration tracking).
 - [x] **Task 4**: Add **First-Off Sign-Off Form** ✅ (4-section form: material, visual, process params, 5-sample dimensions).
 - [x] **Task 5**: Implement **Unified Two-Tier Gate** ✅ (FPA + First-Off both use same entry gates: VISUAL for #1, APPROVED for #2+).
-- [ ] **Task 6**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
+- [x] **Task 6**: Upgrade **Dispatch Screen** to 3-Subtabs ✅ (Ready for Dispatch | Completed Dispatches | Gate Pass Slips).
 
 ---
 
