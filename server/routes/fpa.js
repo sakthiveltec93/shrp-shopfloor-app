@@ -505,10 +505,18 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
     const isVisual = effStatus === 'VISUAL_APPROVED';
     const isFullApproved = effStatus === 'APPROVED' || effStatus === 'CONDITIONAL';
 
-    const visualApprovedAt = isVisual ? new Date() : null;
+    const visualApprovedAt = req.body.visual_approved_at
+      ? new Date(req.body.visual_approved_at)
+      : isVisual
+      ? new Date()
+      : null;
     const visualApprovedBy = isVisual ? userId : null;
-    const fullApprovalDeadline = isVisual ? new Date(Date.now() + 2 * 60 * 60 * 1000) : null;
-    const finalApprovedAt = isFullApproved ? new Date() : null;
+    const fullApprovalDeadline = isVisual ? new Date((visualApprovedAt || new Date()).getTime() + 2 * 60 * 60 * 1000) : null;
+    const finalApprovedAt = req.body.approved_at
+      ? new Date(req.body.approved_at)
+      : isFullApproved
+      ? new Date()
+      : null;
 
     // Check if there's an existing FPA submission for this assignment (e.g. updating VISUAL_APPROVED to APPROVED)
     const existingFpa = await client.query(
@@ -613,9 +621,12 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
 
     // If FPA is approved (visual or full), update machine_assignments first_ok_part_at if not set
     if ((isFullApproved || isVisual) && !assign.first_ok_part_at) {
+      const okTime = req.body.first_ok_part_at
+        ? new Date(req.body.first_ok_part_at)
+        : finalApprovedAt || visualApprovedAt || new Date();
       await client.query(
-        `UPDATE machine_assignments SET first_ok_part_at = now() WHERE id = $1`,
-        [assign.id]
+        `UPDATE machine_assignments SET first_ok_part_at = $1 WHERE id = $2`,
+        [okTime, assign.id]
       );
     }
 

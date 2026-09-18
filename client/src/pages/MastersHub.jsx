@@ -157,8 +157,9 @@ export default function MastersHub() {
   const [checkItems, setCheckItems] = useState([]);
   const [rejectReasons, setRejectReasons] = useState([]);
   const [downtimeReasons, setDowntimeReasons] = useState([]);
-  const [expandedChecksheetSection, setExpandedChecksheetSection] = useState('shift'); // 'shift' | 'reject' | 'downtime' | null
-  const [checkItemModal, setCheckItemModal] = useState(null); // { type: 'daily' | 'reject_reason' | 'downtime_reason', isEdit: boolean, data?: obj }
+  const [mouldChangeReasons, setMouldChangeReasons] = useState([]);
+  const [expandedChecksheetSection, setExpandedChecksheetSection] = useState('shift'); // 'shift' | 'reject' | 'downtime' | 'mould_change' | null
+  const [checkItemModal, setCheckItemModal] = useState(null); // { type: 'daily' | 'reject_reason' | 'downtime_reason' | 'mould_change_reason', isEdit: boolean, data?: obj }
   const [checkItemForm, setCheckItemForm] = useState({
     item_name: '',
     category: 'reject_reason',
@@ -293,11 +294,13 @@ export default function MastersHub() {
       api.dailyCheckItems?.list ? api.dailyCheckItems.list().catch(() => []) : (api.checkSheetItems ? api.checkSheetItems().catch(() => []) : Promise.resolve([])),
       api.checkItems ? api.checkItems('reject_reason').catch(() => []) : Promise.resolve([]),
       api.checkItems ? api.checkItems('downtime_reason').catch(() => []) : Promise.resolve([]),
+      api.checkItems ? api.checkItems('mould_change_reason').catch(() => []) : Promise.resolve([]),
     ])
-      .then(([ci, rr, dr]) => {
+      .then(([ci, rr, dr, mr]) => {
         setCheckItems(Array.isArray(ci) ? ci : (ci?.items || ci?.rows || []));
         setRejectReasons(Array.isArray(rr) ? rr : (rr?.items || rr?.rows || []));
         setDowntimeReasons(Array.isArray(dr) ? dr : (dr?.items || dr?.rows || []));
+        setMouldChangeReasons(Array.isArray(mr) ? mr : (mr?.items || mr?.rows || []));
       })
       .catch((e) => setError(e.message));
   };
@@ -3713,6 +3716,140 @@ export default function MastersHub() {
                 </div>
               )}
             </div>
+
+            {/* 4. Mould Change Reasons */}
+            <div className="panel" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderBottom: expandedChecksheetSection === 'mould_change' ? '1px solid var(--line)' : 'none',
+                }}
+                onClick={() => setExpandedChecksheetSection(expandedChecksheetSection === 'mould_change' ? null : 'mould_change')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>⚙️</span>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#38bdf8' }}>Mould Change Reasons</strong>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Mould changeover justification &amp; production planning causes</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
+                    {mouldChangeReasons.length} Reasons
+                  </span>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                    {expandedChecksheetSection === 'mould_change' ? '▲' : '▼'}
+                  </span>
+                </div>
+              </div>
+
+              {expandedChecksheetSection === 'mould_change' && (
+                <div style={{ padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
+                      onClick={() => {
+                        setCheckItemForm({
+                          item_name: '',
+                          category: 'mould_change_reason',
+                          code: `MC-${String(mouldChangeReasons.length + 1).padStart(2, '0')}`,
+                          default_disposition: '',
+                          related_to: 'MOULD',
+                          local_label: '',
+                          specification: '',
+                          icon: '⚙️',
+                          sort_order: mouldChangeReasons.length + 1,
+                          active: true,
+                        });
+                        setCheckItemModal({ type: 'mould_change_reason', isEdit: false });
+                      }}
+                    >
+                      ➕ Add Mould Change Reason
+                    </button>
+                  </div>
+
+                  {mouldChangeReasons.length === 0 ? (
+                    <p className="muted" style={{ fontSize: 12 }}>No mould change reasons registered.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+                      {mouldChangeReasons.map((mr, i) => (
+                        <div
+                          key={mr.id || i}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid var(--line)',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#38bdf8' }}>
+                              {mr.code ? `[${mr.code}] ` : ''}{mr.item_name || mr.reason}
+                            </div>
+                            {mr.related_to && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                                Category: {mr.related_to}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: 11, width: 'auto' }}
+                              onClick={() => {
+                                setCheckItemForm({
+                                  item_name: mr.item_name || mr.reason || '',
+                                  category: 'mould_change_reason',
+                                  code: mr.code || '',
+                                  default_disposition: '',
+                                  related_to: mr.related_to || 'MOULD',
+                                  local_label: '',
+                                  specification: '',
+                                  icon: '⚙️',
+                                  sort_order: mr.sort_order || i + 1,
+                                  active: true,
+                                });
+                                setCheckItemModal({ type: 'mould_change_reason', isEdit: true, data: mr });
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCheckItem(mr, 'mould_change_reason')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                width: 'auto',
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Add / Edit Check Item & Reason Modal */}
@@ -3729,7 +3866,15 @@ export default function MastersHub() {
                       required
                       value={checkItemForm.item_name}
                       onChange={(e) => setCheckItemForm({ ...checkItemForm, item_name: e.target.value })}
-                      placeholder={checkItemModal.type === 'daily' ? 'e.g. Oil Level Check' : checkItemModal.type === 'reject_reason' ? 'e.g. Short Shot' : 'e.g. Mould Changeover'}
+                      placeholder={
+                        checkItemModal.type === 'daily'
+                          ? 'e.g. Oil Level Check'
+                          : checkItemModal.type === 'reject_reason'
+                          ? 'e.g. Short Shot'
+                          : checkItemModal.type === 'mould_change_reason'
+                          ? 'e.g. Plan Completed'
+                          : 'e.g. Mould Changeover'
+                      }
                       style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                     />
                   </div>
@@ -3741,7 +3886,7 @@ export default function MastersHub() {
                         <input
                           value={checkItemForm.code}
                           onChange={(e) => setCheckItemForm({ ...checkItemForm, code: e.target.value })}
-                          placeholder="e.g. R-01 or DT-05"
+                          placeholder={checkItemModal.type === 'mould_change_reason' ? 'e.g. MC-01' : 'e.g. R-01 or DT-05'}
                           style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                         />
                       </div>
@@ -3752,9 +3897,12 @@ export default function MastersHub() {
                           onChange={(e) => setCheckItemForm({ ...checkItemForm, related_to: e.target.value })}
                           style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)' }}
                         >
-                          <option value="MACHINE">Machine</option>
                           <option value="MOULD">Mould / Tooling</option>
+                          <option value="MACHINE">Machine</option>
+                          <option value="PLANNING">Planning / Orders</option>
                           <option value="QUALITY">Quality / Process</option>
+                          <option value="MAINTENANCE">Maintenance / PM</option>
+                          <option value="PROCESS">NPD / Trial</option>
                           <option value="RAW_MATERIAL">Raw Material</option>
                           <option value="MANPOWER">Manpower / Planned</option>
                         </select>

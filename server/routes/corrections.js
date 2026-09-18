@@ -673,7 +673,7 @@ router.get('/log', requireRole('admin'), async (req, res) => {
   }
 });
 
-// 7. Auto-Lookup on Date + Machine Selection (VBA Continuation Behavior)
+// 7. Auto-Lookup on Date + Machine Selection (VBA Continuation Behavior & Mould Change Detection)
 router.get('/machine-last-state', async (req, res) => {
   const { machine_id, entry_date } = req.query;
   if (!machine_id || !entry_date) {
@@ -681,6 +681,18 @@ router.get('/machine-last-state', async (req, res) => {
   }
 
   try {
+    // Fetch latest approved assignment for this machine
+    const assignRes = await pool.query(`
+      SELECT ma.*, p.part_code, p.shrp_part_code, p.part_name, m.machine_code
+      FROM machine_assignments ma
+      JOIN parts p ON p.id = ma.part_id
+      JOIN machines m ON m.id = ma.machine_id
+      WHERE ma.machine_id = $1 AND ma.status = 'approved'
+      ORDER BY ma.approved_at DESC NULLS LAST, ma.id DESC
+      LIMIT 1
+    `, [machine_id]);
+    const latestAssign = assignRes.rows[0] || null;
+
     // 1. Exact date lookup
     const exactRes = await pool.query(`
       SELECT pe.*, p.part_code, p.shrp_part_code, p.part_name, u.full_name AS operator_name
@@ -693,10 +705,39 @@ router.get('/machine-last-state', async (req, res) => {
     `, [machine_id, entry_date]);
 
     if (exactRes.rows.length > 0) {
+      const exactEntry = exactRes.rows[0];
+      // Check if machine assignment changed to another part or was approved after this entry
+      const entryTime = exactEntry.period_end_at || exactEntry.end_time || exactEntry.created_at;
+      const assignTime = latestAssign ? (latestAssign.mould_load_started_at || latestAssign.approved_at || latestAssign.set_at) : null;
+      const isMouldChanged = latestAssign && (
+        String(latestAssign.part_id) !== String(exactEntry.part_id) ||
+        (assignTime && entryTime && new Date(assignTime) >= new Date(entryTime))
+      );
+
+      if (isMouldChanged) {
+        return res.json({
+          found_exact: true,
+          entry: {
+            part_id: latestAssign.part_id,
+            part_code: latestAssign.part_code,
+            shrp_part_code: latestAssign.shrp_part_code,
+            part_name: latestAssign.part_name,
+            start_count: 0,
+            end_count: '',
+            hour_slot: 1,
+            is_mould_change: true,
+            previous_part_code: exactEntry.shrp_part_code || exactEntry.part_code,
+            new_part_code: latestAssign.shrp_part_code || latestAssign.part_code,
+            period_start_at: latestAssign.mould_load_started_at || latestAssign.first_ok_part_at || latestAssign.approved_at || entryTime,
+          },
+          message: `Mould Change Detected: Part switched from ${exactEntry.shrp_part_code || exactEntry.part_code} to ${latestAssign.shrp_part_code || latestAssign.part_code}. Counter reset to 0.`
+        });
+      }
+
       return res.json({
         found_exact: true,
-        entry: exactRes.rows[0],
-        message: 'Found prior entry for this date and machine.'
+        entry: exactEntry,
+        message: `Found prior entry for ${exactEntry.shrp_part_code || exactEntry.part_code}. Continuing from shot ${exactEntry.end_count}.`
       });
     }
 
@@ -712,29 +753,52 @@ router.get('/machine-last-state', async (req, res) => {
     `, [machine_id, entry_date]);
 
     if (priorRes.rows.length > 0) {
+      const priorEntry = priorRes.rows[0];
+      const isMouldChanged = latestAssign && String(latestAssign.part_id) !== String(priorEntry.part_id);
+
+      if (isMouldChanged) {
+        return res.json({
+          found_exact: false,
+          entry: {
+            part_id: latestAssign.part_id,
+            part_code: latestAssign.part_code,
+            shrp_part_code: latestAssign.shrp_part_code,
+            part_name: latestAssign.part_name,
+            start_count: 0,
+            end_count: '',
+            hour_slot: 1,
+            is_mould_change: true,
+            previous_part_code: priorEntry.shrp_part_code || priorEntry.part_code,
+            new_part_code: latestAssign.shrp_part_code || latestAssign.part_code,
+            period_start_at: latestAssign.mould_load_started_at || latestAssign.first_ok_part_at || latestAssign.approved_at,
+          },
+          message: `Mould Change: Part is ${latestAssign.shrp_part_code || latestAssign.part_code}. Counter reset to 0.`
+        });
+      }
+
       return res.json({
         found_exact: false,
-        entry: priorRes.rows[0],
-        message: `No entry found on ${entry_date}. Showing most recent state from ${priorRes.rows[0].entry_date}.`
+        entry: priorEntry,
+        message: `No entry on ${entry_date}. Showing previous state from ${priorEntry.entry_date} (Shot ${priorEntry.end_count}).`
       });
     }
 
     // 3. Fallback to machine's active assignment
-    const assignRes = await pool.query(`
-      SELECT ma.*, p.part_code, p.shrp_part_code, p.part_name, m.machine_code
-      FROM machine_assignments ma
-      JOIN parts p ON p.id = ma.part_id
-      JOIN machines m ON m.id = ma.machine_id
-      WHERE ma.machine_id = $1 AND ma.status = 'approved'
-      ORDER BY ma.approved_at DESC
-      LIMIT 1
-    `, [machine_id]);
-
     return res.json({
       found_exact: false,
-      entry: null,
-      assignment: assignRes.rows[0] || null,
-      message: 'No previous production entries found for this machine.'
+      entry: latestAssign ? {
+        part_id: latestAssign.part_id,
+        part_code: latestAssign.part_code,
+        shrp_part_code: latestAssign.shrp_part_code,
+        part_name: latestAssign.part_name,
+        start_count: 0,
+        end_count: '',
+        hour_slot: 1,
+        is_mould_change: true,
+        period_start_at: latestAssign.mould_load_started_at || latestAssign.first_ok_part_at || latestAssign.approved_at,
+      } : null,
+      assignment: latestAssign,
+      message: latestAssign ? `Assigned Part: ${latestAssign.shrp_part_code || latestAssign.part_code}. Counter starts at 0.` : 'No previous entries or active assignment found.'
     });
   } catch (err) {
     console.error('Failed to get machine last state:', err);

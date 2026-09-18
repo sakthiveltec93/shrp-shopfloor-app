@@ -67,6 +67,8 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
   });
   const [approvalStatus, setApprovalStatus] = useState('APPROVED');
   const [remarks, setRemarks] = useState('');
+  const [customVisualTime, setCustomVisualTime] = useState('');
+  const [customApprovalTime, setCustomApprovalTime] = useState('');
 
   const draftKey = `fpa_draft_${effMachineId}_${effPartId}`;
 
@@ -247,6 +249,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         stage_signoffs: signoffs,
         approval_status: 'VISUAL_APPROVED',
         remarks: remarks || 'Visual approval granted. Machine unblocked; Full FPA due within 2 hours.',
+        visual_approved_at: customVisualTime ? new Date(customVisualTime).toISOString() : undefined,
       };
 
       const res = await api.fpa.submit(payload);
@@ -285,7 +288,10 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         dimension_readings: dimensionReadings,
         stage_signoffs: signoffs,
         approval_status: approvalStatus === 'VISUAL_APPROVED' ? 'APPROVED' : approvalStatus,
+        deviation_no: deviationNo || null,
         remarks: remarks || 'Full setup verification complete per IATF 16949 standards.',
+        visual_approved_at: customVisualTime ? new Date(customVisualTime).toISOString() : undefined,
+        approved_at: customApprovalTime ? new Date(customApprovalTime).toISOString() : undefined,
       };
 
       const res = await api.fpa.submit(payload);
@@ -322,14 +328,15 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>🛡️</span>
-              <strong style={{ fontSize: 16, color: 'var(--amber)' }}>IATF 16949 First-Piece Approval (FPA)</strong>
+              <span style={{ fontSize: 18 }}>📋</span>
+              <strong style={{ fontSize: 16, color: 'var(--amber)' }}>First-Off Sign-Off Form & IATF 16949 FPA</strong>
               <span style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(255,255,255,0.1)', borderRadius: 4, color: 'var(--text-muted)' }}>
                 Clause 8.5.1.1
               </span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               Machine: <strong style={{ color: '#fff' }}>{machine?.machine_code || assignment?.machine_code || fpaData.machine?.machine_code || fpaData.assignment?.machine_code || 'Machine'}</strong> · Part: <span className="shrp-code-pill" style={{ fontSize: 11, marginLeft: 4 }}>{part?.shrp_part_code || part?.part_code || assignment?.shrp_part_code || assignment?.part_code || fpaData.part?.shrp_part_code || fpaData.part?.part_code || 'Part'}</span> {part?.part_name || assignment?.part_name || fpaData.part?.part_name || ''}
+              <div style={{ fontSize: 11, marginTop: 4, color: 'var(--green)', fontWeight: 600 }}>✓ Collect dimensional, visual, and process parameter data before production entry approval</div>
             </div>
           </div>
           <button
@@ -406,9 +413,12 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
               {/* SECTION A: Raw Material & Lot */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
-                  <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
-                    Section A: Raw Material & Lot Verification
-                  </strong>
+                  <div>
+                    <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
+                      Section A: Raw Material & Lot Verification
+                    </strong>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>First-Off Form: Verify resin grade, lot traceability, and regrind percentage</div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowScanner(true)}
@@ -418,6 +428,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     <span>📷</span>
                     <span>Scan RM Barcode</span>
                   </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
@@ -479,6 +490,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                   <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                     Section B: Visual Inspection & Workmanship Standard
                   </strong>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>First-Off Form: 7-point visual defect checklist (flash, sink marks, flow lines, burn marks, color, finish)</div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
@@ -515,12 +527,11 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
                   <div>
                     <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
-                      Section C: Injection Molding Process Parameter Verification
+                      Section C: Process Parameter Verification (Barrel Temps, Pressures, Cooling Time)
                     </strong>
-                    <div className="muted" style={{ fontSize: 11 }}>
-                      {fpaData.standardProcessParameters?.length > 0
-                        ? `${fpaData.standardProcessParameters.length} standard parameters configured in Part Master`
-                        : 'Standard Injection Machine Parameters (Configure in Part Master to set targets)'}
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                      First-Off Form: Record actual barrel zone temps (Z1-Z4), nozzle temp, injection & holding pressures, cooling time
+                      {fpaData.standardProcessParameters?.length > 0 && ` — ${fpaData.standardProcessParameters.length} standard parameters configured`}
                     </div>
                   </div>
                 </div>
@@ -621,7 +632,9 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     <strong style={{ fontSize: 13, color: 'var(--amber)' }}>
                       Section D: Multi-Cavity Dimensional Tolerance Inspection
                     </strong>
-                    <div className="muted" style={{ fontSize: 11 }}>Cavities: {cavityCount} · Auto Tolerance Check</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                      First-Off Form: Cavity-wise dimensional readings with SPC checks. Auto-detects PASS/FAIL status based on LSL/USL. Cavities: {cavityCount} · Instruments & Tolerances from Part Master
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -880,6 +893,31 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
                       style={{ width: '100%', padding: '7px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed rgba(255,255,255,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: '#fbbf24', marginBottom: 4, fontWeight: 600 }}>
+                      ⏱️ Backdate Visual Approval Time (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={customVisualTime}
+                      onChange={(e) => setCustomVisualTime(e.target.value)}
+                      style={{ width: '100%', padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: '#34d399', marginBottom: 4, fontWeight: 600 }}>
+                      ⏱️ Backdate Full FPA Sign-Off Time (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={customApprovalTime}
+                      onChange={(e) => setCustomApprovalTime(e.target.value)}
+                      style={{ width: '100%', padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 12 }}
                     />
                   </div>
                 </div>

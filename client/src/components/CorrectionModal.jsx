@@ -84,16 +84,27 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
           setLookupState(res);
           if (res?.entry) {
             const e = res.entry;
-            setStartCount(e.end_count);
+            if (e.is_mould_change) {
+              setStartCount('0');
+              setEndCount('');
+            } else {
+              setStartCount(e.end_count != null ? String(e.end_count) : '0');
+            }
             if (e.part_id) setPartId(String(e.part_id));
             if (e.operator_user_id) setOperatorId(String(e.operator_user_id));
-            if (e.period_end_at || e.end_time) {
-              const dt = new Date(e.period_end_at || e.end_time);
-              setPeriodStartAt(dt.toISOString().slice(0, 16));
+            if (e.period_end_at || e.end_time || e.period_start_at) {
+              const dt = new Date(e.period_end_at || e.end_time || e.period_start_at);
+              if (!isNaN(dt.getTime())) {
+                const pad = (n) => String(n).padStart(2, '0');
+                const localIso = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+                setPeriodStartAt(localIso);
+              }
             }
           } else if (res?.assignment) {
             const asgn = res.assignment;
             if (asgn.part_id) setPartId(String(asgn.part_id));
+            setStartCount('0');
+            setEndCount('');
           }
         })
         .catch(() => setLookupState(null))

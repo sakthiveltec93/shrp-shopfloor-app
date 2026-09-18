@@ -253,8 +253,12 @@ export const api = {
   deleteSupplier: (id) => request(`/suppliers/${id}`, { method: 'DELETE' }),
   currentAssignments: () => request('/assignments/current'),
   pendingAssignments: () => request('/assignments/pending'),
+  assignmentHistory: (params) => {
+    const qs = params ? new URLSearchParams(params).toString() : '';
+    return request(`/assignments/history${qs ? `?${qs}` : ''}`);
+  },
   createAssignment: (payload) => request('/assignments', { method: 'POST', body: payload }),
-  decideAssignment: (id, decision) => request(`/assignments/${id}/decision`, { method: 'POST', body: { decision } }),
+  decideAssignment: (id, decision, payload) => request(`/assignments/${id}/decision`, { method: 'POST', body: { decision, ...(payload || {}) } }),
   markFirstOkPart: (id, taken_at) => request(`/assignments/${id}/first-ok-part`, { method: 'POST', body: { taken_at } }),
   entryContext: () => request('/entries/context'),
   createEntry: (payload) => request('/entries', { method: 'POST', body: payload }),
