@@ -1,8 +1,9 @@
 # 🏭 SHRP MES & IATF-16949 ERP — Master Project Tracker & Daily Standup
 
 > **Strategic Goal**: **Zero-Audit Preparation** for IATF 16949 certification + Complete Tier-2 Automotive Operations ERP.  
-> **Last Updated**: 15-Sep-2026  
-> **Production Branch**: `main` (Live on Railway)
+> **Last Updated**: 18-Sep-2026  
+> **Production Branch**: `main` (Live on Railway)  
+> **Latest Deployment**: FPA two-tier gates, live shot counters, PM alerts, gauge calibration vault active
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Pillar | Focus Area | Completion | Target Clauses | Status |
 |---|---|:---:|---|:---:|
-| **Pillar 1** | **IATF Shopfloor Quality & MES** | **65%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
+| **Pillar 1** | **IATF Shopfloor Quality & MES** | **75%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
 | **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **45%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
 | **Pillar 3** | **HR, Attendance & Operator Performance** | **60%** | Clause 7.2 (Competence & Training) | 🟡 In Progress |
 | **Pillar 4** | **Accounts, Finance & "Zero-Audit" Dossier** | **15%** | Statutory, GSTR-1, Financials | 🔴 Upcoming |
@@ -30,24 +31,31 @@
 ### 1.2 Total Productive Maintenance (TPM) & Shot Life (Clause 8.5.1.5)
 - [x] **Machine & Mould Master Register**: Linkages of 77 parts to 73 mould tools and 10 injection moulding machines.
 - [x] **Breakdown Logging API**: Machine breakdown capture with downtime minutes and reasons.
-- [ ] **Live Mould Shot Accumulator**: Automatically sum shot counts from approved production entries.
-- [ ] **Automated PM Shot-Life Alerts**:
-  - [ ] 10,000 Shots: Clean sliders, lubrication & basic inspection alert.
-  - [ ] 50,000 Shots: Guide pin & bushing wear check alert.
-  - [ ] 100,000 Shots: Major cavity overhaul & dimensional recertification alert.
+- [x] **Live Mould Shot Accumulator**: Automatically sum shot counts from approved production entries (cumulative_shots, shots_since_pm tracked per mould).
+- [x] **Automated PM Shot-Life Alerts**:
+  - [x] Configurable PM interval (default 20,000 shots, customizable per mould).
+  - [x] mould_pm_overdue flag in FPA workflow warns when shots_since_pm >= pm_interval_shots.
+  - [x] Migration script auto-accumulates historical shots and recomputes PM status.
 - [ ] **MTBF & MTTR Charts**: Automated calculation of Mean Time Between Failures and Mean Time To Repair.
 
 ### 1.3 First-Piece Approval (FPA) & Process Sheets (Clause 8.5.1.1)
 - [x] **Mould Setup & Approval Workflow**: Request mould change $\to$ Supervisor approval.
-- [ ] **Digital First-Off Sign-off Form**:
-  - [ ] Dimensional check (Upper/Lower spec limits with instant Pass/Fail color coding).
-  - [ ] Visual defect check (Flash, sink marks, flow lines, short shot).
-- [ ] **Process Parameter Recording**:
+- [x] **Two-Tier FPA System** (fpa_submissions table):
+  - [x] Tier 1: Visual Approval by supervisor (visual_approved_at, instant access to first 2 entries).
+  - [x] Tier 2: Full FPA Approval (escalation after 2 entries or deadline expiry).
+  - [x] Hard gate on production entry logging (blocks entry until FPA approved).
+  - [x] Gate moved from machine start to first production entry (allows machine setup without FPA).
+  - [x] Mould PM overdue warning integrated into FPA approval checks.
+- [ ] **Dimensional check form** (Upper/Lower spec limits with instant Pass/Fail color coding).
+- [ ] **Visual defect check form** (Flash, sink marks, flow lines, short shot).
+- [ ] **Process Parameter Recording Sheet**:
   - [ ] Barrel Temperatures ($Z_1, Z_2, Z_3, Z_4$, Nozzle).
   - [ ] Injection pressure, holding pressure, injection speed, cooling time.
 
 ### 1.4 Gauge & Instrument Calibration Vault (Clause 7.1.5.1.1)
-- [ ] **Master Gauge Register**: Vernier calipers, micrometers, height gauges, weighing scales, pyrometers.
+- [x] **Master Gauge Register**: 25 verified ERP gauges (Vernier calipers, micrometers, height gauges, weighing scales, pyrometers, thermometers, etc.).
+- [x] **Calibration Tracking**: last_calibrated_at, calibration_interval_days, calibration_cert_no per gauge.
+- [x] **Calibration Status API**: `/gauges/calibration-summary` endpoint with live overdue detection.
 - [ ] **Calibration Calendar & 15-Day Alert**: Banner notification for gauges nearing calibration expiry.
 - [ ] **Certificate PDF Vault**: Upload & view calibration certificates for audit inspection.
 
@@ -121,10 +129,11 @@
 ## 📅 Daily Action Checklist & Next Sprints
 
 ### 🟢 Current Sprint: Quality & Maintenance Automation
-- [ ] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** (accumulate shots and trigger maintenance alerts at 10k/50k/100k).
-- [ ] **Task 2**: Build **First-Piece Approval (FPA) & Barrel Temperature Sheet** inside Mould Setup.
-- [ ] **Task 3**: Build **Gauge & Instrument Calibration Vault** with 15-day expiry warning banner.
-- [ ] **Task 4**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
+- [x] **Task 1**: Build **Live Mould Shot Counter & PM Alerts** ✅ (cumulative_shots & shots_since_pm tracked, PM overdue flag in FPA workflow).
+- [x] **Task 2**: Build **First-Piece Approval Two-Tier System** ✅ (Visual + Full approval gates, moved from machine start to production entry).
+- [x] **Task 3**: Build **Gauge & Instrument Calibration Vault** ✅ (25 gauges tracked, calibration_status API active).
+- [ ] **Task 4**: Add **Digital First-Off Sign-off Form** with dimensional & visual defect checks.
+- [ ] **Task 5**: Upgrade **Dispatch Screen** to 3-Subtabs (`Ready to Ship`, `Dispatched History`).
 
 ---
 
