@@ -1,0 +1,216 @@
+Using SSH key from file C:\Users\KNALHOME\.ssh\id_ed25519_railway.pub: railway-backup-temp
+  id   | part_code  |   shrp_part_code   |   customer_part_no   |              part_name              | active | cavity_count | part_weight_g |          deleted_at           
+-------+------------+--------------------+----------------------+-------------------------------------+--------+--------------+---------------+-------------------------------
+  8959 | SHRP-P001  | F885 Y             | F885-BB1AA-01        | cap txv                             | t      |            6 |          2.59 | 
+  8947 | SHRP-P002  | LAC Blue           | HC442L3LAC01         | Cap (A) joint flange                | t      |           16 |          4.44 | 
+  8984 | SHRP-P003  | DM1C               | DM1C4UBH1B01         | Cap SHP'G EVAP CORE                 | t      |            8 |          1.29 | 
+  8996 | SHRP-P004  | PUNE B             | FC1E1BAE1D01         | SHG'G/CAPE. MISC                    | t      |            6 |          2.36 | 
+  8980 | SHRP-P005  | 2200               | V0LC-01C022-00       | PRODUCTION CAPE                     | t      |            6 |          1.62 | 
+    79 | SHRP-P006  | NA-LC              | WC-SCP-SC21NA-LC-01  | SHP'G CAP LIQ COND END              | t      |            4 |          1.43 | 
+  8949 | SHRP-P007  | CEEAA-ORANGE       | FC1F2CEEAA02         | CAP - (D) JOINT FLANGE              | t      |            6 |          5.75 | 
+  8975 | SHRP-P008  | VW DIA 8 - HW773B  | HW773G9E1B01         | Shipping Cap Degas Spout            | t      |            6 |          0.34 | 
+  8952 | SHRP-P009  | A710               | A710-BBWBA-01        | CAP-(D)JOINT FLANGE                 | t      |            6 |          5.75 | 
+     7 | SHRP-P010  | F364 16C           | F364-CB5AA-01        | HTR PIPE CAP                        | t      |           16 |             3 | 
+  6553 | SHRP-P011  | F364 GS            | F364-CB5AA-01        | HTR PIPE CAP - GS (Line on Top)     | t      |            6 |          2.68 | 
+  8956 | SHRP-P012  | F442 KQ            | F442-KQAAA-01        | DUST CAP CONDS                      | t      |            6 |          4.33 | 
+  8958 | SHRP-P013  | F710               | F710-AKYAA-01        | CAP-J/F                             | t      |            7 |          3.44 | 
+  8960 | SHRP-P014  | AN6B               | FC1F2AN6BA01         | SHIPG CAP HYUNDAI/M                 | t      |            4 |          2.37 | 
+  8961 | SHRP-P015  | AA02 Y             | FC1F2SPHAA02         | SHP'G/CAP-HYUNDAI/M                 | t      |            4 |          1.75 | 
+  8962 | SHRP-P016  | SULLA              | FC1F2SULLA01         | SHP'G/CAP HYUNDAI/M                 | t      |            4 |          2.62 | 
+  8963 | SHRP-P017  | UGKCA              | FC1F2UGKCA01         | SHP'G/CAP HYUNDAI/M                 | t      |            8 |           0.8 | 
+  8964 | SHRP-P018  | UMEAB              | FC1F2UMEAB01         | SHP'G/CAP HYUNDAI/M                 | t      |            6 |          1.69 | 
+  8965 | SHRP-P019  | HA715 - W501       | HA715L5G1A01         | CAP ACAC                            | t      |            6 |          4.56 | 
+  8966 | SHRP-P020  | CXGAA              | HC442CXGAA01         | CAP (A) JOINT FLANGE                | t      |            6 |          3.84 | 
+  8951 | SHRP-P021  | OERAA              | HC442OERAA01         | Shipping Cap                        | t      |            6 |          1.28 | 
+  8967 | SHRP-P022  | AA03               | HC442SPHAA03         | CAP (A) JOINT FLANGE                | t      |            4 |          3.63 | 
+  8945 | SHRP-P023  | LBB                | HC442L3LBB01         | CAP (A) JOINT FLANGE                | t      |            4 |          6.07 | 
+  8946 | SHRP-P024  | LBC                | HC442L3LBC02         | CAP (A) JOINT FLANGE                | t      |            4 |          7.15 | 
+    39 | SHRP-P025  | SULAC              | HC442SULAC01         | CAP (A) JOINT FLANGE                | t      |            4 |          3.59 | 
+  8969 | SHRP-P026  | QQVBA W            | HC443QQVBA02         | CCAP (B) JOINT FLANGE (yellow)      | t      |            5 |          1.79 | 
+    41 | SHRP-P027  | QQVBA Y            | HC443QQVBA02         | CCAP (B) JOINT FLANGE (White)       | t      |            5 |          1.79 | 
+  8973 | SHRP-P028  | DH7AA              | HR230DH7AA01         | PLUG-RAD PIPE                       | t      |            4 |          7.18 | 
+  8972 | SHRP-P029  | PDPKA              | HR230PDPKA02         | PLUG-RAD PIPE                       | t      |            4 |          9.34 | 
+    44 | SHRP-P030  | HL180              | HL180F4W1A01         | CAP CHL'R NEX GEN PORSCHE           | t      |            4 |          0.99 | 
+    45 | SHRP-P031  | VW DIA 16 - HW773A | HW773G9E1A01         | CAP WCAC 16DIA                      | t      |            6 |           1.2 | 
+  8976 | SHRP-P032  | NCBA               | R230-NC5BA-01        | PLUG RAD PIPE                       | t      |            4 |          5.99 | 
+  8977 | SHRP-P033  | NCBB               | R230-NC5BB-01        | PLUG RAD PIPE                       | t      |            4 |           6.2 | 
+  8978 | SHRP-P034  | 1901               | V0LC-01C019-01       | CAP-J/FLANGE                        | t      |            6 |          1.68 | 
+  8979 | SHRP-P035  | 2100               | V0LC-01C021-00       | CAP-J/FLANGE 12MM                   | t      |            6 |          1.88 | 
+    52 | SHRP-P036  | 2800               | V0LC-01C028-00       | CAP                                 | t      |            4 |          2.26 | 
+  8982 | SHRP-P037  | VPAA               | VP5N1H-407721-AA     | PROTECTION CAP - INLET              | t      |            6 |          1.71 | 
+  8983 | SHRP-P038  | VPFA               | VP5N1H-407721-FA     | CAP-J FLANGE MALE                   | t      |            6 |          2.24 | 
+  8997 | SHRP-P039  | PUNE S             | HR241BAE1B01         | CAP RAD                             | t      |            6 |             1 | 
+    62 | SHRP-P040  | BH-DIA 8           | FC1P4L1E1A01         | Shipping Cap Hose Liquid            | t      |            6 |          0.78 | 
+  6555 | SHRP-P041  | BH-DIA 16 - MAA    | PLFC1E4K5MAA-00      | DUST CAP (SUCTION)(16)              | t      |            6 |          1.24 | 
+  6556 | SHRP-P042  | BH-DIA 12 -MBA     | PLFC1E4K5MBA-00      | DUST CAP (DISCHARGE)(12)            | t      |            6 |          1.36 | 
+  9006 | SHRP-P043  | KQ NEW             | F442-KQ              | SHIPPING END CAP (IA) FLANGE        | t      |            1 |             0 | 
+    76 | SHRP-P044  | SHRP-T8            | SHRP-T8              | SHIPPING END CAP (IA) FLANGE        | t      |            2 |          2.21 | 2026-09-14 09:59:15.53599+00
+    85 | SHRP-P045  | DA                 | WC-SCP-ECC21-DA01    | Shipping Cap DIS Comp Side          | t      |            2 |          2.37 | 
+    81 | SHRP-P046  | LMF                | WC-SCP-ECC21-LMF01   | Shipping Cap Liq Middle Female Type | t      |            2 |          2.05 | 
+  6559 | SHRP-P047  | LMM                | WC-SCP-eCC21-Lmm01   | Shipping Cap LIQ Middle Male Type   | t      |            2 |             0 | 
+    82 | SHRP-P048  | SMF                | WC-SCP-ECC21-SMF01   | Shipping Cap Suc Middle Female Type | t      |            2 |          2.73 | 
+  9002 | SHRP-P049  | SMM                | WC-SCP-eCC21-Smm01   | Shipping Cap SUC Middle Male Type   | t      |            6 |          2.48 | 
+    78 | SHRP-P050  | NA-DB              | WC-SCP-SC21NA-DB-01  | SHIPING CAP DIS COND SIDE           | t      |            4 |          2.68 | 
+    10 | SHRP-P051  | AFM BIG            | CA581CAWXX01         | CAP ASY-SUC                         | t      |            6 |          5.77 | 
+  8950 | SHRP-P052  | AFM SMALL          | CA582DDRXX01         | CAP ASY-DIS                         | t      |            6 |          4.92 | 
+  8955 | SHRP-P053  | F442 QQ            | F442-QQ7AA-01        | DUST CAP COND                       | t      |            4 |          3.97 | 
+  8957 | SHRP-P054  | F442 WB            | F442-WBAAA-01        | DUST CAP-COND                       | t      |            1 |          3.31 | 
+  8987 | SHRP-P055  | NDGAA              | FC1F2NDGAA02         | CAP-(D)JOINT FLANGE                 | t      |            6 |             2 | 
+  8986 | SHRP-P056  | UMEAA              | FC1F2UMEAA01         | SHP'G/CAP HYUNDAI/M                 | t      |            4 |          2.57 | 
+  8988 | SHRP-P057  | QVEAC              | HC442QVEAC01         | CAP (A) JOINT FLANGE                | t      |            8 |          1.21 | 
+ 25261 | SHRP-P058  | QVEBC              | HC442QVEBC01         | CAP (A) JOINT FLANGE                | t      |            8 |           1.5 | 
+    40 | SHRP-P059  | UMNAA              | HC442UMNAA02         | CAP (A) JOINT FLANGE                | t      |            6 |          3.56 | 
+    59 | SHRP-P060  | DM1C1QRJAA01       | DM1C1QRJAA01         | SHIPPPING CAP HTR                   | t      |            1 |             3 | 
+  9020 | SHRP-P061  | 9AB                | VPR230-WC9AB-01      | DUST PROTECTION CAP                 | t      |            4 |           3.1 | 
+    64 | SHRP-P062  | HR241              | HR241G6C1A01         | CAP MG RAD 18.5                     | t      |            6 |             0 | 
+  8995 | SHRP-P063  | INLET              | HC442G6C1A           | MG Condensor INLET                  | t      |            4 |          1.44 | 
+  6557 | SHRP-P064  | OUTLET             | HC442G6C1B           | MG Condensor Outlet                 | t      |            4 |          1.44 | 
+  9015 | SHRP-P065  | R101               | R101WC9AA01          | CAP TOC-CONN                        | t      |            4 |             0 | 
+    68 | SHRP-P066  | 9AA                | VPR230WC9AA01        | DUST PROTECTION CAP RAD             | t      |            4 |             0 | 
+  8998 | SHRP-P067  | F390               | F390-QQDC-A02        | SHIPPING CAP                        | t      |            4 |             0 | 
+    74 | SHRP-P068  | SHRP-T7            | SHRP-T7              | SHIPPING (WHITE)-HP (IA)            | t      |            2 |             0 | 
+    75 | SHRP-P069  | SHRP-T10           | SHRP-T10             | SHIPPING (white)-LP (IA)            | t      |            2 |             0 | 
+    33 | SHRP-P070  | LAC GREEN          | VPMGH-18B602-DA      | SHIPPING CAP SV CT                  | t      |           16 |          4.44 | 
+    80 | SHRP-P071  | NA-TB              | WC-SCP-SC21NA-TB-T01 | SHP'G CAP TXV SIDE                  | t      |            4 |          3.61 | 
+  9012 | SHRP-P072  | ATBAB              | F442-ATBAB-02        | SHP'G CAP GS JUMPER TUBE JF         | t      |            2 |          3.63 | 
+    88 | SHRP-P073  | SmallGrommet       | SmallGrommet         | GROMMET                             | t      |            4 |             0 | 
+    89 | SHRP-P074  | VP6T               | VP6TLU11N087AA       | CVR STR MTR SOLE TERM               | t      |           16 |             0 | 
+    91 | SHRP-P075  | HandlePlastic      | HandlePlastic        | HNDL                                | t      |            1 |             0 | 
+  9021 | SHRP-P076  | SYRINGE CAP        | SYRNGECAP            | CAP                                 | t      |           12 |             0 | 
+    11 | TEMP_11    | DDR                | CA582DDRXX01         | CAP ASY-DIS                         | t      |            6 |          4.92 | 
+    16 | TEMP_16    | QQ7                | F442-QQ7AA-01        | F442-QQ7AA-01                       | t      |            4 |          3.97 | 
+ 25262 | TEMP_25262 | SHRP-P             | SYRNGECAP            | CAP                                 | t      |           12 |             0 | 
+ 25263 | TEMP_25263 | TEMP_2             | TEMP_25263           | CAP-(D)JOINT FLANGE                 | t      |            6 |          5.75 | 
+ 25264 | TEMP_25264 | AFM BIG            | CA581CAWXX01         | CAP ASY-SUC                         | t      |            6 |          5.77 | 
+ 25265 | TEMP_25265 | TEMP_2             | TEMP_25265           | CAP ASY-DIS                         | t      |            6 |          4.92 | 
+ 25266 | TEMP_25266 | TEMP_2             | TEMP_25266           | SHIPPING CAP                        | t      |            8 |          1.29 | 
+ 25267 | TEMP_25267 | TEMP_2             | TEMP_25267           | HTR PIPE CAP                        | t      |           16 |             3 | 
+ 25268 | TEMP_25268 | F442 KQ            | F442-KQAAA-01        | DUST CAP CONDS                      | t      |            6 |          4.33 | 
+ 25269 | TEMP_25269 | TEMP_2             | TEMP_25269           | CAP (A) JOINT FLANGE                | t      |            1 |               | 
+ 25270 | TEMP_25270 | TEMP_2             | TEMP_25270           | DUST CAP COND                       | t      |            4 |          3.97 | 
+ 25271 | TEMP_25271 | F442 WB            | F442-WBAAA-01        | DUST CAP-COND                       | t      |            1 |          3.31 | 
+ 25272 | TEMP_25272 | TEMP_2             | TEMP_25272           | CLIP (A) LIQ & SUC                  | t      |            1 |               | 
+ 25273 | TEMP_25273 | F710               | F710-AKYAA-01        | CAP-J/F                             | t      |            7 |          3.44 | 
+ 25274 | TEMP_25274 | TEMP_2             | TEMP_25274           | GROMMET                             | t      |            1 |               | 
+ 25275 | TEMP_25275 | F885 Y             | F885-BB1AA-01        | CAP-TXV                             | t      |            6 |          2.59 | 
+ 25276 | TEMP_25276 | TEMP_2             | TEMP_25276           | SHIPG CAP HYUNDAI/M                 | t      |            4 |          2.37 | 
+ 25277 | TEMP_25277 | SHRP-P             | FC1F2CEEAA02         | CAP - (D) JOINT FLANGE              | t      |            6 |          5.75 | 
+ 25278 | TEMP_25278 | TEMP_2             | TEMP_25278           | CAP-(D)JOINT FLANGE                 | t      |            6 |             2 | 
+ 25279 | TEMP_25279 | AA02 Y             | FC1F2SPHAA02         | SHP'G/CAP-HYUNDAI/M                 | t      |            4 |          1.75 | 
+ 25280 | TEMP_25280 | SULLA              | FC1F2SULLA01         | SHP'G/CAP HYUNDAI/M                 | t      |            4 |          2.62 | 
+ 25281 | TEMP_25281 | UGKCA              | FC1F2UGKCA01         | SHP'G/CAP HYUNDAI/M                 | t      |            8 |           0.8 | 
+ 25282 | TEMP_25282 | TEMP_2             | TEMP_25282           | SHP'G/CAP HYUNDAI/M                 | t      |            6 |          1.69 | 
+ 25283 | TEMP_25283 | TEMP_2             | TEMP_25283           | SHP'G/CAP HYUNDAI/M                 | t      |            4 |          2.57 | 
+ 25284 | TEMP_25284 | TEMP_2             | TEMP_25284           | CAP ACAC                            | t      |            6 |          4.56 | 
+ 25285 | TEMP_25285 | TEMP_2             | TEMP_25285           | CAP (A) JOINT FLANGE                | t      |            6 |          3.84 | 
+ 25286 | TEMP_25286 | AA03               | HC442SPHAA03         | CAP (A) JOINT FLANGE                | t      |            4 |          3.63 | 
+ 25287 | TEMP_25287 | TEMP_2             | TEMP_25287           | CAP (A) JOINT FLANGE                | t      |           16 |          4.44 | 
+ 25288 | TEMP_25288 | TEMP_2             | TEMP_25288           | CAP (A) JOINT FLANGE                | t      |            4 |          6.07 | 
+ 25289 | TEMP_25289 | TEMP_2             | TEMP_25289           | CAP (A) JOINT FLANGE                | t      |            4 |          7.15 | 
+ 25290 | TEMP_25290 | TEMP_2             | TEMP_25290           | CAP (A) JOINT FLANGE                | t      |            6 |          1.28 | 
+ 25291 | TEMP_25291 | TEMP_2             | TEMP_25291           | CAP (A) JOINT FLANGE                | t      |            8 |          1.21 | 
+ 25292 | TEMP_25292 | TEMP_2             | TEMP_25292           | CAP (A) JOINT FLANGE                | t      |            8 |           1.5 | 
+ 25293 | TEMP_25293 | SULAC              | HC442SULAC01         | CAP (A) JOINT FLANGE                | t      |            4 |          3.59 | 
+ 25294 | TEMP_25294 | TEMP_2             | TEMP_25294           | CAP (A) JOINT FLANGE                | t      |            6 |          3.56 | 
+ 25295 | TEMP_25295 | TEMP_2             | TEMP_25295           | CAP (B) JOINT FLANGE                | t      |            5 |          1.79 | 
+ 25296 | TEMP_25296 | DH7AA              | HR230DH7AA01         | PLUG-RAD PIPE                       | t      |            4 |          7.18 | 
+ 25297 | TEMP_25297 | PDPKA              | HR230PDPKA02         | PLUG-RAD PIPE                       | t      |            4 |          9.34 | 
+ 25298 | TEMP_25298 | TEMP_2             | TEMP_25298           | CAP CHL'R NEX GEN PORSCHE           | t      |            4 |          0.99 | 
+ 25299 | TEMP_25299 | TEMP_2             | TEMP_25299           | CAP WCAC 16DIA                      | t      |            6 |           1.2 | 
+ 25300 | TEMP_25300 | SHRP-P             | HW773G9E1B01         | Shipping Cap Degas Spout            | t      |            6 |          0.34 | 
+ 25301 | TEMP_25301 | TEMP_2             | TEMP_25301           | PLUG RAD PIPE                       | t      |            4 |          5.99 | 
+ 25302 | TEMP_25302 | TEMP_2             | TEMP_25302           | PLUG RAD PIPE                       | t      |            4 |           6.2 | 
+ 25303 | TEMP_25303 | TEMP_2             | TEMP_25303           | CAP-J/FLANGE                        | t      |            6 |          1.68 | 
+ 25304 | TEMP_25304 | TEMP_2             | TEMP_25304           | CAP-J/FLANGE 12MM                   | t      |            6 |          1.88 | 
+ 25305 | TEMP_25305 | SHRP               | V0LC-01C022-00       | PRODUCTION CAPE                     | t      |            6 |          1.62 | 
+ 25306 | TEMP_25306 | TEMP_2             | TEMP_25306           | CAP                                 | t      |            4 |          2.26 | 
+ 25307 | TEMP_25307 | VPAA               | VP5N1H-407721-AA     | PROTECTION CAP - INLET              | t      |            6 |          1.71 | 
+ 25308 | TEMP_25308 | TEMP_2             | TEMP_25308           | CAP-J FLANGE MALE                   | t      |            6 |          2.24 | 
+ 25309 | TEMP_25309 | TEMP_2             | TEMP_25309           | CAP A/C MANI FLOD                   | t      |            1 |               | 
+ 25310 | TEMP_25310 | TEMP_2             | TEMP_25310           | CAP-A/C 1/2 MSLC                    | t      |            4 |          1.87 | 
+ 25311 | TEMP_25311 | PUNE S             | HR241BAE1B01         | CAP RAD                             | t      |            6 |             1 | 
+ 25312 | TEMP_25312 | PUNE B             | FC1E1BAE1D01         | SHP'G/CAP-MISC                      | t      |            6 |          2.36 | 
+ 25313 | TEMP_25313 | TEMP_2             | TEMP_25313           | SHIPPPING CAP HTR                   | t      |            1 |               | 
+ 25314 | TEMP_25314 | TEMP_2             | TEMP_25314           | DUST CAP (SUCTION)(16)              | t      |            1 |               | 
+ 25315 | TEMP_25315 | TEMP_2             | TEMP_25315           | DUST CAP (DISCHARGE)(12)            | t      |            1 |               | 
+ 25316 | TEMP_25316 | TEMP_2             | TEMP_25316           | SHIPPING Cap Hose Liquid            | t      |            6 |          0.78 | 
+ 25317 | TEMP_25317 | 9AB                | VPR230-WC9AB-01      | DUST PROTECTION CAP                 | t      |            4 |           3.1 | 
+ 25318 | TEMP_25318 | TEMP_2             | TEMP_25318           | CAP MG RAD 18.5                     | t      |            6 |             0 | 
+ 25319 | TEMP_25319 | TEMP_2             | TEMP_25319           | MG Condensor INLET                  | t      |            1 |               | 
+ 25320 | TEMP_25320 | TEMP_2             | TEMP_25320           | MG Condensor Outlet                 | t      |            1 |               | 
+ 25321 | TEMP_25321 | TEMP_2             | TEMP_25321           | CAP TOC-CONN                        | t      |            1 |             0 | 
+ 25322 | TEMP_25322 | TEMP_2             | TEMP_25322           | DUST PROTECTION CAP RAD             | t      |            1 |             0 | 
+ 25323 | TEMP_25323 | TEMP_2             | TEMP_25323           | SHIPPING CAP                        | t      |            1 |             0 | 
+ 25324 | TEMP_25324 | TEMP_2             | TEMP_25324           | SHIPPING CAP                        | t      |            6 |          1.62 | 
+ 25325 | TEMP_25325 | TEMP_2             | TEMP_25325           | SHIPPING CAP                        | t      |            1 |             0 | 
+ 25326 | TEMP_25326 | TEMP_2             | TEMP_25326           | TRUKEY CAP                          | t      |            1 |               | 
+ 25327 | TEMP_25327 | KQ NEW             | F442-KQ              | SHIPPING END CAP (IA) FLANGE        | t      |            0 |             0 | 
+ 25328 | TEMP_25328 | SHRP-T7            | SHRP-T7              | SHIPPING (WHITE)-HP (IA)            | t      |            0 |             0 | 
+ 25329 | TEMP_25329 | SHRP-T10           | SHRP-T10             | SHIPPING (white)-LP (IA)            | t      |            0 |             0 | 
+ 25330 | TEMP_25330 | TEMP_2             | TEMP_25330           | SHIPPING END CAP (IA) FLANGE        | t      |            2 |          2.21 | 
+ 25331 | TEMP_25331 | TEMP_2             | TEMP_25331           | SHIPPING CAP SV CT                  | t      |            1 |               | 
+ 25332 | TEMP_25332 | TEMP_2             | TEMP_25332           | SHP'G CAP DIS COND SIDE             | t      |            4 |          2.69 | 
+ 25333 | TEMP_25333 | TEMP_2             | TEMP_25333           | SHP'G CAP LIQ COND END              | t      |            4 |          1.43 | 
+ 25334 | TEMP_25334 | NA-TB              | WC-SCP-SC21NA-TB-T01 | SHP'G CAP TXV SIDE                  | t      |            4 |          3.61 | 
+ 25335 | TEMP_25335 | TEMP_2             | TEMP_25335           | SHP'G CAP LIQ MID FEMALE            | t      |            2 |          2.05 | 
+ 25336 | TEMP_25336 | TEMP_2             | TEMP_25336           | SHP'G CAP SUC MID FEMALE            | t      |            2 |          2.73 | 
+ 25337 | TEMP_25337 | LMM                | WC-SCP-eCC21-Lmm01   | SHP'G CAP LIQ MID MALE              | t      |            0 |             0 | 
+ 25338 | TEMP_25338 | SMM                | WC-SCP-eCC21-Smm01   | SHP'G CAP SUC MID MALE              | t      |            2 |          2.48 | 
+ 25339 | TEMP_25339 | TEMP_2             | TEMP_25339           | SHP'G CAP DIS COMP SIDE             | t      |            2 |          2.37 | 
+ 25340 | TEMP_25340 | TEMP_2             | TEMP_25340           | SHP'G CAP GS JUMPER TUBE JF         | t      |            1 |               | 
+ 25341 | TEMP_25341 | TEMP_2             | TEMP_25341           | GROMMET                             | t      |            1 |               | 
+ 25342 | TEMP_25342 | TEMP_2             | TEMP_25342           | GROMMET                             | t      |            1 |               | 
+ 25343 | TEMP_25343 | TEMP_2             | TEMP_25343           | CVR STR MTR SOLE TERM               | t      |           16 |             0 | 
+ 25344 | TEMP_25344 | TEMP_2             | TEMP_25344           | CVR STR MTR SOLE TERM               | t      |            1 |               | 
+ 25345 | TEMP_25345 | TEMP_2             | TEMP_25345           | HNDL                                | t      |            1 |               | 
+ 25346 | TEMP_25346 | TEMP_2             | TEMP_25346           | CAP                                 | t      |            1 |               | 
+    31 | TEMP_31    | CXG                | HC442CXGAA01         | HC442CXGAA01                        | t      |            4 |          3.84 | 
+    37 | TEMP_37    | QVE                | HC442QVEAC01         | HC442QVEAC01                        | t      |            4 |          1.21 | 
+    50 | TEMP_50    | V0LC               | V0LC-01C021-00       | V0LC-01C021-00                      | t      |            4 |          1.88 | 
+    60 | TEMP_60    | PLFC1E             | PLFC1E4K5MAA-00      | DUST CAP (SUCTION)(16)              | t      |            1 |               | 2026-09-14 09:17:08.023278+00
+    61 | TEMP_61    | PLFC1E             | PLFC1E4K5MBA-00      | DUST CAP (DISCHARGE)(12)            | t      |            1 |               | 2026-09-14 09:17:18.09317+00
+    65 | TEMP_65    | G6C1A              | HC442G6C1A           | MG Condensor INLET                  | t      |            1 |               | 2026-09-14 09:17:34.542059+00
+  6562 | TEMP_6562  | HC442L             | HC442L3LAC01-GRN     | HC442L3LAC01-GRN                    | t      |            4 |          8.25 | 2026-09-14 09:58:39.835094+00
+  6563 | TEMP_6563  | VK GR -6           | VK Grommet           | VK GR -6                            | t      |            0 |             0 | 
+    66 | TEMP_66    | G6C1B              | HC442G6C1B           | MG Condensor Outlet                 | t      |            1 |               | 2026-09-14 09:17:42.032319+00
+    70 | TEMP_70    | SHRP-T12           | SHRP-T12             | SHRP-T12                            | t      |            6 |          1.62 | 2026-09-14 09:59:08.459767+00
+    71 | TEMP_71    | SHRP-T3            | SHRP-T3              | SHRP-T3                             | t      |            0 |             0 | 2026-09-14 09:59:27.784385+00
+    77 | TEMP_77    | VPMGH              | VPMGH-18B602-DA      | SHIPPING CAP SV CT                  | t      |            1 |               | 2026-09-14 09:19:25.974819+00
+  8970 | TEMP_8970  | QQVBA Y            | HC443QQVBA02-Y       | HC443QQVBA02-Y                      | t      |            4 |           2.2 | 
+  8974 | TEMP_8974  | VW DIA             | HW773G9E1A01         | HW773G9E1A01                        | t      |            4 |           1.6 | 
+  8981 | TEMP_8981  | SHRP               | V0LC-01C028-00       | CAP                                 | t      |            4 |          2.26 | 
+  8985 | TEMP_8985  | UMNAA              | HC442UMNAA02         | CAP (A) JOINT FLANGE                | t      |            6 |          3.56 | 
+  8990 | TEMP_8990  | SHRP-P             | PLFC1E4K5MAA-00      | DUST CAP (SUCTION)(16)              | t      |            6 |          1.24 | 
+  8991 | TEMP_8991  | SHRP-P             | PLFC1E4K5MBA-00      | DUST CAP (DISCHARGE)(12)            | t      |            6 |          1.36 | 
+  8992 | TEMP_8992  | BH                 | FC1P4L1E1A01         | FC1P4L1E1A01                        | t      |            4 |          3.75 | 
+    90 | TEMP_90    | VP6TLU             | VP6TLU11N087AA       | CVR STR MTR SOLE TERM               | t      |            1 |               | 2026-09-14 09:19:10.182667+00
+  9003 | TEMP_9003  | NA                 | WC-SCP-SC21NA-DB-01  | WC-SCP-SC21NA-DB-01                 | t      |            4 |          2.96 | 
+  9004 | TEMP_9004  | NA                 | WC-SCP-SC21NA-LC-01  | WC-SCP-SC21NA-LC-01                 | t      |            4 |          1.43 | 
+  9016 | TEMP_9016  | T40                | RM-19D935-BA         | RM-19D935-BA                        | t      |            4 |          1.87 | 
+     1 | TEMP_1     | DEMO               | DEMO-100             | Demo Bracket                        | f      |            4 |               | 2026-09-14 09:13:13.020541+00
+    12 | TEMP_12    | UBH                | DM1C4UBH1B01         | DM1C4UBH1B01                        | f      |            4 |          1.29 | 
+ 12422 | TEMP_12422 | Test               | Test                 | Test                                | f      |            6 |               | 2026-09-14 18:20:58.8808+00
+    13 | TEMP_13    | CB5                | F364-CB5AA-01        | F364-CB5AA-01                       | f      |            4 |             3 | 2026-09-14 09:13:29.235614+00
+    15 | TEMP_15    | F442               | F442-KP8AA-01-00     | CAP (A) JOINT FLANGE                | f      |            1 |               | 2026-09-14 09:15:45.546746+00
+    18 | TEMP_18    | F495               | F495-MAXLA-03        | CLIP (A) LIQ & SUC                  | f      |            1 |               | 
+    20 | TEMP_20    | F720               | F720-AKYAA-01        | GROMMET                             | f      |            1 |               | 
+    22 | TEMP_22    | FC1                | FC1F2AN6BA01         | FC1F2AN6BA01                        | f      |            4 |          2.37 | 
+    23 | TEMP_23    | FC1F2C             | FC1F2CEEAA02         | FC1F2CEEAA02                        | f      |            6 |          5.75 | 
+    30 | TEMP_30    | HA715L             | HA715L5G1A01         | HA715L5G1A01                        | f      |            6 |          4.56 | 
+    36 | TEMP_36    | OER                | HC442OERAA01         | HC442OERAA01                        | f      |            4 |          1.28 | 
+    46 | TEMP_46    | HW773G             | HW773G9E1B01         | HW773G9E1B01                        | f      |            6 |          0.34 | 2026-09-17 09:03:50.067928+00
+    49 | TEMP_49    | V0LC               | V0LC-01C019-01       | V0LC-01C019-01                      | f      |            4 |          1.68 | 
+    51 | TEMP_51    | V0LC               | V0LC-01C022-00       | V0LC-01C022-00                      | f      |            4 |          1.62 | 
+    55 | TEMP_55    | VPCV6H             | VPCV6H19E778DA       | CAP A/C MANI FLOD                   | f      |            1 |               | 2026-09-14 09:19:52.485163+00
+  6564 | TEMP_6564  | SYRING             | SYRINGE CAP          | SYRINGE CAP                         | f      |           12 |             0 | 
+    72 | TEMP_72    | SHRP               | SHRP-T4              | TRUKEY CAP                          | f      |            1 |               | 2026-09-14 09:18:14.878224+00
+    87 | TEMP_87    | BIGGRO             | BIGGROMMET-1316      | GROMMET                             | f      |            1 |               | 
+  9005 | TEMP_9005  | NA                 | WC-SCP-SC21NA-TB-T01 | WC-SCP-SC21NA-TB-T01                | f      |            4 |          2.96 | 
+  9014 | TEMP_9014  | LAC Gr             | HC442L3LAC01-GRN     | HC442L3LAC01-GRN                    | f      |            4 |          8.25 | 
+  9017 | TEMP_9017  | VK GR              | VK GR -6             | VK GR -6                            | f      |            1 |             3 | 
+    92 | TEMP_92    | SYRNGE             | SYRNGECAP            | CAP                                 | f      |            1 |               | 2026-09-14 09:18:48.696015+00
+(208 rows)
+
+warning: Config as Code (railway.json / railway.toml) is deprecated. Prefer Infrastructure as Code (.railway/railway.ts). Run `railway config migrate` or see https://docs.railway.com/infrastructure-as-code#migrating-from-config-as-code
+  → Migrate: `railway config migrate` — https://docs.railway.com/infrastructure-as-code#migrating-from-config-as-code
+  Existing files keep working until 2026-12-01.

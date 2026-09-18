@@ -1,0 +1,216 @@
+Using SSH key from file C:\Users\KNALHOME\.ssh\id_ed25519_railway.pub: railway-backup-temp
+  id   | part_code  |   shrp_part_code   |   customer_part_no   | active | prod_entries | bags | mach_assign | fpa | recipes | mould_links 
+-------+------------+--------------------+----------------------+--------+--------------+------+-------------+-----+---------+-------------
+     1 | TEMP_1     | DEMO               | DEMO-100             | f      |            0 |    0 |           0 |   0 |       0 |           0
+     7 | SHRP-P010  | F364 16C           | F364-CB5AA-01        | t      |           12 |   43 |           1 |   1 |       1 |           2
+    10 | SHRP-P051  | AFM BIG            | CA581CAWXX01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    11 | TEMP_11    | DDR                | CA582DDRXX01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    12 | TEMP_12    | UBH                | DM1C4UBH1B01         | f      |            0 |    0 |           0 |   0 |       0 |           1
+    13 | TEMP_13    | CB5                | F364-CB5AA-01        | f      |            0 |    0 |           0 |   0 |       0 |           2
+    15 | TEMP_15    | F442               | F442-KP8AA-01-00     | f      |            0 |    0 |           0 |   0 |       0 |           0
+    16 | TEMP_16    | QQ7                | F442-QQ7AA-01        | t      |            0 |    0 |           0 |   0 |       1 |           2
+    18 | TEMP_18    | F495               | F495-MAXLA-03        | f      |            0 |    0 |           0 |   0 |       0 |           0
+    20 | TEMP_20    | F720               | F720-AKYAA-01        | f      |            0 |    0 |           0 |   0 |       0 |           0
+    22 | TEMP_22    | FC1                | FC1F2AN6BA01         | f      |            0 |    0 |           0 |   0 |       1 |           1
+    23 | TEMP_23    | FC1F2C             | FC1F2CEEAA02         | f      |            0 |    0 |           0 |   0 |       0 |           1
+    30 | TEMP_30    | HA715L             | HA715L5G1A01         | f      |            0 |    0 |           0 |   0 |       0 |           1
+    31 | TEMP_31    | CXG                | HC442CXGAA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    33 | SHRP-P070  | LAC GREEN          | VPMGH-18B602-DA      | t      |            0 |    0 |           0 |   0 |       1 |           1
+    36 | TEMP_36    | OER                | HC442OERAA01         | f      |            0 |    0 |           0 |   0 |       0 |           1
+    37 | TEMP_37    | QVE                | HC442QVEAC01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    39 | SHRP-P025  | SULAC              | HC442SULAC01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    40 | SHRP-P059  | UMNAA              | HC442UMNAA02         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    41 | SHRP-P027  | QQVBA Y            | HC443QQVBA02         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    44 | SHRP-P030  | HL180              | HL180F4W1A01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    45 | SHRP-P031  | VW DIA 16 - HW773A | HW773G9E1A01         | t      |            0 |    0 |           1 |   0 |       1 |           1
+    46 | TEMP_46    | HW773G             | HW773G9E1B01         | f      |            0 |    0 |           0 |   0 |       0 |           1
+    49 | TEMP_49    | V0LC               | V0LC-01C019-01       | f      |            0 |    0 |           0 |   0 |       1 |           1
+    50 | TEMP_50    | V0LC               | V0LC-01C021-00       | t      |            0 |    0 |           0 |   0 |       1 |           1
+    51 | TEMP_51    | V0LC               | V0LC-01C022-00       | f      |            0 |    0 |           0 |   0 |       0 |           1
+    52 | SHRP-P036  | 2800               | V0LC-01C028-00       | t      |            0 |    0 |           0 |   0 |       1 |           1
+    55 | TEMP_55    | VPCV6H             | VPCV6H19E778DA       | f      |            0 |    0 |           0 |   0 |       0 |           0
+    59 | SHRP-P060  | DM1C1QRJAA01       | DM1C1QRJAA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    60 | TEMP_60    | PLFC1E             | PLFC1E4K5MAA-00      | t      |            0 |    0 |           0 |   0 |       1 |           1
+    61 | TEMP_61    | PLFC1E             | PLFC1E4K5MBA-00      | t      |            0 |    0 |           0 |   0 |       1 |           1
+    62 | SHRP-P040  | BH-DIA 8           | FC1P4L1E1A01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    64 | SHRP-P062  | HR241              | HR241G6C1A01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    65 | TEMP_65    | G6C1A              | HC442G6C1A           | t      |            0 |    0 |           0 |   0 |       1 |           0
+    66 | TEMP_66    | G6C1B              | HC442G6C1B           | t      |            0 |    0 |           0 |   0 |       1 |           0
+    68 | SHRP-P066  | 9AA                | VPR230WC9AA01        | t      |            0 |    0 |           0 |   0 |       1 |           2
+    70 | TEMP_70    | SHRP-T12           | SHRP-T12             | t      |            0 |    0 |           0 |   0 |       1 |           0
+    71 | TEMP_71    | SHRP-T3            | SHRP-T3              | t      |            0 |    0 |           0 |   0 |       1 |           0
+    72 | TEMP_72    | SHRP               | SHRP-T4              | f      |            0 |    0 |           0 |   0 |       0 |           0
+    74 | SHRP-P068  | SHRP-T7            | SHRP-T7              | t      |            0 |    0 |           0 |   0 |       1 |           1
+    75 | SHRP-P069  | SHRP-T10           | SHRP-T10             | t      |            0 |    0 |           0 |   0 |       1 |           1
+    76 | SHRP-P044  | SHRP-T8            | SHRP-T8              | t      |            0 |    0 |           0 |   0 |       1 |           1
+    77 | TEMP_77    | VPMGH              | VPMGH-18B602-DA      | t      |            0 |    0 |           0 |   0 |       1 |           0
+    78 | SHRP-P050  | NA-DB              | WC-SCP-SC21NA-DB-01  | t      |            0 |    0 |           0 |   0 |       1 |           1
+    79 | SHRP-P006  | NA-LC              | WC-SCP-SC21NA-LC-01  | t      |            2 |    4 |           1 |   0 |       1 |           1
+    80 | SHRP-P071  | NA-TB              | WC-SCP-SC21NA-TB-T01 | t      |            0 |    0 |           0 |   0 |       1 |           1
+    81 | SHRP-P046  | LMF                | WC-SCP-ECC21-LMF01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+    82 | SHRP-P048  | SMF                | WC-SCP-ECC21-SMF01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+    85 | SHRP-P045  | DA                 | WC-SCP-ECC21-DA01    | t      |            0 |    0 |           0 |   0 |       1 |           1
+    87 | TEMP_87    | BIGGRO             | BIGGROMMET-1316      | f      |            0 |    0 |           0 |   0 |       0 |           0
+    88 | SHRP-P073  | SmallGrommet       | SmallGrommet         | t      |            0 |    0 |           0 |   0 |       1 |           1
+    89 | SHRP-P074  | VP6T               | VP6TLU11N087AA       | t      |            0 |    0 |           0 |   0 |       1 |           1
+    90 | TEMP_90    | VP6TLU             | VP6TLU11N087AA       | t      |            0 |    0 |           0 |   0 |       1 |           0
+    91 | SHRP-P075  | HandlePlastic      | HandlePlastic        | t      |            0 |    0 |           0 |   0 |       1 |           2
+    92 | TEMP_92    | SYRNGE             | SYRNGECAP            | f      |            0 |    0 |           0 |   0 |       0 |           1
+  6553 | SHRP-P011  | F364 GS            | F364-CB5AA-01        | t      |            0 |    0 |           0 |   0 |       1 |           2
+  6555 | SHRP-P041  | BH-DIA 16 - MAA    | PLFC1E4K5MAA-00      | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6556 | SHRP-P042  | BH-DIA 12 -MBA     | PLFC1E4K5MBA-00      | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6557 | SHRP-P064  | OUTLET             | HC442G6C1B           | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6559 | SHRP-P047  | LMM                | WC-SCP-eCC21-Lmm01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6562 | TEMP_6562  | HC442L             | HC442L3LAC01-GRN     | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6563 | TEMP_6563  | VK GR -6           | VK Grommet           | t      |            0 |    0 |           0 |   0 |       1 |           1
+  6564 | TEMP_6564  | SYRING             | SYRINGE CAP          | f      |            0 |    0 |           0 |   0 |       0 |           0
+  8945 | SHRP-P023  | LBB                | HC442L3LBB01         | t      |           11 |   23 |           0 |   0 |       1 |           1
+  8946 | SHRP-P024  | LBC                | HC442L3LBC02         | t      |            3 |   10 |           0 |   0 |       1 |           1
+  8947 | SHRP-P002  | LAC Blue           | HC442L3LAC01         | t      |           14 |   53 |           0 |   0 |       1 |           1
+  8949 | SHRP-P007  | CEEAA-ORANGE       | FC1F2CEEAA02         | t      |            4 |   18 |           0 |   0 |       1 |           2
+  8950 | SHRP-P052  | AFM SMALL          | CA582DDRXX01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8951 | SHRP-P021  | OERAA              | HC442OERAA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8952 | SHRP-P009  | A710               | A710-BBWBA-01        | t      |           11 |   37 |           0 |   0 |       1 |           1
+  8955 | SHRP-P053  | F442 QQ            | F442-QQ7AA-01        | t      |            4 |    8 |           0 |   0 |       1 |           2
+  8956 | SHRP-P012  | F442 KQ            | F442-KQAAA-01        | t      |            2 |    4 |           0 |   0 |       1 |           1
+  8957 | SHRP-P054  | F442 WB            | F442-WBAAA-01        | t      |            3 |    4 |           0 |   0 |       1 |           1
+  8958 | SHRP-P013  | F710               | F710-AKYAA-01        | t      |            2 |    3 |           0 |   0 |       1 |           1
+  8959 | SHRP-P001  | F885 Y             | F885-BB1AA-01        | t      |           14 |   31 |           0 |   0 |       1 |           1
+  8960 | SHRP-P014  | AN6B               | FC1F2AN6BA01         | t      |           22 |   40 |           0 |   0 |       1 |           1
+  8961 | SHRP-P015  | AA02 Y             | FC1F2SPHAA02         | t      |           19 |   28 |           0 |   0 |       1 |           1
+  8962 | SHRP-P016  | SULLA              | FC1F2SULLA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8963 | SHRP-P017  | UGKCA              | FC1F2UGKCA01         | t      |            2 |    3 |           0 |   0 |       1 |           1
+  8964 | SHRP-P018  | UMEAB              | FC1F2UMEAB01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8965 | SHRP-P019  | HA715 - W501       | HA715L5G1A01         | t      |            2 |    8 |           1 |   0 |       1 |           1
+  8966 | SHRP-P020  | CXGAA              | HC442CXGAA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8967 | SHRP-P022  | AA03               | HC442SPHAA03         | t      |           10 |   32 |           0 |   0 |       1 |           1
+  8969 | SHRP-P026  | QQVBA W            | HC443QQVBA02         | t      |            4 |    5 |           0 |   0 |       1 |           1
+  8970 | TEMP_8970  | QQVBA Y            | HC443QQVBA02-Y       | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8972 | SHRP-P029  | PDPKA              | HR230PDPKA02         | t      |            5 |   23 |           0 |   0 |       1 |           1
+  8973 | SHRP-P028  | DH7AA              | HR230DH7AA01         | t      |            4 |   19 |           0 |   0 |       1 |           1
+  8974 | TEMP_8974  | VW DIA             | HW773G9E1A01         | t      |           14 |   19 |           0 |   0 |       1 |           1
+  8975 | SHRP-P008  | VW DIA 8 - HW773B  | HW773G9E1B01         | t      |           11 |   21 |           0 |   0 |       1 |           1
+  8976 | SHRP-P032  | NCBA               | R230-NC5BA-01        | t      |           13 |   46 |           0 |   0 |       1 |           1
+  8977 | SHRP-P033  | NCBB               | R230-NC5BB-01        | t      |           11 |   41 |           0 |   0 |       1 |           1
+  8978 | SHRP-P034  | 1901               | V0LC-01C019-01       | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8979 | SHRP-P035  | 2100               | V0LC-01C021-00       | t      |            7 |   14 |           0 |   0 |       1 |           1
+  8980 | SHRP-P005  | 2200               | V0LC-01C022-00       | t      |           27 |   57 |           0 |   0 |       1 |           1
+  8981 | TEMP_8981  | SHRP               | V0LC-01C028-00       | t      |            3 |    8 |           0 |   0 |       1 |           1
+  8982 | SHRP-P037  | VPAA               | VP5N1H-407721-AA     | t      |            9 |   16 |           0 |   0 |       1 |           1
+  8983 | SHRP-P038  | VPFA               | VP5N1H-407721-FA     | t      |            0 |    0 |           1 |   0 |       1 |           1
+  8984 | SHRP-P003  | DM1C               | DM1C4UBH1B01         | t      |            0 |    0 |           1 |   0 |       1 |           1
+  8985 | TEMP_8985  | UMNAA              | HC442UMNAA02         | t      |            2 |    8 |           0 |   0 |       1 |           1
+  8986 | SHRP-P056  | UMEAA              | FC1F2UMEAA01         | t      |            2 |    7 |           0 |   0 |       1 |           1
+  8987 | SHRP-P055  | NDGAA              | FC1F2NDGAA02         | t      |            2 |    4 |           0 |   0 |       1 |           1
+  8988 | SHRP-P057  | QVEAC              | HC442QVEAC01         | t      |            6 |    6 |           0 |   0 |       1 |           1
+  8990 | TEMP_8990  | SHRP-P             | PLFC1E4K5MAA-00      | t      |           10 |   20 |           0 |   0 |       1 |           1
+  8991 | TEMP_8991  | SHRP-P             | PLFC1E4K5MBA-00      | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8992 | TEMP_8992  | BH                 | FC1P4L1E1A01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8995 | SHRP-P063  | INLET              | HC442G6C1A           | t      |            0 |    0 |           0 |   0 |       1 |           1
+  8996 | SHRP-P004  | PUNE B             | FC1E1BAE1D01         | t      |           14 |   37 |           0 |   0 |       1 |           1
+  8997 | SHRP-P039  | PUNE S             | HR241BAE1B01         | t      |           18 |   27 |           0 |   0 |       1 |           1
+  8998 | SHRP-P067  | F390               | F390-QQDC-A02        | t      |            0 |    0 |           0 |   0 |       1 |           1
+  9002 | SHRP-P049  | SMM                | WC-SCP-eCC21-Smm01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+  9003 | TEMP_9003  | NA                 | WC-SCP-SC21NA-DB-01  | t      |            2 |    7 |           0 |   0 |       1 |           1
+  9004 | TEMP_9004  | NA                 | WC-SCP-SC21NA-LC-01  | t      |            1 |    2 |           0 |   0 |       1 |           1
+  9005 | TEMP_9005  | NA                 | WC-SCP-SC21NA-TB-T01 | f      |            0 |    0 |           0 |   0 |       1 |           1
+  9006 | SHRP-P043  | KQ NEW             | F442-KQ              | t      |            0 |    0 |           0 |   0 |       1 |           1
+  9012 | SHRP-P072  | ATBAB              | F442-ATBAB-02        | t      |            5 |   13 |           0 |   0 |       1 |           2
+  9014 | TEMP_9014  | LAC Gr             | HC442L3LAC01-GRN     | f      |            0 |    0 |           0 |   0 |       0 |           1
+  9015 | SHRP-P065  | R101               | R101WC9AA01          | t      |            0 |    0 |           0 |   0 |       1 |           2
+  9016 | TEMP_9016  | T40                | RM-19D935-BA         | t      |            0 |    0 |           0 |   0 |       1 |           1
+  9017 | TEMP_9017  | VK GR              | VK GR -6             | f      |            0 |    0 |           0 |   0 |       0 |           0
+  9020 | SHRP-P061  | 9AB                | VPR230-WC9AB-01      | t      |            5 |   10 |           0 |   0 |       1 |           1
+  9021 | SHRP-P076  | SYRINGE CAP        | SYRNGECAP            | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 12422 | TEMP_12422 | Test               | Test                 | f      |            0 |    0 |           0 |   0 |       0 |           1
+ 25261 | SHRP-P058  | QVEBC              | HC442QVEBC01         | t      |            1 |    0 |           0 |   0 |       1 |           1
+ 25262 | TEMP_25262 | SHRP-P             | SYRNGECAP            | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25263 | TEMP_25263 | TEMP_2             | TEMP_25263           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25264 | TEMP_25264 | AFM BIG            | CA581CAWXX01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25265 | TEMP_25265 | TEMP_2             | TEMP_25265           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25266 | TEMP_25266 | TEMP_2             | TEMP_25266           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25267 | TEMP_25267 | TEMP_2             | TEMP_25267           | t      |            0 |    0 |           0 |   0 |       1 |           2
+ 25268 | TEMP_25268 | F442 KQ            | F442-KQAAA-01        | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25269 | TEMP_25269 | TEMP_2             | TEMP_25269           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25270 | TEMP_25270 | TEMP_2             | TEMP_25270           | t      |            0 |    0 |           0 |   0 |       1 |           2
+ 25271 | TEMP_25271 | F442 WB            | F442-WBAAA-01        | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25272 | TEMP_25272 | TEMP_2             | TEMP_25272           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25273 | TEMP_25273 | F710               | F710-AKYAA-01        | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25274 | TEMP_25274 | TEMP_2             | TEMP_25274           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25275 | TEMP_25275 | F885 Y             | F885-BB1AA-01        | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25276 | TEMP_25276 | TEMP_2             | TEMP_25276           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25277 | TEMP_25277 | SHRP-P             | FC1F2CEEAA02         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25278 | TEMP_25278 | TEMP_2             | TEMP_25278           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25279 | TEMP_25279 | AA02 Y             | FC1F2SPHAA02         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25280 | TEMP_25280 | SULLA              | FC1F2SULLA01         | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25281 | TEMP_25281 | UGKCA              | FC1F2UGKCA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25282 | TEMP_25282 | TEMP_2             | TEMP_25282           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25283 | TEMP_25283 | TEMP_2             | TEMP_25283           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25284 | TEMP_25284 | TEMP_2             | TEMP_25284           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25285 | TEMP_25285 | TEMP_2             | TEMP_25285           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25286 | TEMP_25286 | AA03               | HC442SPHAA03         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25287 | TEMP_25287 | TEMP_2             | TEMP_25287           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25288 | TEMP_25288 | TEMP_2             | TEMP_25288           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25289 | TEMP_25289 | TEMP_2             | TEMP_25289           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25290 | TEMP_25290 | TEMP_2             | TEMP_25290           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25291 | TEMP_25291 | TEMP_2             | TEMP_25291           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25292 | TEMP_25292 | TEMP_2             | TEMP_25292           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25293 | TEMP_25293 | SULAC              | HC442SULAC01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25294 | TEMP_25294 | TEMP_2             | TEMP_25294           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25295 | TEMP_25295 | TEMP_2             | TEMP_25295           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25296 | TEMP_25296 | DH7AA              | HR230DH7AA01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25297 | TEMP_25297 | PDPKA              | HR230PDPKA02         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25298 | TEMP_25298 | TEMP_2             | TEMP_25298           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25299 | TEMP_25299 | TEMP_2             | TEMP_25299           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25300 | TEMP_25300 | SHRP-P             | HW773G9E1B01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25301 | TEMP_25301 | TEMP_2             | TEMP_25301           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25302 | TEMP_25302 | TEMP_2             | TEMP_25302           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25303 | TEMP_25303 | TEMP_2             | TEMP_25303           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25304 | TEMP_25304 | TEMP_2             | TEMP_25304           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25305 | TEMP_25305 | SHRP               | V0LC-01C022-00       | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25306 | TEMP_25306 | TEMP_2             | TEMP_25306           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25307 | TEMP_25307 | VPAA               | VP5N1H-407721-AA     | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25308 | TEMP_25308 | TEMP_2             | TEMP_25308           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25309 | TEMP_25309 | TEMP_2             | TEMP_25309           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25310 | TEMP_25310 | TEMP_2             | TEMP_25310           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25311 | TEMP_25311 | PUNE S             | HR241BAE1B01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25312 | TEMP_25312 | PUNE B             | FC1E1BAE1D01         | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25313 | TEMP_25313 | TEMP_2             | TEMP_25313           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25314 | TEMP_25314 | TEMP_2             | TEMP_25314           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25315 | TEMP_25315 | TEMP_2             | TEMP_25315           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25316 | TEMP_25316 | TEMP_2             | TEMP_25316           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25317 | TEMP_25317 | 9AB                | VPR230-WC9AB-01      | t      |            1 |    5 |           0 |   0 |       1 |           1
+ 25318 | TEMP_25318 | TEMP_2             | TEMP_25318           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25319 | TEMP_25319 | TEMP_2             | TEMP_25319           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25320 | TEMP_25320 | TEMP_2             | TEMP_25320           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25321 | TEMP_25321 | TEMP_2             | TEMP_25321           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25322 | TEMP_25322 | TEMP_2             | TEMP_25322           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25323 | TEMP_25323 | TEMP_2             | TEMP_25323           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25324 | TEMP_25324 | TEMP_2             | TEMP_25324           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25325 | TEMP_25325 | TEMP_2             | TEMP_25325           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25326 | TEMP_25326 | TEMP_2             | TEMP_25326           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25327 | TEMP_25327 | KQ NEW             | F442-KQ              | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25328 | TEMP_25328 | SHRP-T7            | SHRP-T7              | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25329 | TEMP_25329 | SHRP-T10           | SHRP-T10             | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25330 | TEMP_25330 | TEMP_2             | TEMP_25330           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25331 | TEMP_25331 | TEMP_2             | TEMP_25331           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25332 | TEMP_25332 | TEMP_2             | TEMP_25332           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25333 | TEMP_25333 | TEMP_2             | TEMP_25333           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25334 | TEMP_25334 | NA-TB              | WC-SCP-SC21NA-TB-T01 | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25335 | TEMP_25335 | TEMP_2             | TEMP_25335           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25336 | TEMP_25336 | TEMP_2             | TEMP_25336           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25337 | TEMP_25337 | LMM                | WC-SCP-eCC21-Lmm01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25338 | TEMP_25338 | SMM                | WC-SCP-eCC21-Smm01   | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25339 | TEMP_25339 | TEMP_2             | TEMP_25339           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25340 | TEMP_25340 | TEMP_2             | TEMP_25340           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25341 | TEMP_25341 | TEMP_2             | TEMP_25341           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25342 | TEMP_25342 | TEMP_2             | TEMP_25342           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25343 | TEMP_25343 | TEMP_2             | TEMP_25343           | t      |            0 |    0 |           0 |   0 |       1 |           1
+ 25344 | TEMP_25344 | TEMP_2             | TEMP_25344           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25345 | TEMP_25345 | TEMP_2             | TEMP_25345           | t      |            0 |    0 |           0 |   0 |       1 |           0
+ 25346 | TEMP_25346 | TEMP_2             | TEMP_25346           | t      |            0 |    0 |           0 |   0 |       1 |           0
+(208 rows)
+
+warning: Config as Code (railway.json / railway.toml) is deprecated. Prefer Infrastructure as Code (.railway/railway.ts). Run `railway config migrate` or see https://docs.railway.com/infrastructure-as-code#migrating-from-config-as-code
+  → Migrate: `railway config migrate` — https://docs.railway.com/infrastructure-as-code#migrating-from-config-as-code
+  Existing files keep working until 2026-12-01.
