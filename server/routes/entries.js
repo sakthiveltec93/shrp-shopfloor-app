@@ -68,16 +68,19 @@ router.post('/', async (req, res) => {
   let fpaCheck = { rows: [] };
   try {
     fpaCheck = await pool.query(
-      `SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      `SELECT id, approval_status, visual_approved_at, full_approval_deadline 
+       FROM fpa_submissions 
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
       [assignment.rows[0]?.id]
     );
   } catch (fpaErr) {
     console.warn('Could not query fpa_submissions during entry creation:', fpaErr.message);
   }
 
-  if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+  if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck.rows[0].approval_status)) {
     return res.status(403).json({
-      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED before logging production entries.',
+      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (Visual or Full) must be APPROVED before logging production entries.',
       code: 'fpa_required',
       fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
       part_id: assignment.rows[0]?.part_id || session.part_id,
@@ -85,6 +88,36 @@ router.post('/', async (req, res) => {
       mould_id: assignment.rows[0]?.mould_id || null,
       assignment_id: assignment.rows[0]?.id || null,
     });
+  }
+
+  // Tier-2 Gate: If still in VISUAL_APPROVED, check if 3rd entry attempt or past deadline
+  if (fpaCheck.rows[0].approval_status === 'VISUAL_APPROVED') {
+    const visualApprovedAt = fpaCheck.rows[0].visual_approved_at || session.start_time;
+    const entryCountRes = await pool.query(
+      `SELECT count(*) as count 
+       FROM production_entries 
+       WHERE machine_id = $1 AND part_id = $2 AND created_at >= $3`,
+      [session.machine_id, session.part_id, visualApprovedAt]
+    );
+    const entryCount = Number(entryCountRes.rows[0]?.count || 0);
+    const deadline = fpaCheck.rows[0].full_approval_deadline ? new Date(fpaCheck.rows[0].full_approval_deadline) : null;
+    const isPastDeadline = deadline && (new Date() > deadline);
+
+    // Allow entries 1 and 2 (entryCount < 2); hard-block entry 3 (entryCount >= 2) or expired deadline
+    if (entryCount >= 2 || isPastDeadline) {
+      return res.status(403).json({
+        error: 'IATF 16949 Gate: Full FPA Approval Required. The first 2 production entries under Visual Approval are complete (or grace window expired). Full measured FPA must be approved by supervisor before logging entry #3.',
+        code: 'full_fpa_required',
+        fpa_id: fpaCheck.rows[0].id,
+        fpa_status: fpaCheck.rows[0].approval_status,
+        full_approval_deadline: fpaCheck.rows[0].full_approval_deadline,
+        entry_count: entryCount,
+        part_id: assignment.rows[0]?.part_id || session.part_id,
+        machine_id: Number(session.machine_id),
+        mould_id: assignment.rows[0]?.mould_id || null,
+        assignment_id: assignment.rows[0]?.id || null,
+      });
+    }
   }
 
   const lastEntryRes = await pool.query(

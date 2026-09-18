@@ -295,6 +295,7 @@ ALTER TABLE parts ADD COLUMN IF NOT EXISTS notes TEXT;
 CREATE TABLE IF NOT EXISTS part_process_parameters (
   id SERIAL PRIMARY KEY,
   part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
   parameter_name TEXT NOT NULL,
   value TEXT NOT NULL,
   unit TEXT,
@@ -336,7 +337,7 @@ ALTER TABLE part_files ADD COLUMN IF NOT EXISTS storage_key TEXT;
 ALTER TABLE part_files ALTER COLUMN data DROP NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_part_files_part ON part_files(part_id, file_type);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_part_params_unique ON part_process_parameters(part_id, parameter_name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_part_machine_params_unique ON part_process_parameters(part_id, COALESCE(machine_id, -1), parameter_name);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_part_dims_unique ON part_critical_dimensions(part_id, dimension_name);
 
 -- ================================================================
@@ -1134,7 +1135,10 @@ CREATE TABLE IF NOT EXISTS fpa_submissions (
   technician_user_id INTEGER REFERENCES users(id),
   quality_inspector_user_id INTEGER REFERENCES users(id),
   supervisor_user_id INTEGER REFERENCES users(id),
-  approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (approval_status IN ('PENDING', 'APPROVED', 'CONDITIONAL', 'REJECTED')),
+  approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (approval_status IN ('PENDING', 'VISUAL_APPROVED', 'APPROVED', 'CONDITIONAL', 'REJECTED')),
+  visual_approved_at TIMESTAMPTZ,
+  visual_approved_by_user_id INTEGER REFERENCES users(id),
+  full_approval_deadline TIMESTAMPTZ,
   deviation_no TEXT,
   remarks TEXT,
   approved_at TIMESTAMPTZ,

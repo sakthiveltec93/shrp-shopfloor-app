@@ -519,6 +519,48 @@ export default function ProductionEntry() {
             </div>
           </div>
 
+          {/* Persistent Incomplete FPA Warning Banner for Visual Approval */}
+          {assigned?.fpa_approval_status === 'VISUAL_APPROVED' && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(180, 83, 9, 0.22) 100%)',
+              border: '2px solid #f59e0b',
+              borderRadius: 8,
+              padding: '12px 14px',
+              marginBottom: 14,
+              boxShadow: '0 4px 16px rgba(245, 158, 11, 0.15)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ⚠️ FPA Incomplete — Full Approval Required
+                  </div>
+                  <div style={{ color: '#fef3c7', fontSize: 12, marginTop: 4 }}>
+                    Machine running under <strong>Visual Approval</strong> (Entries 1 & 2 allowed). Full measured FPA (process parameters & cavity dimensions) must be signed off by supervisor within 2 hours or before 3rd entry.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFpaModal(true)}
+                  style={{
+                    padding: '7px 14px',
+                    background: '#f59e0b',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  📝 Complete Full FPA
+                </button>
+              </div>
+            </div>
+          )}
+
           {activeTarget && (
             <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div>

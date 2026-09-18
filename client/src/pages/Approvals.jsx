@@ -302,13 +302,19 @@ export default function Approvals() {
                   className="panel"
                   style={{
                     marginBottom: 10,
-                    borderColor: 'rgba(245, 158, 11, 0.4)',
-                    background: 'rgba(245, 158, 11, 0.04)',
+                    borderColor: pf.fpa_status === 'VISUAL_APPROVED' ? 'rgba(245, 158, 11, 0.6)' : 'rgba(245, 158, 11, 0.4)',
+                    background: pf.fpa_status === 'VISUAL_APPROVED' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.04)',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
                     <strong style={{ fontSize: 15 }}>{pf.machine_code}</strong>
-                    <span className="status-pill status-pending">FPA Required</span>
+                    {pf.fpa_status === 'VISUAL_APPROVED' ? (
+                      <span className="status-pill" style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', fontWeight: 700 }}>
+                        ⚡ Visual Approved — Full FPA Due
+                      </span>
+                    ) : (
+                      <span className="status-pill status-pending">FPA Required</span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span className="shrp-code-pill">{pf.shrp_part_code || pf.part_code}</span>
@@ -322,11 +328,15 @@ export default function Approvals() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      style={{ width: 'auto', padding: '7px 14px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      style={{
+                        width: 'auto', padding: '7px 14px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: pf.fpa_status === 'VISUAL_APPROVED' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : undefined,
+                        color: pf.fpa_status === 'VISUAL_APPROVED' ? '#000' : undefined
+                      }}
                       onClick={() => setSelectedFpaAssignment(pf)}
                     >
-                      <span>📝</span>
-                      <span>Fill & Approve FPA Sheet (1st Part)</span>
+                      <span>{pf.fpa_status === 'VISUAL_APPROVED' ? '⚡' : '📝'}</span>
+                      <span>{pf.fpa_status === 'VISUAL_APPROVED' ? 'Complete Full FPA (Measured Readings)' : 'Fill & Approve FPA Sheet (1st Part)'}</span>
                     </button>
                   </div>
                 </div>

@@ -56,6 +56,30 @@ router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res
   if (!machine_id || !part_id) {
     return res.status(400).json({ error: 'machine_id and part_id are required' });
   }
+
+  // Hard Gate: Block requesting a new assignment if current active assignment on machine has incomplete Full FPA
+  const currentAssignment = await pool.query(
+    `SELECT ma.id FROM machine_assignments ma
+     WHERE ma.machine_id = $1 AND ma.status = 'approved'
+     ORDER BY ma.approved_at DESC LIMIT 1`,
+    [machine_id]
+  );
+  if (currentAssignment.rows[0]) {
+    const fpaCheck = await pool.query(
+      `SELECT id, approval_status FROM fpa_submissions
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [currentAssignment.rows[0].id]
+    );
+    if (fpaCheck.rows[0]?.approval_status === 'VISUAL_APPROVED') {
+      return res.status(403).json({
+        error: 'Full FPA approval required for the current setup before changing mould/part on this machine.',
+        code: 'full_fpa_required_for_mould_change',
+        fpa_id: fpaCheck.rows[0].id
+      });
+    }
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO machine_assignments (machine_id, part_id, set_by_user_id, notes, mould_load_started_at)
      VALUES ($1, $2, $3, $4, COALESCE($5, now())) RETURNING *`,
@@ -138,15 +162,15 @@ router.post('/:id/first-ok-part', async (req, res) => {
   const assignment = existing.rows[0];
   if (!assignment) return res.status(404).json({ error: 'Approved assignment not found' });
 
-  // If first_ok_part_at is not set yet, ensure FPA submission has been approved
+  // If first_ok_part_at is not set yet, ensure FPA submission has been approved (Visual or Full)
   if (!assignment.first_ok_part_at) {
     const fpaCheck = await pool.query(
       `SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [id]
     );
-    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck.rows[0].approval_status)) {
       return res.status(403).json({
-        error: 'IATF 16949 Clause 8.5.1.1: First-Piece Approval (FPA) sheet must be filled and APPROVED before marking 1st OK Part.',
+        error: 'IATF 16949 Clause 8.5.1.1: First-Piece Approval (Visual or Full) must be APPROVED before marking 1st OK Part.',
         code: 'fpa_required',
       });
     }

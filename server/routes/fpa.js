@@ -167,16 +167,17 @@ async function fetchFpaInitData({ assignmentId, machineId, partId, mouldId }) {
   const machine = machineRes.rows[0] || null;
   const mould = mouldRes.rows[0] || null;
 
-  // Process parameters standards
+  // Process parameters standards: look up (part_id, machine_id, param), fallback to (part_id, NULL, param)
   const paramsRes = effectivePartId ? await pool.query(
-    `SELECT parameter_name, value, unit, sort_order 
+    `SELECT DISTINCT ON (parameter_name)
+       id, part_id, machine_id, parameter_name, value, unit, sort_order 
      FROM part_process_parameters 
-     WHERE part_id = $1 
-     ORDER BY sort_order, id`,
-    [effectivePartId]
+     WHERE part_id = $1 AND (machine_id = $2 OR machine_id IS NULL)
+     ORDER BY parameter_name, (CASE WHEN machine_id = $2 THEN 0 ELSE 1 END), sort_order, id`,
+    [effectivePartId, effectiveMachineId || null]
   ) : { rows: [] };
 
-  // Critical dimensions standards & tolerances
+  // Critical dimensions standards & tolerances (part-only)
   const dimsRes = effectivePartId ? await pool.query(
     `SELECT id, dimension_name, nominal_value, tol_plus, tol_minus, unit, sort_order 
      FROM part_critical_dimensions 
@@ -501,48 +502,117 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
 
     await client.query('BEGIN');
 
-    // Insert FPA submission record
-    const fpaRes = await client.query(
-      `INSERT INTO fpa_submissions (
-        assignment_id, machine_id, part_id, mould_id,
-        setup_reason, raw_material_id, rm_lot_no,
-        dryer_temp_c, dryer_time_hrs, regrind_pct, regrind_approved,
-        regrind_exceeded_allowed, mould_pm_overdue,
-        process_parameters, visual_checks, dimension_readings,
-        technician_user_id, quality_inspector_user_id, supervisor_user_id,
-        approval_status, deviation_no, remarks,
-        approved_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
-      RETURNING *`,
-      [
-        assign.id,
-        assign.machine_id,
-        assign.part_id,
-        assign.mould_id || mould_id || null,
-        setupReason,
-        effRawMaterialId,
-        effRmLotNo,
-        effDryerTemp ? Number(effDryerTemp) : null,
-        effDryerTime ? Number(effDryerTime) : null,
-        effRegrindPct,
-        Boolean(regrind_approved ?? regrindApproved),
-        regrindExceededAllowed,
-        mouldPmOverdue,
-        JSON.stringify(effProcessParams),
-        JSON.stringify(effVisualChecks),
-        JSON.stringify(finalDimensionReadings),
-        techId,
-        qaId,
-        supId,
-        effStatus,
-        effDeviationNo,
-        effRemarks,
-        (effStatus === 'APPROVED' || effStatus === 'CONDITIONAL') ? new Date() : null,
-      ]
+    const isVisual = effStatus === 'VISUAL_APPROVED';
+    const isFullApproved = effStatus === 'APPROVED' || effStatus === 'CONDITIONAL';
+
+    const visualApprovedAt = isVisual ? new Date() : null;
+    const visualApprovedBy = isVisual ? userId : null;
+    const fullApprovalDeadline = isVisual ? new Date(Date.now() + 2 * 60 * 60 * 1000) : null;
+    const finalApprovedAt = isFullApproved ? new Date() : null;
+
+    // Check if there's an existing FPA submission for this assignment (e.g. updating VISUAL_APPROVED to APPROVED)
+    const existingFpa = await client.query(
+      `SELECT id, approval_status, visual_approved_at, visual_approved_by_user_id, full_approval_deadline 
+       FROM fpa_submissions 
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [assign.id]
     );
 
-    // If FPA is approved, update machine_assignments first_ok_part_at if not set
-    if ((effStatus === 'APPROVED' || effStatus === 'CONDITIONAL') && !assign.first_ok_part_at) {
+    let fpaRes;
+    if (existingFpa.rows[0] && existingFpa.rows[0].approval_status === 'VISUAL_APPROVED' && isFullApproved) {
+      // Transition from VISUAL_APPROVED to APPROVED
+      fpaRes = await client.query(
+        `UPDATE fpa_submissions SET
+          setup_reason = COALESCE($1, setup_reason),
+          raw_material_id = COALESCE($2, raw_material_id),
+          rm_lot_no = COALESCE($3, rm_lot_no),
+          dryer_temp_c = COALESCE($4, dryer_temp_c),
+          dryer_time_hrs = COALESCE($5, dryer_time_hrs),
+          regrind_pct = COALESCE($6, regrind_pct),
+          regrind_approved = COALESCE($7, regrind_approved),
+          regrind_exceeded_allowed = COALESCE($8, regrind_exceeded_allowed),
+          mould_pm_overdue = COALESCE($9, mould_pm_overdue),
+          process_parameters = $10,
+          visual_checks = $11,
+          dimension_readings = $12,
+          quality_inspector_user_id = COALESCE($13, quality_inspector_user_id),
+          supervisor_user_id = COALESCE($14, supervisor_user_id),
+          approval_status = $15,
+          deviation_no = $16,
+          remarks = COALESCE($17, remarks),
+          approved_at = $18
+        WHERE id = $19
+        RETURNING *`,
+        [
+          setupReason,
+          effRawMaterialId,
+          effRmLotNo,
+          effDryerTemp ? Number(effDryerTemp) : null,
+          effDryerTime ? Number(effDryerTime) : null,
+          effRegrindPct,
+          Boolean(regrind_approved ?? regrindApproved),
+          regrindExceededAllowed,
+          mouldPmOverdue,
+          JSON.stringify(effProcessParams),
+          JSON.stringify(effVisualChecks),
+          JSON.stringify(finalDimensionReadings),
+          qaId,
+          supId,
+          effStatus,
+          effDeviationNo,
+          effRemarks,
+          finalApprovedAt,
+          existingFpa.rows[0].id
+        ]
+      );
+    } else {
+      // Insert new FPA submission record
+      fpaRes = await client.query(
+        `INSERT INTO fpa_submissions (
+          assignment_id, machine_id, part_id, mould_id,
+          setup_reason, raw_material_id, rm_lot_no,
+          dryer_temp_c, dryer_time_hrs, regrind_pct, regrind_approved,
+          regrind_exceeded_allowed, mould_pm_overdue,
+          process_parameters, visual_checks, dimension_readings,
+          technician_user_id, quality_inspector_user_id, supervisor_user_id,
+          approval_status, visual_approved_at, visual_approved_by_user_id, full_approval_deadline,
+          deviation_no, remarks, approved_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        RETURNING *`,
+        [
+          assign.id,
+          assign.machine_id,
+          assign.part_id,
+          assign.mould_id || mould_id || null,
+          setupReason,
+          effRawMaterialId,
+          effRmLotNo,
+          effDryerTemp ? Number(effDryerTemp) : null,
+          effDryerTime ? Number(effDryerTime) : null,
+          effRegrindPct,
+          Boolean(regrind_approved ?? regrindApproved),
+          regrindExceededAllowed,
+          mouldPmOverdue,
+          JSON.stringify(effProcessParams),
+          JSON.stringify(effVisualChecks),
+          JSON.stringify(finalDimensionReadings),
+          techId,
+          qaId,
+          supId,
+          effStatus,
+          visualApprovedAt,
+          visualApprovedBy,
+          fullApprovalDeadline,
+          effDeviationNo,
+          effRemarks,
+          finalApprovedAt,
+        ]
+      );
+    }
+
+    // If FPA is approved (visual or full), update machine_assignments first_ok_part_at if not set
+    if ((isFullApproved || isVisual) && !assign.first_ok_part_at) {
       await client.query(
         `UPDATE machine_assignments SET first_ok_part_at = now() WHERE id = $1`,
         [assign.id]

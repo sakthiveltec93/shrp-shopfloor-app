@@ -205,7 +205,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
     return num >= Number(lsl) && num <= Number(usl);
   };
 
-  const validateForm = () => {
+  const validateForm = (isVisualOnly = false) => {
     if (!rawMaterialLotNo) {
       return 'Raw Material Lot / Heat No is required.';
     }
@@ -213,16 +213,18 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
     if (Number(regrindPercentage) > maxRegrind) {
       return `Regrind % (${regrindPercentage}%) exceeds the approved maximum of ${maxRegrind}% for this part recipe.`;
     }
-    if (!dimensionReadings || dimensionReadings.length === 0 || dimensionReadings.every((d) => !d.parameter_name || !d.parameter_name.trim())) {
-      return 'Cannot submit FPA: No critical dimensions are configured for this part. Please configure dimensions in Part Master or click "+ Add Parameter" before submitting.';
+    if (!isVisualOnly) {
+      if (!dimensionReadings || dimensionReadings.length === 0 || dimensionReadings.every((d) => !d.parameter_name || !d.parameter_name.trim())) {
+        return 'Cannot submit Full FPA: No critical dimensions are configured for this part. Please configure dimensions in Part Master or click "+ Add Parameter" before submitting.';
+      }
     }
     return null;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleVisualSubmit = async (e) => {
+    if (e) e.preventDefault();
     setError('');
-    const valErr = validateForm();
+    const valErr = validateForm(true);
     if (valErr) {
       setError(valErr);
       return;
@@ -243,8 +245,47 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         process_parameters: processParameters,
         dimension_readings: dimensionReadings,
         stage_signoffs: signoffs,
-        approval_status: approvalStatus,
-        remarks: remarks || 'Initial setup verification complete per IATF 16949 standards.',
+        approval_status: 'VISUAL_APPROVED',
+        remarks: remarks || 'Visual approval granted. Machine unblocked; Full FPA due within 2 hours.',
+      };
+
+      const res = await api.fpa.submit(payload);
+      setSubmittedFpa(res.submission);
+      localStorage.removeItem(draftKey);
+      if (onSuccess) onSuccess(res.submission);
+    } catch (err) {
+      setError(err.message || 'Failed to submit Visual Approval');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    const valErr = validateForm(false);
+    if (valErr) {
+      setError(valErr);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const visualPassed = Object.values(visualChecks).every(Boolean);
+      const payload = {
+        assignment_id: effAssignmentId || null,
+        machine_id: effMachineId,
+        part_id: effPartId,
+        mould_id: effMouldId || fpaData.mould?.id || null,
+        raw_material_id: rawMaterialId || null,
+        raw_material_lot_no: rawMaterialLotNo,
+        regrind_percentage: Number(regrindPercentage) || 0,
+        visual_check_passed: visualPassed,
+        process_parameters: processParameters,
+        dimension_readings: dimensionReadings,
+        stage_signoffs: signoffs,
+        approval_status: approvalStatus === 'VISUAL_APPROVED' ? 'APPROVED' : approvalStatus,
+        remarks: remarks || 'Full setup verification complete per IATF 16949 standards.',
       };
 
       const res = await api.fpa.submit(payload);
@@ -309,14 +350,28 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
           ) : submittedFpa ? (
             /* Success Screen with PDF Download */
             <div style={{ padding: '30px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '2px solid var(--green)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                ✓
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: submittedFpa.approval_status === 'VISUAL_APPROVED' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34,197,94,0.15)',
+                border: `2px solid ${submittedFpa.approval_status === 'VISUAL_APPROVED' ? 'var(--amber)' : 'var(--green)'}`,
+                color: submittedFpa.approval_status === 'VISUAL_APPROVED' ? 'var(--amber)' : 'var(--green)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28
+              }}>
+                {submittedFpa.approval_status === 'VISUAL_APPROVED' ? '⚡' : '✓'}
               </div>
               <h3 style={{ margin: 0, fontSize: 18, color: '#fff' }}>
-                FPA Approved & Verified!
+                {submittedFpa.approval_status === 'VISUAL_APPROVED' ? '⚡ Visual Approval Granted!' : 'FPA Approved & Verified!'}
               </h3>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', maxWidth: 440 }}>
-                Inspection Report <strong style={{ color: 'var(--amber)' }}>#{submittedFpa.inspection_no}</strong> is active. Machine session is cleared for production.
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', maxWidth: 460 }}>
+                {submittedFpa.approval_status === 'VISUAL_APPROVED' ? (
+                  <>
+                    Machine is unblocked and permitted to start production. <strong style={{ color: 'var(--amber)' }}>Full measured FPA must be completed by supervisor within 2 hours</strong> (or before 3rd entry).
+                  </>
+                ) : (
+                  <>
+                    Inspection Report <strong style={{ color: 'var(--amber)' }}>#{submittedFpa.inspection_no}</strong> is active. Full setup verification complete and certified.
+                  </>
+                )}
               </p>
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 }}>
@@ -336,7 +391,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                   className="btn btn-secondary"
                   style={{ padding: '8px 16px', fontSize: 13 }}
                 >
-                  Done & Start Production
+                  Done & Close
                 </button>
               </div>
             </div>
@@ -831,11 +886,11 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--line)', paddingTop: 14, flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span>●</span> Auto-draft saved locally
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={onClose}
@@ -845,12 +900,31 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     Cancel
                   </button>
                   <button
+                    type="button"
+                    onClick={handleVisualSubmit}
+                    disabled={submitting || isRegrindExceeded}
+                    className="btn"
+                    style={{
+                      padding: '8px 16px', fontSize: 12, fontWeight: 700,
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: '#000', border: 'none', borderRadius: 6,
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <span>⚡</span>
+                    <span>{submitting ? 'Processing...' : 'Quick Visual Approval (Unblock Machine)'}</span>
+                  </button>
+                  <button
                     type="submit"
                     disabled={submitting || isRegrindExceeded}
                     className="btn btn-primary"
-                    style={{ padding: '8px 20px', fontSize: 12, fontWeight: 700 }}
+                    style={{
+                      padding: '8px 18px', fontSize: 12, fontWeight: 700,
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    }}
                   >
-                    {submitting ? 'Submitting...' : 'Sign & Submit FPA Approval'}
+                    <span>🛡️</span>
+                    <span>{submitting ? 'Submitting...' : 'Sign & Submit Full FPA'}</span>
                   </button>
                 </div>
               </div>

@@ -107,9 +107,9 @@ router.post('/start', async (req, res) => {
       console.warn('Could not query fpa_submissions during machine start:', fpaErr.message);
     }
 
-    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL'].includes(fpaCheck.rows[0].approval_status)) {
+    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck.rows[0].approval_status)) {
       return res.status(403).json({
-        error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA) must be APPROVED by QA / Supervisor before starting production session.',
+        error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (Visual or Full) must be APPROVED by QA / Supervisor before starting production session.',
         code: 'fpa_required',
         fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
         part_id: assignment.rows[0].part_id,
@@ -138,24 +138,32 @@ router.post('/start', async (req, res) => {
   } catch (err) {
     if (err.code === '23505') { // unique_violation on the partial index
       try {
-        const active = await pool.query(
-          `SELECT ms.*, u.full_name AS operator_name FROM machine_sessions ms
+        const conflict = await pool.query(
+          `SELECT ms.*, u.full_name AS operator_name, m.machine_code
+           FROM machine_sessions ms
            JOIN users u ON u.id = ms.operator_user_id
+           JOIN machines m ON m.id = ms.machine_id
            WHERE ms.machine_id = $1 AND ms.status = 'RUNNING'`,
-          [req.body.machine_id]
+          [machine_id]
         );
-        const who = active.rows[0]?.operator_name || 'another operator';
-        return res.status(409).json({ error: `This machine is already running under ${who}. They need to submit Change Operator or Off Machine first.` });
-      } catch (innerErr) {
-        return res.status(409).json({ error: 'This machine is already running under another active session.' });
+        const existing = conflict.rows[0];
+        if (existing) {
+          return res.status(409).json({
+            error: `${existing.machine_code} is already RUNNING under ${existing.operator_name} (started ${new Date(existing.start_time).toLocaleTimeString()}). Switch OFF the active session before starting a new one.`,
+            active_session: existing,
+          });
+        }
+      } catch (inner) {
+        console.error('Failed to look up conflicting session:', inner);
       }
+      return res.status(409).json({ error: 'This machine is already running under another operator.' });
     }
-    console.error('Error starting machine session:', err);
-    res.status(500).json({ error: 'Failed to start machine session: ' + err.message });
+    console.error('Start session error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Off Machine - closes the session.
+// Switch OFF a machine (close active session)
 router.post('/:id/off', async (req, res) => {
   const { id } = req.params;
   const { off_count, off_reason, off_remarks, new_operator_user_id } = req.body;
@@ -168,6 +176,26 @@ router.post('/:id/off', async (req, res) => {
   if (!current) return res.status(404).json({ error: 'Running session not found' });
   if (current.operator_user_id !== req.user.id && req.user.role === 'operator') {
     return res.status(403).json({ error: 'Only the operator who started this machine can switch it off. Ask a supervisor for help.' });
+  }
+
+  // Hard Gate: Check if active assignment on this machine has incomplete visual FPA
+  const assignment = await pool.query(
+    `SELECT id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
+    [current.machine_id]
+  );
+  if (assignment.rows[0]) {
+    const fpaCheck = await pool.query(
+      `SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [assignment.rows[0].id]
+    );
+    // Block routine power-off if Full FPA is incomplete; allow breakdown/emergency for physical safety
+    if (fpaCheck.rows[0]?.approval_status === 'VISUAL_APPROVED' && !['breakdown', 'emergency'].includes(off_reason)) {
+      return res.status(403).json({
+        error: 'Full FPA approval required before this machine can be powered off for shift or mould completion. Please complete Full FPA or select Breakdown if stopping for maintenance.',
+        code: 'full_fpa_required_for_off',
+        fpa_id: fpaCheck.rows[0].id
+      });
+    }
   }
 
   const client = await pool.connect();
