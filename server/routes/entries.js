@@ -262,7 +262,7 @@ router.get('/', async (req, res) => {
     JOIN machines m ON m.id = pe.machine_id
     JOIN parts p ON p.id = pe.part_id
     JOIN users u ON u.id = pe.operator_user_id
-    WHERE ${where}
+    WHERE ${where} AND m.category = 'PRODUCTION'
     ORDER BY pe.machine_id, COALESCE(pe.period_start_at, pe.start_time, pe.created_at) ASC, pe.hour_slot ASC
   `, params);
   res.json(rows);
