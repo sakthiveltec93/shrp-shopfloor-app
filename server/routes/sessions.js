@@ -93,31 +93,9 @@ router.post('/start', async (req, res) => {
       return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
     }
 
-    // Hard IATF 16949 Gate: Check if FPA has been approved for this specific assignment
-    let fpaCheck = { rows: [] };
-    try {
-      fpaCheck = await pool.query(
-        `SELECT id, approval_status 
-         FROM fpa_submissions 
-         WHERE assignment_id = $1 
-         ORDER BY created_at DESC LIMIT 1`,
-        [assignment.rows[0].id]
-      );
-    } catch (fpaErr) {
-      console.warn('Could not query fpa_submissions during machine start:', fpaErr.message);
-    }
-
-    if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck.rows[0].approval_status)) {
-      return res.status(403).json({
-        error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (Visual or Full) must be APPROVED by QA / Supervisor before starting production session.',
-        code: 'fpa_required',
-        fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
-        part_id: assignment.rows[0].part_id,
-        machine_id: Number(machine_id),
-        mould_id: assignment.rows[0].mould_id,
-        assignment_id: assignment.rows[0].id
-      });
-    }
+    // No FPA gate here: starting the machine (warm-up/setup) produces nothing by itself.
+    // The IATF 16949 Clause 8.5.1.1 first-piece gate is enforced on the first production
+    // entry instead (see entries.js), since that's the point actual output gets counted.
 
     const { rows } = await pool.query(
       `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)

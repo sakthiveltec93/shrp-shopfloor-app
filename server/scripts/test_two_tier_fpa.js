@@ -53,10 +53,11 @@ async function testTwoTierFpaWorkflow() {
     testAssignmentId = assignRes.rows[0].id;
     console.log(`[PASS] 3. Created Approved Machine Assignment: ID=${testAssignmentId}`);
 
-    // 4. Test Machine Start GATE BEFORE ANY FPA -> Must be BLOCKED
+    // 4. Machine start is never FPA-gated (starting produces nothing by itself).
+    //    The gate instead applies to the first production ENTRY -> must be BLOCKED before any FPA.
     const fpaCheck0 = await client.query(`SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`, [testAssignmentId]);
-    const canStart0 = fpaCheck0.rows[0] && ['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck0.rows[0].approval_status);
-    console.log(`[PASS] 4. Machine Start Gate (Pre-FPA): Blocked as expected? ${!canStart0 ? 'YES (BLOCKED)' : 'NO (ERROR)'}`);
+    const canLogEntry0 = fpaCheck0.rows[0] && ['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck0.rows[0].approval_status);
+    console.log(`[PASS] 4. Production Entry #1 Gate (Pre-FPA): Blocked as expected? ${!canLogEntry0 ? 'YES (BLOCKED)' : 'NO (ERROR)'}`);
 
     // 5. Submit Tier-1 Visual Approval
     const visualRes = await client.query(`
@@ -71,10 +72,10 @@ async function testTwoTierFpaWorkflow() {
     testFpaId = visualRes.rows[0].id;
     console.log(`[PASS] 5. Submitted Tier-1 Visual Approval: ID=${testFpaId}, Status=${visualRes.rows[0].approval_status}, Deadline=${visualRes.rows[0].full_approval_deadline}`);
 
-    // 6. Test Machine Start GATE AFTER VISUAL APPROVAL -> Must SUCCEED
+    // 6. Test Production Entry #1 Gate AFTER VISUAL APPROVAL -> Must SUCCEED (machine start itself was never gated)
     const fpaCheck1 = await client.query(`SELECT id, approval_status FROM fpa_submissions WHERE assignment_id = $1 ORDER BY created_at DESC LIMIT 1`, [testAssignmentId]);
-    const canStart1 = fpaCheck1.rows[0] && ['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck1.rows[0].approval_status);
-    console.log(`[PASS] 6. Machine Start Gate (Post-Visual Approval): Unblocked? ${canStart1 ? 'YES (UNBLOCKED)' : 'NO (ERROR)'}`);
+    const canLogEntry1 = fpaCheck1.rows[0] && ['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck1.rows[0].approval_status);
+    console.log(`[PASS] 6. Production Entry #1 Gate (Post-Visual Approval): Unblocked? ${canLogEntry1 ? 'YES (UNBLOCKED)' : 'NO (ERROR)'}`);
 
     const sessionRes = await client.query(`
       INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count, status)
