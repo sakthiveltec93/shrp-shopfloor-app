@@ -34,6 +34,7 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [shots, setShots] = useState(''); // Calculated: End Count - Start Count
 
   useEffect(() => {
     Promise.all([
@@ -47,16 +48,31 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
     }).catch(() => {});
   }, []);
 
-  // Auto-calculate Good Qty = End Count - Start Count
+  // Auto-calculate Shots and Good Qty based on cavity count
+  // Shots = End Count - Start Count
+  // Good Qty = Shots × Number of Cavities
   useEffect(() => {
     if (startCount !== '' && endCount !== '') {
       const start = Number(startCount);
       const end = Number(endCount);
       if (!isNaN(start) && !isNaN(end)) {
-        setGoodQty(end - start);
+        const calculatedShots = end - start;
+        setShots(calculatedShots);
+
+        // Get cavity count from selected part
+        if (partId) {
+          const selectedPart = parts.find(p => String(p.id) === String(partId));
+          if (selectedPart) {
+            const cavities = selectedPart.cavity_count || selectedPart.cavities_for_part || selectedPart.cavities || 1;
+            const calculatedGoodQty = calculatedShots * cavities;
+            setGoodQty(calculatedGoodQty);
+          }
+        }
       }
+    } else {
+      setShots('');
     }
-  }, [startCount, endCount]);
+  }, [startCount, endCount, partId, parts]);
 
   // VBA Auto-lookup on Machine + Date change for backdating
   useEffect(() => {
@@ -280,10 +296,16 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="good">Good Qty * (Auto-calculated)</label>
-                  <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} required disabled style={{ background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' }} />
+                  <label htmlFor="shots">Shots * (Auto)</label>
+                  <input id="shots" type="number" value={shots} disabled style={{ background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' }} />
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>End - Start</div>
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="good">Good Qty * (Auto)</label>
+                  <input id="good" type="number" value={goodQty} disabled style={{ background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' }} />
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Shots × Cavities</div>
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label htmlFor="rej">Reject Qty</label>
@@ -319,10 +341,16 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="shots">Shots {startCount && endCount ? '(Auto)' : ''}</label>
+                  <input id="shots" type="number" value={shots} style={startCount && endCount ? { background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' } : {}} disabled={startCount && endCount ? true : false} />
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>End - Start</div>
+                </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label htmlFor="good">Good Qty {startCount && endCount ? '(Auto)' : ''}</label>
                   <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} style={startCount && endCount ? { background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' } : {}} disabled={startCount && endCount ? true : false} />
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Shots × Cavities</div>
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label htmlFor="rej">Reject Qty</label>
