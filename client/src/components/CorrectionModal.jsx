@@ -59,11 +59,12 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
         const calculatedShots = end - start;
         setShots(calculatedShots);
 
-        // Get cavity count from selected part
-        if (partId) {
+        // Get cavity count from selected part - API returns cavities_for_part (or falls back to cavity_count)
+        if (partId && parts.length > 0) {
           const selectedPart = parts.find(p => String(p.id) === String(partId));
           if (selectedPart) {
-            const cavities = selectedPart.cavity_count || selectedPart.cavities_for_part || selectedPart.cavities || 1;
+            // cavities_for_part is what the API returns (coalesced value from mould_parts or parts.cavity_count)
+            const cavities = Number(selectedPart.cavities_for_part) || Number(selectedPart.cavity_count) || 1;
             const calculatedGoodQty = calculatedShots * cavities;
             setGoodQty(calculatedGoodQty);
           }
