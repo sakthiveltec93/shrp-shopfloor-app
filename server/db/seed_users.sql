@@ -1,8 +1,8 @@
 -- Bulk operator/supervisor/admin accounts from the shop-floor master list.
--- All PINs are '1111' (bcrypt hash below) - operators should change these
+-- Canonical 26-user roster (21 operators, 3 supervisors, 2 admins + default admin).
+-- All default PINs are '1111' (bcrypt hash below) - operators should change these
 -- via Change PIN after first login. Safe to re-run: existing usernames and
--- page-access rows are left untouched (ON CONFLICT DO NOTHING), so this only
--- adds accounts/pages that don't already exist.
+-- page-access rows are left untouched (ON CONFLICT DO NOTHING).
 
 INSERT INTO users (username, pin_hash, full_name, role) VALUES
   ('ambika', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'AMBIKA', 'operator'),
@@ -12,6 +12,7 @@ INSERT INTO users (username, pin_hash, full_name, role) VALUES
   ('bijoy', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'BIJOY', 'operator'),
   ('dhatchayani', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'DHATCHAYANI', 'operator'),
   ('jaganath', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'JAGANATH BISWAL', 'operator'),
+  ('janani', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'JANANI', 'supervisor'),
   ('jiban', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'JIBAN', 'operator'),
   ('jitan', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'JITAN BISWAL', 'operator'),
   ('mathi', '$2b$10$O/y.2iypRxkJQWgwFfsGt.BT.IIidKClGwkvIXaAbI3nyI9mR0c2G', 'MATHI', 'operator'),
@@ -51,6 +52,16 @@ JOIN (VALUES
   ('jaganath', 'inspection'),
   ('jaganath', 'packing'),
   ('jaganath', 'log'),
+  ('janani', 'mould_setup'),
+  ('janani', 'entry'),
+  ('janani', 'bag_entry'),
+  ('janani', 'trimming'),
+  ('janani', 'inspection'),
+  ('janani', 'packing'),
+  ('janani', 'log'),
+  ('janani', 'approvals'),
+  ('janani', 'parts'),
+  ('janani', 'attendance'),
   ('jiban', 'entry'),
   ('jiban', 'log'),
   ('jitan', 'entry'),
@@ -91,6 +102,7 @@ JOIN (VALUES
   ('sakthivel', 'approvals'),
   ('sakthivel', 'parts'),
   ('sakthivel', 'users'),
+  ('shanthi', 'trimming'),
   ('shanthi', 'log'),
   ('soni', 'trimming'),
   ('soni', 'log'),

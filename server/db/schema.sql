@@ -1211,5 +1211,9 @@ CREATE TABLE IF NOT EXISTS document_sequences (
 
 CREATE INDEX IF NOT EXISTS idx_document_sequences_type ON document_sequences(document_type);
 
-
-
+-- Applied seeds tracking (one-time execution for seed files like seed_users.sql)
+CREATE TABLE IF NOT EXISTS applied_seeds (
+  id SERIAL PRIMARY KEY,
+  filename TEXT UNIQUE NOT NULL,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
