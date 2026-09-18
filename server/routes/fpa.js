@@ -584,9 +584,9 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
           regrind_exceeded_allowed, mould_pm_overdue,
           process_parameters, visual_checks, dimension_readings,
           technician_user_id, quality_inspector_user_id, supervisor_user_id,
-          approval_status, visual_approved_at, visual_approved_by_user_id, full_approval_deadline,
+          submission_type, approval_status, visual_approved_at, visual_approved_by_user_id, full_approval_deadline,
           deviation_no, remarks, approved_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
         RETURNING *`,
         [
           assign.id,
@@ -608,6 +608,7 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
           techId,
           qaId,
           supId,
+          req.body.submission_type || 'FPA',
           effStatus,
           visualApprovedAt,
           visualApprovedBy,

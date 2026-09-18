@@ -1196,6 +1196,10 @@ CREATE TABLE IF NOT EXISTS fpa_submissions (
 CREATE INDEX IF NOT EXISTS idx_fpa_assignment ON fpa_submissions(assignment_id);
 CREATE INDEX IF NOT EXISTS idx_fpa_status ON fpa_submissions(approval_status);
 
+-- Add submission_type to distinguish FPA vs First-Off Sign-Off
+ALTER TABLE fpa_submissions ADD COLUMN IF NOT EXISTS submission_type TEXT NOT NULL DEFAULT 'FPA' CHECK (submission_type IN ('FPA', 'FIRST_OFF_SIGNOFF'));
+CREATE INDEX IF NOT EXISTS idx_fpa_submission_type ON fpa_submissions(submission_type);
+
 -- 10. Update Deletion Requests Governance Check Constraint
 DO $$
 BEGIN

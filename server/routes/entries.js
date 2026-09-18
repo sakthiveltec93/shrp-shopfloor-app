@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
     return res.status(403).json({ error: 'This machine is running under another operator. You cannot log entries for it.' });
   }
 
-  // Hard IATF 16949 Gate: Check if FPA has been approved for the current machine assignment
+  // Hard IATF 16949 Gate: Check if FPA OR First-Off Sign-Off has been approved for the current machine assignment
   const assignment = await pool.query(
     `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
     [session.machine_id]
@@ -68,9 +68,10 @@ router.post('/', async (req, res) => {
   let fpaCheck = { rows: [] };
   try {
     fpaCheck = await pool.query(
-      `SELECT id, approval_status, visual_approved_at, full_approval_deadline 
-       FROM fpa_submissions 
-       WHERE assignment_id = $1 
+      `SELECT id, approval_status, visual_approved_at, full_approval_deadline, submission_type
+       FROM fpa_submissions
+       WHERE assignment_id = $1
+       AND submission_type IN ('FPA', 'FIRST_OFF_SIGNOFF')
        ORDER BY created_at DESC LIMIT 1`,
       [assignment.rows[0]?.id]
     );
@@ -80,9 +81,10 @@ router.post('/', async (req, res) => {
 
   if (!fpaCheck.rows[0] || !['APPROVED', 'CONDITIONAL', 'VISUAL_APPROVED'].includes(fpaCheck.rows[0].approval_status)) {
     return res.status(403).json({
-      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (Visual or Full) must be APPROVED before logging production entries.',
-      code: 'fpa_required',
-      fpa_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
+      error: 'IATF 16949 Clause 8.5.1.1 Gate: First-Piece Approval (FPA or First-Off Sign-Off) must be VISUAL APPROVED before logging production entries.',
+      code: 'approval_required',
+      approval_status: fpaCheck.rows[0] ? fpaCheck.rows[0].approval_status : 'NOT_SUBMITTED',
+      submission_type: fpaCheck.rows[0]?.submission_type || null,
       part_id: assignment.rows[0]?.part_id || session.part_id,
       machine_id: Number(session.machine_id),
       mould_id: assignment.rows[0]?.mould_id || null,
@@ -90,26 +92,28 @@ router.post('/', async (req, res) => {
     });
   }
 
-  // Tier-2 Gate: If still in VISUAL_APPROVED, check if 3rd entry attempt or past deadline
+  // Tier-2 Gate: If still in VISUAL_APPROVED, block entry 2+ until FULL approval
   if (fpaCheck.rows[0].approval_status === 'VISUAL_APPROVED') {
     const visualApprovedAt = fpaCheck.rows[0].visual_approved_at || session.start_time;
     const entryCountRes = await pool.query(
-      `SELECT count(*) as count 
-       FROM production_entries 
-       WHERE machine_id = $1 AND part_id = $2 AND created_at >= $3`,
-      [session.machine_id, session.part_id, visualApprovedAt]
+      `SELECT count(*) as count
+       FROM production_entries
+       WHERE assignment_id = $1 AND created_at >= $2`,
+      [assignment.rows[0]?.id, visualApprovedAt]
     );
     const entryCount = Number(entryCountRes.rows[0]?.count || 0);
     const deadline = fpaCheck.rows[0].full_approval_deadline ? new Date(fpaCheck.rows[0].full_approval_deadline) : null;
     const isPastDeadline = deadline && (new Date() > deadline);
 
-    // Allow entries 1 and 2 (entryCount < 2); hard-block entry 3 (entryCount >= 2) or expired deadline
+    // Allow entries 1 and 2 (entryCount < 2); hard-block entry 3+ (entryCount >= 2) or expired deadline
     if (entryCount >= 2 || isPastDeadline) {
+      const approvalType = fpaCheck.rows[0].submission_type === 'FIRST_OFF_SIGNOFF' ? 'First-Off Sign-Off' : 'FPA';
       return res.status(403).json({
-        error: 'IATF 16949 Gate: Full FPA Approval Required. The first 2 production entries under Visual Approval are complete (or grace window expired). Full measured FPA must be approved by supervisor before logging entry #3.',
-        code: 'full_fpa_required',
-        fpa_id: fpaCheck.rows[0].id,
-        fpa_status: fpaCheck.rows[0].approval_status,
+        error: `IATF 16949 Gate: Full ${approvalType} Approval Required. The first 2 production entries under Visual Approval are complete (or grace window expired). Full approval must be confirmed by supervisor before logging entry #3.`,
+        code: 'full_approval_required',
+        submission_id: fpaCheck.rows[0].id,
+        submission_type: fpaCheck.rows[0].submission_type,
+        approval_status: fpaCheck.rows[0].approval_status,
         full_approval_deadline: fpaCheck.rows[0].full_approval_deadline,
         entry_count: entryCount,
         part_id: assignment.rows[0]?.part_id || session.part_id,

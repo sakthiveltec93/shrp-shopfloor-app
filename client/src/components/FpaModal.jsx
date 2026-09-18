@@ -59,6 +59,9 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
   // Multi-cavity Dimension Readings
   const [dimensionReadings, setDimensionReadings] = useState([]);
 
+  // FPA Mode: 'first_off' (5 samples) vs 'full_fpa' (all cavities)
+  const [fpaMode, setFpaMode] = useState('first_off');
+
   // Sign-offs & Approval
   const [signoffs, setSignoffs] = useState({
     technician_signed: false,
@@ -247,8 +250,9 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         process_parameters: processParameters,
         dimension_readings: dimensionReadings,
         stage_signoffs: signoffs,
+        submission_type: fpaMode === 'first_off' ? 'FIRST_OFF_SIGNOFF' : 'FPA',
         approval_status: 'VISUAL_APPROVED',
-        remarks: remarks || 'Visual approval granted. Machine unblocked; Full FPA due within 2 hours.',
+        remarks: remarks || 'Visual approval granted. Machine unblocked; Full approval due within 2 hours.',
         visual_approved_at: customVisualTime ? new Date(customVisualTime).toISOString() : undefined,
       };
 
@@ -287,9 +291,10 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
         process_parameters: processParameters,
         dimension_readings: dimensionReadings,
         stage_signoffs: signoffs,
+        submission_type: fpaMode === 'first_off' ? 'FIRST_OFF_SIGNOFF' : 'FPA',
         approval_status: approvalStatus === 'VISUAL_APPROVED' ? 'APPROVED' : approvalStatus,
         deviation_no: deviationNo || null,
-        remarks: remarks || 'Full setup verification complete per IATF 16949 standards.',
+        remarks: remarks || 'Full approval verified per IATF 16949 standards.',
         visual_approved_at: customVisualTime ? new Date(customVisualTime).toISOString() : undefined,
         approved_at: customApprovalTime ? new Date(customApprovalTime).toISOString() : undefined,
       };
@@ -299,13 +304,15 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
       localStorage.removeItem(draftKey);
       if (onSuccess) onSuccess(res.submission);
     } catch (err) {
-      setError(err.message || 'Failed to submit First-Piece Approval');
+      const submissionType = fpaMode === 'first_off' ? 'First-Off Sign-Off' : 'First-Piece Approval';
+      setError(err.message || `Failed to submit ${submissionType}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const cavityCount = Math.max(1, Number(fpaData.part?.cavity_count) || 1);
+  const totalCavities = Math.max(1, Number(fpaData.part?.cavity_count) || 1);
+  const cavityCount = fpaMode === 'first_off' ? Math.min(5, totalCavities) : totalCavities;
   const maxRegrind = Number(fpaData.recipe?.max_allowed_regrind_pct) || 0;
   const isRegrindExceeded = Number(regrindPercentage) > maxRegrind;
 
@@ -588,6 +595,35 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                 )}
               </div>
 
+              {/* FPA Mode Selector */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div>
+                  <strong style={{ fontSize: 12, color: 'var(--text)' }}>Inspection Scope:</strong>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 10px', background: fpaMode === 'first_off' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.02)', borderRadius: 6, border: `1px solid ${fpaMode === 'first_off' ? 'var(--blue)' : 'var(--line)'}` }}>
+                  <input
+                    type="radio"
+                    name="fpa_mode"
+                    value="first_off"
+                    checked={fpaMode === 'first_off'}
+                    onChange={(e) => setFpaMode(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)' }}>📋 First-Off Sign-Off (5 Samples)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '6px 10px', background: fpaMode === 'full_fpa' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.02)', borderRadius: 6, border: `1px solid ${fpaMode === 'full_fpa' ? 'var(--green)' : 'var(--line)'}` }}>
+                  <input
+                    type="radio"
+                    name="fpa_mode"
+                    value="full_fpa"
+                    checked={fpaMode === 'full_fpa'}
+                    onChange={(e) => setFpaMode(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--green)' }}>✓ Full FPA (All {cavityCount} Cavities)</span>
+                </label>
+              </div>
+
               {/* SECTION D: Multi-Cavity Dimensional Inspection */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: 8, marginBottom: 12 }}>
@@ -596,7 +632,10 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                       Section D: Multi-Cavity Dimensional Tolerance Inspection
                     </strong>
                     <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                      First-Off Form: Cavity-wise dimensional readings with SPC checks. Auto-detects PASS/FAIL status based on LSL/USL. Cavities: {cavityCount} · Instruments & Tolerances from Part Master
+                      {fpaMode === 'first_off'
+                        ? `🎯 First-Off Mode: Measure 5 representative samples (1 part from different cavities). Validates setup correctness.`
+                        : `✓ Full FPA Mode: Measure all ${cavityCount} cavities for complete approval. SPC checks auto-detect PASS/FAIL based on LSL/USL.`}
+                      Instruments & Tolerances from Part Master.
                     </div>
                   </div>
                   <button
@@ -608,6 +647,12 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     + Add Parameter
                   </button>
                 </div>
+
+                {fpaMode === 'first_off' && (
+                  <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid var(--blue)', borderRadius: 8, padding: '10px 12px', color: 'var(--blue)', fontSize: 12, marginBottom: 10 }}>
+                    <strong>📊 First-Off Sampling Guide:</strong> Measure 5 representative parts from cavities 1, 7, 13, 19, and last cavity. This validates setup correctness without measuring all cavities.
+                  </div>
+                )}
 
                 {dimensionReadings.length === 0 ? (
                   <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--red)', borderRadius: 8, padding: '14px 16px', color: 'var(--red)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6, margin: '8px 0' }}>
@@ -636,9 +681,16 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                           <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>LSL</th>
                           <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>USL</th>
                           <th style={{ padding: '6px 8px', width: 110 }}>Gauge</th>
-                          {Array.from({ length: cavityCount }).map((_, cIdx) => (
-                            <th key={cIdx} style={{ padding: '6px 8px', textAlign: 'center', width: 70 }}>Cav #{cIdx + 1}</th>
-                          ))}
+                          {Array.from({ length: cavityCount }).map((_, cIdx) => {
+                            const sampleLabel = fpaMode === 'first_off'
+                              ? ['1', '7', '13', '19', 'End'][cIdx] // Representative samples
+                              : String(cIdx + 1);
+                            return (
+                              <th key={cIdx} style={{ padding: '6px 8px', textAlign: 'center', width: 70, background: fpaMode === 'first_off' ? 'rgba(59, 130, 246, 0.08)' : 'transparent' }}>
+                                Cav #{sampleLabel}
+                              </th>
+                            );
+                          })}
                           <th style={{ padding: '6px 8px', textAlign: 'center', width: 60 }}>Status</th>
                           <th style={{ padding: '6px 8px', width: 30 }}></th>
                         </tr>
