@@ -11,12 +11,36 @@ function todayLocal() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function slotTimeWindow(slot, shift) {
+  const s = Number(slot);
+  if (!s || s < 1 || s > 12) return null;
+  // Shift A: 09:30 to 21:30 (slot 1: 09:30-10:30, slot 2: 10:30-11:30, ...)
+  // Shift B: 21:30 to 09:30 (slot 1: 21:30-22:30, slot 2: 22:30-23:30, ...)
+  const startHourBase = (shift === 'B') ? 21 : 9;
+  const fromHour24 = (startHourBase + (s - 1)) % 24;
+  const toHour24 = (startHourBase + s) % 24;
+
+  const fmt = (h) => {
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(h12)}:30 ${period}`;
+  };
+
+  return `${fmt(fromHour24)} – ${fmt(toHour24)}`;
+}
+
 function timeRange(e) {
   const start = e.period_start_at || e.start_time;
   const end = e.period_end_at || e.end_time;
-  if (!start || !end) return null;
-  const fmt = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return `${fmt(start)}–${fmt(end)}`;
+  if (start && end) {
+    const fmt = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+  if (e.hour_slot) {
+    return slotTimeWindow(e.hour_slot, e.shift);
+  }
+  return null;
 }
 
 export default function TodayLog() {
@@ -360,7 +384,10 @@ export default function TodayLog() {
                   {entries.map((e) => (
                     <tr key={e.id}>
                       <td>
-                        <strong>{timeRange(e) || (e.hour_slot ? `Hr ${e.hour_slot}` : '-')}</strong>
+                        <div style={{ fontWeight: 600 }}>{timeRange(e) || '—'}</div>
+                        {e.hour_slot && (
+                          <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>Hr {e.hour_slot}</div>
+                        )}
                       </td>
                       <td>{e.shift}</td>
                       <td><strong>{e.machine_code}</strong></td>
