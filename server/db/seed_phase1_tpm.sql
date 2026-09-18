@@ -12,16 +12,16 @@ ALTER TABLE machines ADD COLUMN IF NOT EXISTS clamping_force_kn NUMERIC DEFAULT 
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS pm_due_date DATE DEFAULT (CURRENT_DATE + INTERVAL '30 days');
 
 -- Update machine tonnages with realistic plant specs matching SHRP 10 machines
-UPDATE machines SET tonnage = 80,  make_model = 'L&T Demag Ergotech 80', year_of_commission = 2018, clamping_force_kn = 800 WHERE machine_code = 'HSIM - 01';
-UPDATE machines SET tonnage = 100, make_model = 'L&T Demag Ergotech 100', year_of_commission = 2019, clamping_force_kn = 1000 WHERE machine_code = 'HSIM - 02';
-UPDATE machines SET tonnage = 100, make_model = 'Toshiba EC100SX Electric', year_of_commission = 2021, clamping_force_kn = 1000 WHERE machine_code = 'HSIM - 03';
-UPDATE machines SET tonnage = 120, make_model = 'Toshiba EC120SX Electric', year_of_commission = 2022, clamping_force_kn = 1200 WHERE machine_code = 'HSIM - 04';
-UPDATE machines SET tonnage = 150, make_model = 'Ferromatik Milacron Magna T150', year_of_commission = 2017, clamping_force_kn = 1500 WHERE machine_code = 'HSIM - 05';
-UPDATE machines SET tonnage = 80,  make_model = 'Vertical Servo Moulding VSIM-80', year_of_commission = 2020, clamping_force_kn = 800 WHERE machine_code = 'VSIM - 01';
-UPDATE machines SET tonnage = 50,  make_model = 'Vertical Injection Moulding VIM-50', year_of_commission = 2015, clamping_force_kn = 500 WHERE machine_code = 'VIM - 01';
-UPDATE machines SET tonnage = 60,  make_model = 'Vertical Injection Moulding VIM-60', year_of_commission = 2016, clamping_force_kn = 600 WHERE machine_code = 'VIM - 02';
-UPDATE machines SET tonnage = 60,  make_model = 'Vertical Injection Moulding VIM-60', year_of_commission = 2016, clamping_force_kn = 600 WHERE machine_code = 'VIM - 03';
-UPDATE machines SET tonnage = 100, make_model = 'Rubber Compression Moulding Press', year_of_commission = 2014, clamping_force_kn = 1000 WHERE machine_code = 'RUB - 01';
+UPDATE machines SET tonnage = 80,  make_model = 'L&T Demag Ergotech 80', year_of_commission = 2018, clamping_force_kn = 800 WHERE machine_code = 'HSIM-01';
+UPDATE machines SET tonnage = 100, make_model = 'L&T Demag Ergotech 100', year_of_commission = 2019, clamping_force_kn = 1000 WHERE machine_code = 'HSIM-02';
+UPDATE machines SET tonnage = 100, make_model = 'Toshiba EC100SX Electric', year_of_commission = 2021, clamping_force_kn = 1000 WHERE machine_code = 'HSIM-03';
+UPDATE machines SET tonnage = 120, make_model = 'Toshiba EC120SX Electric', year_of_commission = 2022, clamping_force_kn = 1200 WHERE machine_code = 'HSIM-04';
+UPDATE machines SET tonnage = 150, make_model = 'Ferromatik Milacron Magna T150', year_of_commission = 2017, clamping_force_kn = 1500 WHERE machine_code = 'HSIM-05';
+UPDATE machines SET tonnage = 80,  make_model = 'Vertical Servo Moulding VSIM-80', year_of_commission = 2020, clamping_force_kn = 800 WHERE machine_code = 'VSIM-01';
+UPDATE machines SET tonnage = 50,  make_model = 'Vertical Injection Moulding VIM-50', year_of_commission = 2015, clamping_force_kn = 500 WHERE machine_code = 'VIM-01';
+UPDATE machines SET tonnage = 60,  make_model = 'Vertical Injection Moulding VIM-60', year_of_commission = 2016, clamping_force_kn = 600 WHERE machine_code = 'VIM-02';
+UPDATE machines SET tonnage = 60,  make_model = 'Vertical Injection Moulding VIM-60', year_of_commission = 2016, clamping_force_kn = 600 WHERE machine_code = 'VIM-03';
+UPDATE machines SET tonnage = 100, make_model = 'Rubber Compression Moulding Press', year_of_commission = 2014, clamping_force_kn = 1000 WHERE machine_code = 'RUB-01';
 
 -- 2. Mould Master & Shot Life Tracking
 CREATE TABLE IF NOT EXISTS moulds (
@@ -191,11 +191,11 @@ INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavi
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH WN08' AND (p.shrp_part_code = 'SMF' OR p.part_name = 'WC-SCP-ECC21-SMF01' OR p.customer_part_no = 'WC-SCP-ECC21-SMF01' OR p.part_code = 'WC-SCP-ECC21-SMF01') ON CONFLICT (mould_id, part_id) DO NOTHING;
 INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN09', 'SMM (WC-SCP-ECC21-SMM01)', 'Customer', 'WONJIN', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM 03') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH WN09' AND (p.shrp_part_code = 'SMM' OR p.part_name = 'WC-SCP-ECC21-SMM01' OR p.customer_part_no = 'WC-SCP-ECC21-SMM01' OR p.part_code = 'WC-SCP-ECC21-SMM01') ON CONFLICT (mould_id, part_id) DO NOTHING;
-INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN10', 'NADB (WC-SCP-SC21NA-DB-01)', 'Customer', 'WONJIN', 1, 1, 755, 755, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM - 02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
+INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN10', 'NADB (WC-SCP-SC21NA-DB-01)', 'Customer', 'WONJIN', 1, 1, 755, 755, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM-02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH WN10' AND (p.shrp_part_code = 'NADB' OR p.part_name = 'WC-SCP-SC21NA-DB-01' OR p.customer_part_no = 'WC-SCP-SC21NA-DB-01' OR p.part_code = 'WC-SCP-SC21NA-DB-01') ON CONFLICT (mould_id, part_id) DO NOTHING;
-INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN11', 'NALC (WC-SCP-SC21NA-LC-01)', 'Customer', 'WONJIN', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM - 02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
+INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN11', 'NALC (WC-SCP-SC21NA-LC-01)', 'Customer', 'WONJIN', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM-02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH WN11' AND (p.shrp_part_code = 'NALC' OR p.part_name = 'WC-SCP-SC21NA-LC-01' OR p.customer_part_no = 'WC-SCP-SC21NA-LC-01' OR p.part_code = 'WC-SCP-SC21NA-LC-01') ON CONFLICT (mould_id, part_id) DO NOTHING;
-INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN12', 'NATB (WC-SCP-SC21NA-TB-T01)', 'Customer', 'WONJIN', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM - 02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
+INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH WN12', 'NATB (WC-SCP-SC21NA-TB-T01)', 'Customer', 'WONJIN', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: LDPE | Suitable: VIM-02') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH WN12' AND (p.shrp_part_code = 'NATB' OR p.part_name = 'WC-SCP-SC21NA-TB-T01' OR p.customer_part_no = 'WC-SCP-SC21NA-TB-T01' OR p.part_code = 'WC-SCP-SC21NA-TB-T01') ON CONFLICT (mould_id, part_id) DO NOTHING;
 INSERT INTO moulds (mould_code, mould_name, ownership, customer_name, total_cavities, active_cavities, cumulative_shots, shots_since_pm, pm_interval_shots, storage_location, notes) VALUES ('SH SC01', 'VP6T (VP6TLU-11N087-AA)', 'Customer', 'SONA COMSTAR', 1, 1, 0, 0, 20000, 'Tool Crib Rack A-01', 'Raw Material: N.RUB | Suitable: RUB-01') ON CONFLICT (mould_code) DO UPDATE SET total_cavities = EXCLUDED.total_cavities, customer_name = EXCLUDED.customer_name, notes = EXCLUDED.notes;
 INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id, 1 FROM moulds m, parts p WHERE m.mould_code = 'SH SC01' AND (p.shrp_part_code = 'VP6T' OR p.part_name = 'VP6TLU-11N087-AA' OR p.customer_part_no = 'VP6TLU-11N087-AA' OR p.part_code = 'VP6TLU-11N087-AA') ON CONFLICT (mould_id, part_id) DO NOTHING;
@@ -228,14 +228,14 @@ INSERT INTO mould_parts (mould_id, part_id, cavities_for_part) SELECT m.id, p.id
 -- 6. Sample historical maintenance & breakdown records for TPM tracking demonstration
 INSERT INTO machine_breakdown_logs (machine_id, incident_date, breakdown_type, downtime_minutes, root_cause, corrective_action, parts_replaced, technician_name)
 SELECT m.id, CURRENT_DATE - INTERVAL '12 days', 'heater', 45, 'Band heater burn out on Zone 2', 'Replaced ceramic band heater and verified thermocouple calibration', 'Zone 2 Band Heater 230V 1.5kW', 'MUTHUPANDI'
-FROM machines m WHERE m.machine_code = 'HSIM - 01'
+FROM machines m WHERE m.machine_code = 'HSIM-01'
 AND NOT EXISTS (
   SELECT 1 FROM machine_breakdown_logs bl WHERE bl.machine_id = m.id AND bl.root_cause LIKE 'Band heater%'
 );
 
 INSERT INTO machine_breakdown_logs (machine_id, incident_date, breakdown_type, downtime_minutes, root_cause, corrective_action, parts_replaced, technician_name)
 SELECT m.id, CURRENT_DATE - INTERVAL '5 days', 'hydraulic', 90, 'Hydraulic oil return line filter clogged', 'Flushed return line and replaced 10-micron element', 'Hydraulic Filter Cartridge', 'SAKTHIVEL'
-FROM machines m WHERE m.machine_code = 'HSIM - 04'
+FROM machines m WHERE m.machine_code = 'HSIM-04'
 AND NOT EXISTS (
   SELECT 1 FROM machine_breakdown_logs bl WHERE bl.machine_id = m.id AND bl.root_cause LIKE 'Hydraulic oil return line%'
 );

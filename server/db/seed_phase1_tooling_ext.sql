@@ -38,70 +38,70 @@ UPDATE machines SET
   min_mould_height_mm = 150, max_mould_height_mm = 400, clamping_stroke_mm = 320, max_daylight_mm = 720,
   ejector_stroke_mm = 90, ejector_force_kn = 30, max_shot_weight_g = 140,
   motor_type = 'Servo Hydraulic', connected_load_kw = 18.5, hourly_rate_inr = 400
-WHERE machine_code = 'HSIM - 01';
+WHERE machine_code = 'HSIM-01';
 
 UPDATE machines SET
   tie_bar_distance_mm = '410 x 410', platen_size_mm = '600 x 600',
   min_mould_height_mm = 150, max_mould_height_mm = 450, clamping_stroke_mm = 350, max_daylight_mm = 800,
   ejector_stroke_mm = 100, ejector_force_kn = 35, max_shot_weight_g = 180,
   motor_type = 'Servo Hydraulic', connected_load_kw = 22.0, hourly_rate_inr = 450
-WHERE machine_code = 'HSIM - 02';
+WHERE machine_code = 'HSIM-02';
 
 UPDATE machines SET
   tie_bar_distance_mm = '420 x 420', platen_size_mm = '610 x 610',
   min_mould_height_mm = 180, max_mould_height_mm = 480, clamping_stroke_mm = 360, max_daylight_mm = 840,
   ejector_stroke_mm = 100, ejector_force_kn = 35, max_shot_weight_g = 170,
   motor_type = 'All-Electric Servo', connected_load_kw = 16.0, hourly_rate_inr = 500
-WHERE machine_code = 'HSIM - 03';
+WHERE machine_code = 'HSIM-03';
 
 UPDATE machines SET
   tie_bar_distance_mm = '460 x 460', platen_size_mm = '660 x 660',
   min_mould_height_mm = 200, max_mould_height_mm = 500, clamping_stroke_mm = 400, max_daylight_mm = 900,
   ejector_stroke_mm = 120, ejector_force_kn = 42, max_shot_weight_g = 210,
   motor_type = 'All-Electric Servo', connected_load_kw = 19.5, hourly_rate_inr = 550
-WHERE machine_code = 'HSIM - 04';
+WHERE machine_code = 'HSIM-04';
 
 UPDATE machines SET
   tie_bar_distance_mm = '510 x 510', platen_size_mm = '720 x 720',
   min_mould_height_mm = 200, max_mould_height_mm = 550, clamping_stroke_mm = 450, max_daylight_mm = 1000,
   ejector_stroke_mm = 140, ejector_force_kn = 50, max_shot_weight_g = 280,
   motor_type = 'Servo Hydraulic', connected_load_kw = 30.0, hourly_rate_inr = 650
-WHERE machine_code = 'HSIM - 05';
+WHERE machine_code = 'HSIM-05';
 
 UPDATE machines SET
   tie_bar_distance_mm = '350 x 350', platen_size_mm = '500 x 500',
   min_mould_height_mm = 120, max_mould_height_mm = 350, clamping_stroke_mm = 300, max_daylight_mm = 650,
   ejector_stroke_mm = 80, ejector_force_kn = 25, max_shot_weight_g = 120,
   motor_type = 'Servo Hydraulic', connected_load_kw = 15.0, hourly_rate_inr = 380
-WHERE machine_code = 'VSIM - 01';
+WHERE machine_code = 'VSIM-01';
 
 UPDATE machines SET
   tie_bar_distance_mm = '280 x 280', platen_size_mm = '400 x 400',
   min_mould_height_mm = 100, max_mould_height_mm = 300, clamping_stroke_mm = 250, max_daylight_mm = 550,
   ejector_stroke_mm = 60, ejector_force_kn = 20, max_shot_weight_g = 80,
   motor_type = 'Hydraulic Standard', connected_load_kw = 11.0, hourly_rate_inr = 320
-WHERE machine_code = 'VIM - 01';
+WHERE machine_code = 'VIM-01';
 
 UPDATE machines SET
   tie_bar_distance_mm = '310 x 310', platen_size_mm = '450 x 450',
   min_mould_height_mm = 120, max_mould_height_mm = 320, clamping_stroke_mm = 280, max_daylight_mm = 600,
   ejector_stroke_mm = 70, ejector_force_kn = 22, max_shot_weight_g = 95,
   motor_type = 'Hydraulic Standard', connected_load_kw = 13.0, hourly_rate_inr = 340
-WHERE machine_code = 'VIM - 02';
+WHERE machine_code = 'VIM-02';
 
 UPDATE machines SET
   tie_bar_distance_mm = '310 x 310', platen_size_mm = '450 x 450',
   min_mould_height_mm = 120, max_mould_height_mm = 320, clamping_stroke_mm = 280, max_daylight_mm = 600,
   ejector_stroke_mm = 70, ejector_force_kn = 22, max_shot_weight_g = 95,
   motor_type = 'Hydraulic Standard', connected_load_kw = 13.0, hourly_rate_inr = 340
-WHERE machine_code = 'VIM - 03';
+WHERE machine_code = 'VIM-03';
 
 UPDATE machines SET
   tie_bar_distance_mm = 'Platen Opening', platen_size_mm = '450 x 450',
   min_mould_height_mm = 80, max_mould_height_mm = 250, clamping_stroke_mm = 200, max_daylight_mm = 450,
   ejector_stroke_mm = 50, ejector_force_kn = 20, max_shot_weight_g = 200,
   motor_type = 'Hydraulic Compression', connected_load_kw = 15.0, hourly_rate_inr = 350
-WHERE machine_code = 'RUB - 01';
+WHERE machine_code = 'RUB-01';
 
 -- Backfill suitable_machines for existing moulds
 UPDATE moulds

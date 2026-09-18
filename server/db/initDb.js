@@ -12,6 +12,17 @@ async function initDb() {
     console.log('[DB-INIT] Applying latest database schema...');
     const schemaSql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await pool.query(schemaSql);
+
+    // Create initialization tracking table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS db_initialization (
+        id SERIAL PRIMARY KEY,
+        initialized BOOLEAN NOT NULL DEFAULT FALSE,
+        initialized_at TIMESTAMPTZ,
+        last_schema_update TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_process TEXT NOT NULL DEFAULT 'PRODUCTION';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
@@ -47,6 +58,18 @@ async function initDb() {
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
+    // Check if database was already initialized
+    const initCheck = await pool.query('SELECT initialized FROM db_initialization ORDER BY id DESC LIMIT 1');
+    const isInitialized = initCheck.rows.length > 0 && initCheck.rows[0].initialized;
+
+    if (isInitialized) {
+      console.log('[DB-INIT] ✓ Database already initialized. Skipping seed data to preserve production data.');
+      console.log('[DB-INIT] Seed files will NOT run again. Master data is managed through the application UI.');
+      return;
+    }
+
+    console.log('[DB-INIT] ⚠️ First-time initialization detected. Loading seed data...');
+
     const reconcileSqlPath = path.join(__dirname, 'seed_reconcile_erp_masters.sql');
     if (fs.existsSync(reconcileSqlPath)) {
       console.log('[DB-INIT] Applying Master Data Reconciliation migration (seed_reconcile_erp_masters.sql)...');
@@ -74,6 +97,14 @@ async function initDb() {
     console.log('[DB-INIT] Syncing standard document sequences & numbering formats...');
     await syncDocSequences();
     console.log('[DB-INIT] Document sequences synced successfully.');
+
+    // Mark database as initialized
+    await pool.query(`
+      INSERT INTO db_initialization (initialized, initialized_at)
+      VALUES (TRUE, now())
+      ON CONFLICT DO NOTHING
+    `);
+    console.log('[DB-INIT] ✓ Database initialization complete. Seed files will not run again.');
 
     console.log('[DB-INIT] Cleaning up bag types for historical rejection/runner/lump bags...');
     await pool.query(`

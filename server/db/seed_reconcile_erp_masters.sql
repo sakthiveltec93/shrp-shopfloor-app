@@ -88,7 +88,7 @@ ALTER TABLE gauges ADD COLUMN IF NOT EXISTS last_calibrated_text TEXT;
 -- 3. Upsert 22 Machines
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('HSIM-01', 'Horizontal Injection Mould Machine', 'PAYAL', 50, 'SCREW TYPE', '270X320', 35, 140, 10, 2012, 157, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('HSIM-01', 'Horizontal Injection Mould Machine', 'PAYAL', 50, 'SCREW TYPE', '270X320', 35, 140, 10, 2012, 157, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -105,7 +105,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('HSIM-02', 'Horizontal Injection Mould Machine', 'SUPERMASTER', 50, 'SCREW TYPE', '310X370', 35, 140, 10, 2014, 157, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('HSIM-02', 'Horizontal Injection Mould Machine', 'SUPERMASTER', 50, 'SCREW TYPE', '310X370', 35, 140, 10, 2014, 157, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -122,7 +122,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('HSIM-03', 'Horizontal Injection Mould Machine', 'L&T', 100, 'SCREW TYPE', '420X470', 35, 160, 27.5, 2022, 188, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('HSIM-03', 'Horizontal Injection Mould Machine', 'L&T', 100, 'SCREW TYPE', '420X470', 35, 160, 27.5, 2022, 188, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -139,7 +139,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('HSIM-04', 'Horizontal Injection Mould Machine', 'Haitian 120', 120, 'SCREW TYPE', '410x410', NULL, 157, 27, 2024, 200, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('HSIM-04', 'Horizontal Injection Mould Machine', 'Haitian 120', 120, 'SCREW TYPE', '410x410', NULL, 157, 27, 2024, 200, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -156,7 +156,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('HSIM-05', 'Horizontal Injection Mould Machine', 'Haitian 90', 90, 'SCREW TYPE', '360X360', NULL, 109, 22, 2022, 188, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('HSIM-05', 'Horizontal Injection Mould Machine', 'Haitian 90', 90, 'SCREW TYPE', '360X360', NULL, 109, 22, 2022, 188, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -173,7 +173,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('VIM-01', 'Vertical Injection Mould-01', 'TEXAIR', 40, 'TOGGLE TYPE - Vertical Plunger', '200 X 200', 25, 65, 4, 1999, 150, FALSE, 'PRODUCTIon', TRUE)
+VALUES ('VIM-01', 'Vertical Injection Mould-01', 'TEXAIR', 40, 'TOGGLE TYPE - Vertical Plunger', '200 X 200', 25, 65, 4, 1999, 150, FALSE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -190,7 +190,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('VIM-02', 'Vertical Injection Mould-02', 'HYDROFEX', 40, 'TOGGLE TYPE - Vertical Plunger', '200 X 200', 25, 65, 4, 2002, 150, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('VIM-02', 'Vertical Injection Mould-02', 'HYDROFEX', 40, 'TOGGLE TYPE - Vertical Plunger', '200 X 200', 25, 65, 4, 2002, 150, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -207,7 +207,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('VIM-03', 'Vertical Injection Mould-03', 'POLYTEX', 20, 'CYLINDER TYPE - Vertical Plunger', '150 X 150', 20, 45, 4, 2004, 125, FALSE, 'PRODUCTIon', TRUE)
+VALUES ('VIM-03', 'Vertical Injection Mould-03', 'POLYTEX', 20, 'CYLINDER TYPE - Vertical Plunger', '150 X 150', 20, 45, 4, 2004, 125, FALSE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -224,7 +224,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('VSIM-01', 'Vertical Screw Injection Mould', 'Tex Shine', 40, 'Vertical SCREW TYPE', '270 X220', 35, 140, 8, 2021, 150, TRUE, 'PRODUCTIon', TRUE)
+VALUES ('VSIM-01', 'Vertical Screw Injection Mould', 'Tex Shine', 40, 'Vertical SCREW TYPE', '270 X220', 35, 140, 8, 2021, 150, TRUE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -241,7 +241,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('RUB-01', 'Rubber hand press', 'PREMIER', 100, 'HAND FLY PRESS', '300X300', NULL, NULL, 3, 2005, 0, FALSE, 'PRODUCTIon', TRUE)
+VALUES ('RUB-01', 'Rubber hand press', 'PREMIER', 100, 'HAND FLY PRESS', '300X300', NULL, NULL, 3, 2005, 0, FALSE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -258,7 +258,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('RUB-02', 'Hydraulic Rubber Press', '', 120, 'Hydraulic Press', '450 X 450', NULL, NULL, 9.4, 2012, 157, FALSE, 'PRODUCTIon', TRUE)
+VALUES ('RUB-02', 'Hydraulic Rubber Press', '', 120, 'Hydraulic Press', '450 X 450', NULL, NULL, 9.4, 2012, 157, FALSE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -275,7 +275,7 @@ ON CONFLICT (machine_code) DO UPDATE SET
   active = TRUE;
 
 INSERT INTO machines (machine_code, description, make, tonnage, machine_type, dimension, screw_dia, max_shot_weight_g, hp, year_of_commission, hourly_rate_inr, has_counter, category, active)
-VALUES ('RUB-03', 'Hydraulic Rubber Press', '', 300, 'Hydraulic Press', '1000 X 300', NULL, NULL, 9.4, 2014, 0, FALSE, 'PRODUCTIon', TRUE)
+VALUES ('RUB-03', 'Hydraulic Rubber Press', '', 300, 'Hydraulic Press', '1000 X 300', NULL, NULL, 9.4, 2014, 0, FALSE, 'PRODUCTION', TRUE)
 ON CONFLICT (machine_code) DO UPDATE SET
   description = EXCLUDED.description,
   make = EXCLUDED.make,
@@ -1050,7 +1050,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('DTC-04', 'Temperature Controller', '0 - 399° c', '1° c', '-', 'XMTE', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM02', '26.11.2025', '25.11.2026', 'active')
+VALUES ('DTC-04', 'Temperature Controller', '0 - 399° c', '1° c', '-', 'XMTE', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM-02', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -1066,7 +1066,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('DTC-05', 'Temperature Controller', '0 - 400° c', '1° c', '-', 'Indutrial Heaters', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB 02', '26.11.2025', '25.11.2026', 'active')
+VALUES ('DTC-05', 'Temperature Controller', '0 - 400° c', '1° c', '-', 'Indutrial Heaters', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB-02', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -1082,7 +1082,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('DTC-06', 'Temperature Controller', '0 - 400° c', '1° c', '', 'Elmec', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB 02', '26.11.2025', '25.11.2026', 'active')
+VALUES ('DTC-06', 'Temperature Controller', '0 - 400° c', '1° c', '', 'Elmec', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB-02', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -1098,7 +1098,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('PG-01', 'Pressure Gauge', '0 - 210 kg/ cm2', '5 kg/ cm2', 'I212798', 'Delta', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM04', '26.11.2025', '25.11.2026', 'active')
+VALUES ('PG-01', 'Pressure Gauge', '0 - 210 kg/ cm2', '5 kg/ cm2', 'I212798', 'Delta', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM-04', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -1114,7 +1114,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('PG-02', 'Pressure Gauge', '0 - 16 Mpa', '0.5 Mpa', '-', 'Tecsis', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM04', '26.11.2025', '25.11.2026', 'active')
+VALUES ('PG-02', 'Pressure Gauge', '0 - 16 Mpa', '0.5 Mpa', '-', 'Tecsis', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'HSIM-04', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -1210,7 +1210,7 @@ ON CONFLICT (gauge_code) DO UPDATE SET
   status = 'active';
 
 INSERT INTO gauges (gauge_code, gauge_name, range_spec, accuracy, serial_no, make, acceptance_criteria, calibration_agency, calibration_frequency, location, last_calibrated_text, next_calibration_due, status)
-VALUES ('PG-08', 'Pressure Gauge', '0 - 420 kg/ cm2', '10 kg/ cm2', '-', 'kains', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB 02', '26.11.2025', '25.11.2026', 'active')
+VALUES ('PG-08', 'Pressure Gauge', '0 - 420 kg/ cm2', '10 kg/ cm2', '-', 'kains', 'Refer History Card', 'Mechatron Calibration', 'Once ia a Year', 'RUB-02', '26.11.2025', '25.11.2026', 'active')
 ON CONFLICT (gauge_code) DO UPDATE SET
   gauge_name = EXCLUDED.gauge_name,
   range_spec = EXCLUDED.range_spec,
@@ -6603,7 +6603,7 @@ BEGIN
   )
   VALUES (
     'SH HC01', 'SH HC01 - A710', 'Customer', 'HASI CHENNAI', 6, 6,
-    2025, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 04', '', 'ready'
+    2025, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6639,7 +6639,7 @@ BEGIN
   )
   VALUES (
     'SH HC02', 'SH HC02 - F364 16C', 'SHRP', 'HASI CHENNAI', 16, 16,
-    2025, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 04, HSIM - 05', '', 'ready'
+    2025, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6675,7 +6675,7 @@ BEGIN
   )
   VALUES (
     'SH HC03', 'SH HC03 - F364 GS', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2020, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 05', '', 'ready'
+    2020, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6711,7 +6711,7 @@ BEGIN
   )
   VALUES (
     'SH HC04', 'SH HC04 - F442 KQ', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2011, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 05', '', 'ready'
+    2011, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6747,7 +6747,7 @@ BEGIN
   )
   VALUES (
     'SH HC05', 'SH HC05 - F442 QQ', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM - 01', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6819,7 +6819,7 @@ BEGIN
   )
   VALUES (
     'SH HC07', 'SH HC07 - F710', 'SHRP', 'HASI CHENNAI', 7, 7,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 05', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6855,7 +6855,7 @@ BEGIN
   )
   VALUES (
     'SH HC08', 'SH HC08 - F885 Y', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'HSIM - 01, HSIM - 02', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'HSIM - 01, HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6891,7 +6891,7 @@ BEGIN
   )
   VALUES (
     'SH HC09', 'SH HC09 - AN6B', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2019, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 05', '', 'ready'
+    2019, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6927,7 +6927,7 @@ BEGIN
   )
   VALUES (
     'SH HC10', 'SH HC10 - AA02 Y', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2019, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 02', '', 'ready'
+    2019, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6963,7 +6963,7 @@ BEGIN
   )
   VALUES (
     'SH HC11', 'SH HC11 - SULLA', 'Customer', 'HASI CHENNAI', 4, 4,
-    2021, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2021, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -6999,7 +6999,7 @@ BEGIN
   )
   VALUES (
     'SH HC12', 'SH HC12 - UGKCA', 'Customer', 'HASI CHENNAI', 8, 8,
-    2021, 'SIDE CORE TOOL', 'PIN GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2021, 'SIDE CORE TOOL', 'PIN GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7035,7 +7035,7 @@ BEGIN
   )
   VALUES (
     'SH HC13', 'SH HC13 - UMEAB', 'Customer', 'HASI CHENNAI', 6, 6,
-    2021, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2021, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7071,7 +7071,7 @@ BEGIN
   )
   VALUES (
     'SH HC14', 'SH HC14 - HA715', 'Customer', 'HASI CHENNAI', 6, 6,
-    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM - 04', '', 'ready'
+    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7107,7 +7107,7 @@ BEGIN
   )
   VALUES (
     'SH HC15', 'SH HC15 - CXGAA', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM - 05', '', 'ready'
+    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7143,7 +7143,7 @@ BEGIN
   )
   VALUES (
     'SH HC16', 'SH HC16 - AA03', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2019, '2 PLATE TOOL', 'EDGE GATE', 'HP TOOLS', 'VSIM - 01', '', 'ready'
+    2019, '2 PLATE TOOL', 'EDGE GATE', 'HP TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7179,7 +7179,7 @@ BEGIN
   )
   VALUES (
     'SH HC17', 'SH HC17 - SULAC', 'Customer', 'HASI CHENNAI', 4, 4,
-    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM - 01', '', 'ready'
+    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7215,7 +7215,7 @@ BEGIN
   )
   VALUES (
     'SH HC18', 'SH HC18 - QQVBA W', 'SHRP', 'HASI CHENNAI', 5, 5,
-    2021, '2 PLATE TOOL', 'EDGE GATE', 'HP TOOLS', 'VSIM - 01', '', 'ready'
+    2021, '2 PLATE TOOL', 'EDGE GATE', 'HP TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7251,7 +7251,7 @@ BEGIN
   )
   VALUES (
     'SH HC19', 'SH HC19 - HL180', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2020, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 02, VSIM - 01', '', 'ready'
+    2020, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 02, VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7287,7 +7287,7 @@ BEGIN
   )
   VALUES (
     'SH HC20', 'SH HC20 - DH7AA', 'Customer', 'HASI CHENNAI', 4, 4,
-    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04', '', 'ready'
+    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7323,7 +7323,7 @@ BEGIN
   )
   VALUES (
     'SH HC21', 'SH HC21 - PDPKA', 'Customer', 'HASI CHENNAI', 4, 4,
-    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04', '', 'ready'
+    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7359,7 +7359,7 @@ BEGIN
   )
   VALUES (
     'SH HC22', 'SH HC22 - VW DIA 16 - HW773A', 'Customer', 'HASI CHENNAI', 6, 6,
-    2022, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM - 01', '', 'ready'
+    2022, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7395,7 +7395,7 @@ BEGIN
   )
   VALUES (
     'SH HC23', 'SH HC23 - VW DIA 8 - HW773B', 'Customer', 'HASI CHENNAI', 6, 6,
-    2022, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM - 01', '', 'ready'
+    2022, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7431,7 +7431,7 @@ BEGIN
   )
   VALUES (
     'SH HC24', 'SH HC24 - NCBA', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 04, HSIM - 05', '', 'ready'
+    2023, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7467,7 +7467,7 @@ BEGIN
   )
   VALUES (
     'SH HC25', 'SH HC25 - NCBB', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2024, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04, HSIM - 05', '', 'ready'
+    2024, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7503,7 +7503,7 @@ BEGIN
   )
   VALUES (
     'SH HC26', 'SH HC26 - 1901', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM - 01', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7539,7 +7539,7 @@ BEGIN
   )
   VALUES (
     'SH HC27', 'SH HC27 - 2100', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM - 01', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7575,7 +7575,7 @@ BEGIN
   )
   VALUES (
     'SH HC28', 'SH HC28 - 2200', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM - 01', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7611,7 +7611,7 @@ BEGIN
   )
   VALUES (
     'SH HC29', 'SH HC29 - 2800', 'SHRP', 'HASI CHENNAI', 4, 4,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'HSIM - 05, VSIM - 01', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'HSIM - 05, VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7647,7 +7647,7 @@ BEGIN
   )
   VALUES (
     'SH HC30', 'SH HC30 - VPAA', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 02, HSIM - 04', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 01, HSIM - 02, HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7683,7 +7683,7 @@ BEGIN
   )
   VALUES (
     'SH HC31', 'SH HC31 - VPFA', 'SHRP', 'HASI CHENNAI', 6, 6,
-    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 05', '', 'ready'
+    2007, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7719,7 +7719,7 @@ BEGIN
   )
   VALUES (
     'SH HC32', 'SH HC32 - DM1C', 'SHRP', 'HASI CHENNAI', 8, 8,
-    2023, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 03, HSIM - 05', '', 'ready'
+    2023, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 03, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7755,7 +7755,7 @@ BEGIN
   )
   VALUES (
     'SH HC33', 'SH HC33 - LBB', 'Customer', 'HASI CHENNAI', 4, 4,
-    2023, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 04, HSIM - 05', '', 'ready'
+    2023, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7791,7 +7791,7 @@ BEGIN
   )
   VALUES (
     'SH HC34', 'SH HC34 - LBC', 'Customer', 'HASI CHENNAI', 4, 4,
-    2023, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 04, HSIM - 05', '', 'ready'
+    2023, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7827,7 +7827,7 @@ BEGIN
   )
   VALUES (
     'SH HC35', 'SH HC35 - LAC BLUE', 'Customer', 'HASI CHENNAI', 16, 16,
-    2024, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 03', '', 'ready'
+    2024, '3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7863,7 +7863,7 @@ BEGIN
   )
   VALUES (
     'SH HC36', 'SH HC36 - AFM BIG', 'Customer', 'HASI CHENNAI', 6, 6,
-    2024, '', '', 'AMMAN ENGINEERING', 'RUB - 01', '', 'ready'
+    2024, '', '', 'AMMAN ENGINEERING', 'RUB-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7899,7 +7899,7 @@ BEGIN
   )
   VALUES (
     'SH HC37', 'SH HC37 - AFM SMALL', 'Customer', 'HASI CHENNAI', 6, 6,
-    2024, '', '', 'AMMAN ENGINEERING', 'RUB - 01', '', 'ready'
+    2024, '', '', 'AMMAN ENGINEERING', 'RUB-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7935,7 +7935,7 @@ BEGIN
   )
   VALUES (
     'SH HC38', 'SH HC38 - OERAA', 'Customer', 'HASI CHENNAI', 6, 6,
-    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM - 01', '', 'ready'
+    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -7971,7 +7971,7 @@ BEGIN
   )
   VALUES (
     'SH HC39', 'SH HC39 - QVEAC', 'Customer', 'HASI CHENNAI', 8, 8,
-    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 04', '', 'ready'
+    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM-04', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8007,7 +8007,7 @@ BEGIN
   )
   VALUES (
     'SH HC40', 'SH HC40 - QVEBC', 'Customer', 'HASI CHENNAI', 8, 8,
-    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8043,7 +8043,7 @@ BEGIN
   )
   VALUES (
     'SH HC41', 'SH HC41 - SPHCA', 'Customer', 'HASI CHENNAI', 8, 8,
-    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM 02', '', 'ready'
+    2025, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8079,7 +8079,7 @@ BEGIN
   )
   VALUES (
     'SH HC42', 'SH HC42 - UMEAA', 'Customer', 'HASI CHENNAI', 4, 4,
-    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8115,7 +8115,7 @@ BEGIN
   )
   VALUES (
     'SH HC43', 'SH HC43 - UMNAA', 'Customer', 'HASI CHENNAI', 6, 6,
-    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8151,7 +8151,7 @@ BEGIN
   )
   VALUES (
     'SH HC44', 'SH HC44 - NDGAA', 'Customer', 'HASI CHENNAI', 6, 6,
-    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02', '', 'ready'
+    2026, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8187,7 +8187,7 @@ BEGIN
   )
   VALUES (
     'SH HP01', 'SH HP01 - PUNE B', 'Customer', 'HASI PUNE', 6, 6,
-    2020, '2 PLATE TOOL', 'SUBMERSIBLE GATE', 'JJ TOOLS', 'HSIM - 03', '', 'ready'
+    2020, '2 PLATE TOOL', 'SUBMERSIBLE GATE', 'JJ TOOLS', 'HSIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8223,7 +8223,7 @@ BEGIN
   )
   VALUES (
     'SH HP02', 'SH HP02 - PUNE S', 'Customer', 'HASI PUNE', 6, 6,
-    2020, '2 PLATE TOOL', 'SUBMERSIBLE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM - 05', '', 'ready'
+    2020, '2 PLATE TOOL', 'SUBMERSIBLE GATE', 'JJ TOOLS', 'HSIM - 03, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8259,7 +8259,7 @@ BEGIN
   )
   VALUES (
     'SH HB01', 'SH HB01 - BH-DIA 16', 'Customer', 'HCCSIL BHIWADI', 6, 6,
-    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 04, HSIM - 05', '', 'ready'
+    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8295,7 +8295,7 @@ BEGIN
   )
   VALUES (
     'SH HB02', 'SH HB02 - BH-DIA 12', 'Customer', 'HCCSIL BHIWADI', 6, 6,
-    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 04, HSIM - 05', '', 'ready'
+    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 02, HSIM - 03, HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8331,7 +8331,7 @@ BEGIN
   )
   VALUES (
     'SH HB03', 'SH HB03 - BH-DIA 8', 'Customer', 'HCCSIL BHIWADI', 6, 6,
-    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04, HSIM - 05', '', 'ready'
+    2021, 'SIDE CORE - 2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 04, HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8403,7 +8403,7 @@ BEGIN
   )
   VALUES (
     'SH HB05', 'SH HB05 - HR241', 'Customer', 'HCCSIL BHIWADI', 6, 6,
-    2018, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM - 03', '', 'ready'
+    2018, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'HSIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8583,7 +8583,7 @@ BEGIN
   )
   VALUES (
     'SH WN05', 'SH WN05 - DA', 'Customer', 'WONJIN', 2, 2,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 03', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8619,7 +8619,7 @@ BEGIN
   )
   VALUES (
     'SH WN06', 'SH WN06 - LMF', 'Customer', 'WONJIN', 2, 2,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 03', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8655,7 +8655,7 @@ BEGIN
   )
   VALUES (
     'SH WN07', 'SH WN07 - LMM', 'Customer', 'WONJIN', 2, 2,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 03', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8691,7 +8691,7 @@ BEGIN
   )
   VALUES (
     'SH WN08', 'SH WN08 - SMF', 'Customer', 'WONJIN', 2, 2,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 03', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8727,7 +8727,7 @@ BEGIN
   )
   VALUES (
     'SH WN09', 'SH WN09 - SMM', 'Customer', 'WONJIN', 6, 6,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 03', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-03', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8763,7 +8763,7 @@ BEGIN
   )
   VALUES (
     'SH WN10', 'SH WN10 - NADB', 'Customer', 'WONJIN', 4, 4,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM - 02', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8799,7 +8799,7 @@ BEGIN
   )
   VALUES (
     'SH WN11', 'SH WN11 - NALC', 'Customer', 'WONJIN', 4, 4,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM - 02', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8835,7 +8835,7 @@ BEGIN
   )
   VALUES (
     'SH WN12', 'SH WN12 - NATB', 'Customer', 'WONJIN', 4, 4,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM - 02', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'MM MOULDS', 'VIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8871,7 +8871,7 @@ BEGIN
   )
   VALUES (
     'SH WN13', 'SH WN13 - ATBAB', 'SHRP', 'WONJIN', 2, 2,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM - 02', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'JJ TOOLS', 'VIM-02', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8907,7 +8907,7 @@ BEGIN
   )
   VALUES (
     'SH HC01', 'SH HC01 - CEEAA-ORANGE', 'Customer', 'HASI CHENNAI', 6, 6,
-    2025, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM - 05', '', 'ready'
+    2025, 'SIDE CORE - 3 PLATE TOOL', 'PIN POINT GATE', 'JJ TOOLS', 'HSIM-05', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
@@ -8943,7 +8943,7 @@ BEGIN
   )
   VALUES (
     'SH OLD01', 'SH OLD01 - F442 QQ', 'SHRP', 'HASI CHENNAI', 4, 4,
-    NULL, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM - 01', '', 'ready'
+    NULL, '2 PLATE TOOL', 'EDGE GATE', 'OLD', 'VSIM-01', '', 'ready'
   )
   ON CONFLICT (mould_code) DO UPDATE SET
     mould_name = EXCLUDED.mould_name,
