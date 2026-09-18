@@ -97,6 +97,9 @@ ALTER TABLE machine_assignments ADD COLUMN IF NOT EXISTS first_ok_part_at TIMEST
 ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS start_time TIMESTAMPTZ;
 ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ;
 ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS efficiency_pct NUMERIC;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS period_start_at TIMESTAMPTZ;
+ALTER TABLE production_entries ADD COLUMN IF NOT EXISTS period_end_at TIMESTAMPTZ;
+ALTER TABLE production_entries ALTER COLUMN hour_slot DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS reject_log (
   id SERIAL PRIMARY KEY,
@@ -145,7 +148,7 @@ ALTER TABLE bags ADD COLUMN IF NOT EXISTS fifo_override_reason TEXT;
 ALTER TABLE bags ALTER COLUMN operator_user_id DROP NOT NULL;
 
 ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_status_check;
-ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PACKED', 'DISPATCHED', 'HOLD', 'SCRAPPED', 'REWORK_DONE'));
+ALTER TABLE bags ADD CONSTRAINT bags_status_check CHECK (status IN ('OPEN', 'PARTIAL_TRIM', 'TRIMMED', 'PARTIAL_INSPECT', 'INSPECTED', 'PARTIAL_PACK', 'PACKED', 'DISPATCHED', 'HOLD', 'SCRAPPED', 'REWORK_DONE'));
 
 ALTER TABLE bags DROP CONSTRAINT IF EXISTS bags_bag_type_check;
 ALTER TABLE bags ADD CONSTRAINT bags_bag_type_check CHECK (bag_type IN ('PART', 'RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP'));
@@ -930,6 +933,51 @@ CREATE TABLE IF NOT EXISTS deletion_audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_deletion_audit_created_at ON deletion_audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deletion_audit_entity ON deletion_audit_log(entity_type, entity_id);
+
+-- ============================================================
+-- Data Correction Requests & Audit Trail (IATF 16949 / ISO 9001)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS correction_requests (
+  id SERIAL PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('production_entry', 'bag', 'trim_entry', 'inspection_entry', 'packing_entry')),
+  entity_id INTEGER,
+  entity_code TEXT,
+  action TEXT NOT NULL CHECK (action IN ('BACKDATED_CREATE', 'EDIT', 'STATUS_OVERRIDE')),
+  payload JSONB NOT NULL,
+  reason TEXT NOT NULL,
+  requested_by INTEGER NOT NULL REFERENCES users(id),
+  requested_by_name TEXT,
+  requested_by_role TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewed_by INTEGER REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  review_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_correction_requests_status ON correction_requests(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_correction_requests_entity ON correction_requests(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS record_correction_log (
+  id SERIAL PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id INTEGER NOT NULL,
+  entity_code TEXT,
+  action TEXT NOT NULL CHECK (action IN ('BACKDATED_CREATE', 'EDIT', 'STATUS_OVERRIDE')),
+  field_name TEXT,
+  old_value TEXT,
+  new_value TEXT,
+  changed_by INTEGER REFERENCES users(id),
+  changed_by_name TEXT,
+  changed_by_role TEXT,
+  reason TEXT NOT NULL,
+  details JSONB,
+  request_id INTEGER REFERENCES correction_requests(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_record_correction_created_at ON record_correction_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_record_correction_entity ON record_correction_log(entity_type, entity_id);
 
 -- ============================================================
 -- Gauges & Instruments Master (calibration tracking, IATF 16949)

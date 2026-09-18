@@ -339,6 +339,19 @@ export const api = {
     directDelete: (entity_type, entity_id, reason) => request(`/deletions/direct/${entity_type}/${entity_id}`, { method: 'DELETE', body: { reason } }),
   },
 
+  corrections: {
+    request: (payload) => request('/corrections/request', { method: 'POST', body: payload }),
+    pending: () => request('/corrections/pending'),
+    approve: (id, review_notes) => request(`/corrections/${id}/approve`, { method: 'POST', body: { review_notes } }),
+    reject: (id, review_notes) => request(`/corrections/${id}/reject`, { method: 'POST', body: { review_notes } }),
+    direct: (payload) => request('/corrections/direct', { method: 'POST', body: payload }),
+    log: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request(`/corrections/log${qs ? `?${qs}` : ''}`);
+    },
+    machineLastState: (machineId, entryDate) => request(`/corrections/machine-last-state?machine_id=${machineId}&entry_date=${entryDate}`),
+  },
+
   reports: {
     dailySummary: (date, shift) => request(`/reports/daily-summary?date=${date || ''}&shift=${shift || 'ALL'}`),
     processSummary: (date) => request(`/reports/process-summary?date=${date || ''}`),

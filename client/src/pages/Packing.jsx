@@ -27,6 +27,14 @@ export default function Packing() {
   const [customPackQty, setCustomPackQty] = useState('');
   const [balancePoolData, setBalancePoolData] = useState(null);
 
+  // Manual Override Inputs
+  const [showOverrides, setShowOverrides] = useState(false);
+  const [manualPacketsCount, setManualPacketsCount] = useState('');
+  const [manualPackedQty, setManualPackedQty] = useState('');
+  const [manualPackedWtKg, setManualPackedWtKg] = useState('');
+  const [manualBalanceQty, setManualBalanceQty] = useState('');
+  const [isPartialPack, setIsPartialPack] = useState(false);
+
   // Hold quarantine state
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [holdReason, setHoldReason] = useState('');
@@ -82,18 +90,24 @@ export default function Packing() {
   const calculatedPartWeightG = standardPackQty > 0 ? (currentSamplePacketWt * 1000) / standardPackQty : historicalPartWeightG;
 
   let totalPiecesInBag = 0;
-  let fullPacketsCount = 0;
-  let totalPackedQty = 0;
-  let totalPackedWtKg = 0;
-  let balancePieces = 0;
+  let autoPacketsCount = 0;
+  let autoPackedQty = 0;
+  let autoPackedWtKg = 0;
+  let autoBalancePieces = 0;
 
   if (calculatedPartWeightG > 0 && bagWeightKg > 0) {
     totalPiecesInBag = Math.round((bagWeightKg * 1000) / calculatedPartWeightG);
-    fullPacketsCount = Math.floor(totalPiecesInBag / standardPackQty);
-    totalPackedQty = fullPacketsCount * standardPackQty;
-    totalPackedWtKg = Number((fullPacketsCount * currentSamplePacketWt).toFixed(3));
-    balancePieces = Math.max(0, totalPiecesInBag - totalPackedQty);
+    autoPacketsCount = Math.floor(totalPiecesInBag / standardPackQty);
+    autoPackedQty = autoPacketsCount * standardPackQty;
+    autoPackedWtKg = Number((autoPacketsCount * currentSamplePacketWt).toFixed(3));
+    autoBalancePieces = Math.max(0, totalPiecesInBag - autoPackedQty);
   }
+
+  // Effective values considering manual overrides
+  const effectivePacketsCount = manualPacketsCount !== '' ? Number(manualPacketsCount) : autoPacketsCount;
+  const effectivePackedQty = manualPackedQty !== '' ? Number(manualPackedQty) : autoPackedQty;
+  const effectivePackedWtKg = manualPackedWtKg !== '' ? Number(manualPackedWtKg) : autoPackedWtKg;
+  const effectiveBalanceQty = manualBalanceQty !== '' ? Number(manualBalanceQty) : autoBalancePieces;
 
   async function submit(confirm = false) {
     setError('');
@@ -101,12 +115,13 @@ export default function Packing() {
     setSaving(true);
     try {
       const res = await api.packBag(bag.id, {
-        packed_qty: totalPackedQty,
-        packed_wt_kg: totalPackedWtKg,
+        packed_qty: effectivePackedQty,
+        packed_wt_kg: effectivePackedWtKg,
         sample_packet_wt_g: Number((currentSamplePacketWt * 1000).toFixed(2)),
         calculated_part_wt_g: Number(calculatedPartWeightG.toFixed(3)),
-        packets_count: fullPacketsCount,
-        balance_qty: balancePieces,
+        packets_count: effectivePacketsCount,
+        balance_qty: effectiveBalanceQty,
+        is_partial: isPartialPack,
         confirm,
         fifo_override: isFifoOverridden,
         fifo_override_reason: fifoOverrideReason,
@@ -121,9 +136,15 @@ export default function Packing() {
       } else {
         setConfirmMsg('');
         setSuccess(res.closed
-          ? `✅ Bag ${bag.bag_code} packed: ${fullPacketsCount} packets (${totalPackedQty} pcs). ${balancePieces} balance pcs logged to pool!`
-          : t('common.readingSaved'));
+          ? `✅ Bag ${bag.bag_code} packed: ${effectivePacketsCount} packets (${effectivePackedQty} pcs). ${effectiveBalanceQty} balance pcs logged to pool!`
+          : `✅ Bag ${bag.bag_code} logged as ${isPartialPack ? 'PARTIAL_PACK' : 'PACKED'}.`);
         setSamplePacketWtKg('');
+        setManualPacketsCount('');
+        setManualPackedQty('');
+        setManualPackedWtKg('');
+        setManualBalanceQty('');
+        setIsPartialPack(false);
+        setShowOverrides(false);
         if (res.closed) {
           clearBag();
         } else {
@@ -148,12 +169,11 @@ export default function Packing() {
   }
 
   async function handlePackFromPool() {
-    if (!activePartId) return;
+    if (!balancePoolData?.can_pack_packet) return;
     setSaving(true);
-    setError('');
     try {
       const res = await api.packPacketFromPool(activePartId);
-      setSuccess(`📦 ${res.message}`);
+      setSuccess(`✅ ${res.message}`);
       api.balancePool(activePartId).then(setBalancePoolData).catch(() => {});
     } catch (err) {
       setError(err.message);
@@ -163,17 +183,15 @@ export default function Packing() {
   }
 
   async function handleHoldSubmit() {
-    if (!holdReason.trim()) {
-      setError('Please provide a reason to quarantine this bag on HOLD.');
-      return;
-    }
+    if (!holdReason.trim()) return;
     setSaving(true);
     try {
-      await api.holdBag(bag.id, { stage: 'PACKING', reason: holdReason });
-      setSuccess(`⚠️ Bag ${bag.bag_code} has been quarantined and placed on HOLD.`);
+      await api.holdBag(bag.id, { stage: 'PACKING', reason: holdReason.trim() });
       setShowHoldModal(false);
       setHoldReason('');
+      setSuccess(`🛑 Bag ${bag.bag_code} placed on HOLD.`);
       clearBag();
+      loadHoldBags();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -187,48 +205,33 @@ export default function Packing() {
       <p className="screen-sub">{t('packing.subtitle')}</p>
 
       {error && <div className="error-banner">{error}</div>}
-      {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
+      {success && <div className="success-banner">{success}</div>}
 
-      {/* Sub-tab switcher: Ready Bags vs Completed Bags vs Quarantined / HOLD Bags */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      {/* Sub-Tab Navigation */}
+      <div className="btn-row" style={{ marginBottom: 14 }}>
         <button
           type="button"
           className={activeSubTab === 'ready' ? 'btn btn-primary' : 'btn btn-secondary'}
-          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          style={{ width: 'auto', flex: 1 }}
           onClick={() => setActiveSubTab('ready')}
         >
-          <span>🟢 Ready Bags</span>
-          {batchBags.length > 0 && (
-            <span style={{ background: activeSubTab === 'ready' ? '#fff' : 'var(--amber)', color: '#000', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
-              {batchBags.length}
-            </span>
-          )}
+          📦 Ready Bags
         </button>
         <button
           type="button"
           className={activeSubTab === 'completed' ? 'btn btn-primary' : 'btn btn-secondary'}
-          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          style={{ width: 'auto', flex: 1 }}
           onClick={() => setActiveSubTab('completed')}
         >
-          <span>✅ Completed Bags</span>
-          {completedBags.length > 0 && (
-            <span style={{ background: activeSubTab === 'completed' ? '#fff' : 'var(--green, #22c55e)', color: '#000', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
-              {completedBags.length}
-            </span>
-          )}
+          ✅ Completed Packed
         </button>
         <button
           type="button"
-          className={activeSubTab === 'hold' ? 'btn btn-danger' : 'btn btn-secondary'}
-          style={{ flex: 1, padding: '10px 14px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          className={activeSubTab === 'hold' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ width: 'auto', flex: 1 }}
           onClick={() => setActiveSubTab('hold')}
         >
-          <span>🛑 Quarantined / HOLD</span>
-          {holdBags.length > 0 && (
-            <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
-              {holdBags.length}
-            </span>
-          )}
+          🛑 Quarantined / HOLD
         </button>
       </div>
 
@@ -451,47 +454,41 @@ export default function Packing() {
               <SearchableSelect
                 id="bag_pick"
                 value={bag?.id || ''}
-                onChange={(e) => {
-                  const b = batchBags.find((x) => String(x.id) === e.target.value);
-                  selectSpecificBag(b);
-                }}
-                options={batchBags.map((b, idx) => ({
+                onChange={(e) => selectSpecificBag(e.target.value)}
+                options={batchBags.map((b) => ({
                   value: b.id,
-                  label: b.bag_code,
-                  badge: idx === 0 ? '⭐ FIFO Next' : '',
-                  sublabel: b.base_weight_kg + ' kg · ' + b.status
+                  label: `${b.bag_code} (${b.base_weight_kg}kg · ${b.qty}pcs)`,
+                  badge: b.status,
+                  sublabel: `Batch ${b.batch_no} · ${new Date(b.entry_date).toLocaleDateString('en-GB')} Shift ${b.shift}`,
+                  searchTerms: `${b.bag_code} ${b.batch_no} ${b.status}`
                 }))}
-                placeholder="Select bag…"
-                searchPlaceholder="🔍 Type bag barcode / number..."
+                placeholder="Select a ready bag..."
               />
             </div>
           )}
         </div>
       )}
 
-      {/* FIFO Violation Dialog per Section 4 */}
+      {/* FIFO Violation Modal */}
       {fifoViolation && (
-        <div className="panel" style={{ borderColor: 'var(--amber)', background: 'rgba(245,166,35,0.08)' }}>
-          <h3 style={{ margin: '0 0 8px', color: 'var(--amber)', fontSize: 16 }}>
-            ⚠️ FIFO Violation
-          </h3>
-          <p style={{ fontSize: 13, margin: '0 0 6px' }}>
-            An older available bag must be processed first:
-          </p>
-          <div className="readout" style={{ marginBottom: 10 }}>
-            <div>Oldest available bag: <strong>{fifoViolation.oldestBag.bag_code}</strong></div>
-            <div>Production Date: <strong>{new Date(fifoViolation.oldestBag.entry_date).toLocaleDateString('en-GB')}</strong></div>
+        <div className="panel" style={{ borderColor: 'var(--red)', background: 'rgba(239, 68, 68, 0.08)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <strong style={{ color: 'var(--red)', fontSize: 15 }}>FIFO Sequence Alert</strong>
           </div>
+          <p style={{ margin: '0 0 10px', fontSize: 13 }}>
+            An older un-packed bag exists in the queue:{' '}
+            <strong style={{ color: 'var(--amber)' }}>{fifoViolation.oldestBag?.bag_code}</strong> (Moulded on {new Date(fifoViolation.oldestBag?.entry_date).toLocaleDateString('en-GB')}).
+          </p>
 
           {fifoViolation.canOverride ? (
             <>
-              <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>Continue with FIFO Override?</p>
-              <div className="field">
-                <label htmlFor="fifo_reason">Override Reason *</label>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label htmlFor="fifo_reason">Supervisor / Admin Override Reason *</label>
                 <input
                   id="fifo_reason"
                   type="text"
-                  placeholder="Enter reason for FIFO override"
+                  placeholder="e.g. Urgent customer dispatch, older bag under QA hold..."
                   value={fifoOverrideReason}
                   onChange={(e) => setFifoOverrideReason(e.target.value)}
                 />
@@ -623,11 +620,76 @@ export default function Packing() {
           {/* Real-time Packing Calculation Results */}
           <div className="readout" style={{ marginBottom: 14, background: 'rgba(76,175,125,0.06)', borderColor: 'var(--green)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
-              <div>Full Packets:</div><strong style={{ color: 'var(--green)', fontSize: 16 }}>{fullPacketsCount} Packets</strong>
-              <div>Packed Good Qty:</div><strong>{totalPackedQty} Nos ({totalPackedWtKg} kg)</strong>
-              <div>Balance to Pool:</div><strong style={{ color: 'var(--amber)' }}>{balancePieces} Nos</strong>
+              <div>Full Packets:</div><strong style={{ color: 'var(--green)', fontSize: 16 }}>{effectivePacketsCount} Packets</strong>
+              <div>Packed Good Qty:</div><strong>{effectivePackedQty} Nos ({effectivePackedWtKg} kg)</strong>
+              <div>Balance to Pool:</div><strong style={{ color: 'var(--amber)' }}>{effectiveBalanceQty} Nos</strong>
               <div>Standard Pack Qty:</div><strong>{standardPackQty} Nos / Pkt</strong>
             </div>
+          </div>
+
+          {/* Manual Override Section (Point 8) */}
+          <div style={{ marginBottom: 14, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 6, padding: 10 }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              onClick={() => setShowOverrides(!showOverrides)}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)' }}>
+                {showOverrides ? '▼ Hide Manual Adjustment Fields' : '▶ ✏️ Manual Adjustment / Override Fields'}
+              </span>
+              <span className="muted" style={{ fontSize: 11 }}>Click to {showOverrides ? 'collapse' : 'customize values'}</span>
+            </div>
+
+            {showOverrides && (
+              <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="ovr_packets">Packets Count</label>
+                  <input
+                    id="ovr_packets"
+                    type="number"
+                    value={manualPacketsCount !== '' ? manualPacketsCount : autoPacketsCount}
+                    onChange={(e) => setManualPacketsCount(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="ovr_packed_qty">Total Packed Qty (pcs)</label>
+                  <input
+                    id="ovr_packed_qty"
+                    type="number"
+                    value={manualPackedQty !== '' ? manualPackedQty : autoPackedQty}
+                    onChange={(e) => setManualPackedQty(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="ovr_packed_wt">Total Packed Weight (kg)</label>
+                  <input
+                    id="ovr_packed_wt"
+                    type="number"
+                    step="0.001"
+                    value={manualPackedWtKg !== '' ? manualPackedWtKg : autoPackedWtKg}
+                    onChange={(e) => setManualPackedWtKg(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="ovr_balance">Balance to Pool (pcs)</label>
+                  <input
+                    id="ovr_balance"
+                    type="number"
+                    value={manualBalanceQty !== '' ? manualBalanceQty : autoBalancePieces}
+                    onChange={(e) => setManualBalanceQty(e.target.value)}
+                  />
+                </div>
+                <div style={{ gridColumn: 'span 2', marginTop: 4 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={isPartialPack}
+                      onChange={(e) => setIsPartialPack(e.target.checked)}
+                    />
+                    <span>Mark as <strong>Partial Pack (PARTIAL_PACK)</strong> — keep bag active for subsequent packing</span>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Stage Completion Confirmation */}
@@ -649,10 +711,10 @@ export default function Packing() {
             <div className="btn-row">
               <button
                 className="btn btn-primary"
-                disabled={saving || fullPacketsCount <= 0}
+                disabled={saving || (effectivePacketsCount <= 0 && !isPartialPack)}
                 onClick={() => submit(false)}
               >
-                {saving ? t('packing.saving') : `Pack ${fullPacketsCount} Packets (${totalPackedQty} pcs)`}
+                {saving ? t('packing.saving') : isPartialPack ? `Save Partial Pack (${effectivePackedQty} pcs)` : `Pack ${effectivePacketsCount} Packets (${effectivePackedQty} pcs)`}
               </button>
               <button
                 type="button"
@@ -724,5 +786,3 @@ export default function Packing() {
     </div>
   );
 }
-
-

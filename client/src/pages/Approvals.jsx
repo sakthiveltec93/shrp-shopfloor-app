@@ -3,27 +3,32 @@ import { api } from '../api';
 import FpaModal from '../components/FpaModal';
 
 export default function Approvals() {
-  const [activeTab, setActiveTab] = useState('moulds'); // 'moulds' | 'deletions' | 'fpa'
+  const [activeTab, setActiveTab] = useState('moulds'); // 'moulds' | 'deletions' | 'fpa' | 'corrections'
   const [pending, setPending] = useState([]);
   const [pendingDeletions, setPendingDeletions] = useState([]);
+  const [pendingCorrections, setPendingCorrections] = useState([]);
   const [pendingFpas, setPendingFpas] = useState([]);
   const [fpas, setFpas] = useState([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [rejectNoteId, setRejectNoteId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [rejectCorrId, setRejectCorrId] = useState(null);
+  const [rejectCorrNote, setRejectCorrNote] = useState('');
   const [selectedFpaAssignment, setSelectedFpaAssignment] = useState(null);
 
   async function load() {
     try {
-      const [moulds, dels, pendingFpaList, fpaList] = await Promise.all([
+      const [moulds, dels, corrs, pendingFpaList, fpaList] = await Promise.all([
         api.pendingAssignments(),
         api.deletions.pending().catch(() => []),
+        api.corrections.pending().catch(() => []),
         api.fpa.getPending().catch(() => []),
         api.fpa.getHistory().catch(() => []),
       ]);
       setPending(moulds);
       setPendingDeletions(dels);
+      setPendingCorrections(corrs);
       setPendingFpas(Array.isArray(pendingFpaList) ? pendingFpaList : []);
       setFpas(Array.isArray(fpaList) ? fpaList : []);
     } catch (err) {
@@ -75,25 +80,66 @@ export default function Approvals() {
     }
   }
 
+  async function handleApproveCorrection(id) {
+    if (!window.confirm('Are you sure you want to approve and apply this correction to production records?')) return;
+    setError('');
+    setBusyId(id);
+    try {
+      await api.corrections.approve(id);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRejectCorrection(id) {
+    if (!rejectCorrNote || !rejectCorrNote.trim()) {
+      alert('Please provide a reason for rejecting this correction request.');
+      return;
+    }
+    setError('');
+    setBusyId(id);
+    try {
+      await api.corrections.reject(id, rejectCorrNote.trim());
+      setRejectCorrId(null);
+      setRejectCorrNote('');
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="screen">
       <h1 className="screen-title">Approvals</h1>
-      <p className="screen-sub">Authorizations for mould setups and operator deletion requests</p>
+      <p className="screen-sub">Authorizations for mould setups, data corrections, and deletion requests</p>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button
           type="button"
           className={`btn ${activeTab === 'moulds' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ width: 'auto', flex: 1, padding: '8px 12px', fontSize: 13 }}
+          style={{ width: 'auto', flex: 1, minWidth: 130, padding: '8px 12px', fontSize: 13 }}
           onClick={() => setActiveTab('moulds')}
         >
           Mould Setups ({pending.length})
         </button>
         <button
           type="button"
+          className={`btn ${activeTab === 'corrections' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ width: 'auto', flex: 1, minWidth: 150, padding: '8px 12px', fontSize: 13 }}
+          onClick={() => setActiveTab('corrections')}
+        >
+          ✏️ Corrections ({pendingCorrections.length})
+        </button>
+        <button
+          type="button"
           className={`btn ${activeTab === 'deletions' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ width: 'auto', flex: 1, padding: '8px 12px', fontSize: 13 }}
+          style={{ width: 'auto', flex: 1, minWidth: 130, padding: '8px 12px', fontSize: 13 }}
           onClick={() => setActiveTab('deletions')}
         >
           🗑️ Deletions ({pendingDeletions.length})
@@ -101,7 +147,7 @@ export default function Approvals() {
         <button
           type="button"
           className={`btn ${activeTab === 'fpa' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ width: 'auto', flex: 1.2, padding: '8px 12px', fontSize: 13 }}
+          style={{ width: 'auto', flex: 1.2, minWidth: 140, padding: '8px 12px', fontSize: 13 }}
           onClick={() => setActiveTab('fpa')}
         >
           🛡️ IATF FPA ({fpas.length})
@@ -184,7 +230,134 @@ export default function Approvals() {
         </>
       )}
 
-      {/* Tab 2: Deletion Requests */}
+      {/* Tab 2: Corrections & Catch-Up Requests */}
+      {activeTab === 'corrections' && (
+        <>
+          {pendingCorrections.length === 0 && <p className="muted">No pending correction or catch-up requests.</p>}
+
+          {pendingCorrections.map((c) => {
+            let payloadObj = {};
+            try {
+              payloadObj = typeof c.payload === 'string' ? JSON.parse(c.payload) : (c.payload || {});
+            } catch { /* empty */ }
+
+            return (
+              <div key={c.id} className="panel" style={{ marginBottom: 14, borderColor: 'rgba(59, 130, 246, 0.4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', padding: '2px 8px', borderRadius: 4, fontWeight: 600, textTransform: 'uppercase' }}>
+                      {c.action.replace('_', ' ')}: {c.entity_type.replace('_', ' ')}
+                    </span>
+                    <strong style={{ fontSize: 14 }}>{c.entity_code || `Request #${c.id}`}</strong>
+                  </div>
+                  <span className="status-pill status-pending">Pending Admin Approval</span>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: 6, marginBottom: 10, fontSize: 13 }}>
+                  <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Proposed Changes / Record Payload:</div>
+                  {c.entity_type === 'production_entry' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                      <div>• Date/Shift: <strong>{payloadObj.entry_date} (Shift {payloadObj.shift})</strong></div>
+                      <div>• Time: <strong>{payloadObj.period_start_at ? new Date(payloadObj.period_start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'} – {payloadObj.period_end_at ? new Date(payloadObj.period_end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</strong></div>
+                      <div>• Counts: <strong>{payloadObj.start_count} → {payloadObj.end_count}</strong></div>
+                      <div>• Good Qty: <strong style={{ color: '#34d399' }}>{payloadObj.good_qty} pcs</strong></div>
+                      <div>• Reject: <strong style={{ color: '#f87171' }}>{payloadObj.reject_qty || 0} pcs</strong></div>
+                      <div>• Downtime: <strong>{payloadObj.downtime_minutes || 0} min</strong></div>
+                    </div>
+                  )}
+                  {c.entity_type === 'bag' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                      <div>• Bag Code: <strong>{payloadObj.bag_code || c.entity_code}</strong></div>
+                      <div>• Weight: <strong>{payloadObj.base_weight_kg} kg</strong></div>
+                      <div>• Quantity: <strong>{payloadObj.qty} pcs</strong></div>
+                      <div>• Status: <strong>{payloadObj.status || payloadObj.new_status}</strong></div>
+                    </div>
+                  )}
+                  {c.entity_type === 'trim_entry' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                      <div>• Trimmed: <strong>{payloadObj.trimmed_wt_kg} kg</strong></div>
+                      <div>• Runner: <strong>{payloadObj.runner_wt_kg} kg</strong></div>
+                      <div>• Reject: <strong>{payloadObj.reject_wt_kg} kg</strong></div>
+                      <div>• Remaining: <strong>{payloadObj.remaining_wt_kg} kg</strong></div>
+                    </div>
+                  )}
+                  {c.entity_type === 'inspection_entry' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                      <div>• Inspected: <strong>{payloadObj.inspected_wt_kg} kg</strong></div>
+                      <div>• Reject: <strong>{payloadObj.reject_wt_kg} kg</strong></div>
+                      <div>• Remaining: <strong>{payloadObj.remaining_wt_kg} kg</strong></div>
+                    </div>
+                  )}
+                  {c.entity_type === 'packing_entry' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                      <div>• Packed Qty: <strong>{payloadObj.packed_qty} pcs</strong></div>
+                      <div>• Packed Wt: <strong>{payloadObj.packed_wt_kg} kg</strong></div>
+                      <div>• Packets: <strong>{payloadObj.packets_count}</strong></div>
+                      <div>• Balance: <strong>{payloadObj.balance_qty} pcs</strong></div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 8, fontSize: 13 }}>
+                  <span className="muted">Supervisor Reason: </span>
+                  <strong style={{ color: '#93c5fd' }}>"{c.reason}"</strong>
+                </div>
+
+                <div className="muted" style={{ fontSize: 11, marginBottom: 12 }}>
+                  Requested by <strong>{c.requested_by_name}</strong> ({c.requested_by_role}) · {new Date(c.created_at).toLocaleString()}
+                </div>
+
+                {rejectCorrId === c.id ? (
+                  <div style={{ marginBottom: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="Reason for rejecting this correction request..."
+                      value={rejectCorrNote}
+                      onChange={(e) => setRejectCorrNote(e.target.value)}
+                      style={{ marginBottom: 8, fontSize: 13 }}
+                    />
+                    <div className="btn-row">
+                      <button
+                        className="btn"
+                        style={{ background: 'var(--red)', color: '#fff' }}
+                        disabled={busyId === c.id}
+                        onClick={() => handleRejectCorrection(c.id)}
+                      >
+                        Confirm Rejection
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => setRejectCorrId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="btn-row">
+                    <button
+                      className="btn btn-primary"
+                      disabled={busyId === c.id}
+                      onClick={() => handleApproveCorrection(c.id)}
+                    >
+                      Approve & Apply Correction
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      disabled={busyId === c.id}
+                      onClick={() => setRejectCorrId(c.id)}
+                    >
+                      Reject Request
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Tab 3: Deletion Requests */}
       {activeTab === 'deletions' && (
         <>
           {pendingDeletions.length === 0 && <p className="muted">No pending deletion requests.</p>}
@@ -284,7 +457,7 @@ export default function Approvals() {
         </>
       )}
 
-      {/* Tab 3: IATF First-Piece Approvals */}
+      {/* Tab 4: IATF First-Piece Approvals */}
       {activeTab === 'fpa' && (
         <>
           {/* Section A: Pending FPA for Active Approved Setups */}

@@ -40,12 +40,13 @@ function isLegitimateStatusAdvance(currentStatus, toStatus, trimReq, inspReq) {
       return trimReq
         ? (cs === 'TRIMMED' || cs === 'PARTIAL_INSPECT' || cs === 'INSPECTED')
         : (cs === 'OPEN' || cs === 'TRIMMED' || cs === 'PARTIAL_INSPECT' || cs === 'INSPECTED');
+    case 'PARTIAL_PACK':
     case 'PACKED':
-      if (inspReq) return cs === 'INSPECTED' || cs === 'PACKED';
-      if (trimReq) return cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PACKED';
-      return cs === 'OPEN' || cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PACKED';
+      if (inspReq) return cs === 'INSPECTED' || cs === 'PARTIAL_PACK' || cs === 'PACKED';
+      if (trimReq) return cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PARTIAL_PACK' || cs === 'PACKED';
+      return cs === 'OPEN' || cs === 'TRIMMED' || cs === 'INSPECTED' || cs === 'PARTIAL_PACK' || cs === 'PACKED';
     case 'DISPATCHED':
-      return cs === 'PACKED';
+      return cs === 'PACKED' || cs === 'PARTIAL_PACK';
     case 'HOLD':
       return true;
     default:

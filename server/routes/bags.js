@@ -141,6 +141,15 @@ router.get('/production-visibility', async (req, res) => {
   // Completion check
   const is_completed = production_qty > 0 && already_bagged_qty >= Math.max(0, production_qty - tolerance_qty);
 
+  // Existing bags for machine + date + shift
+  const { rows: existingBags } = await pool.query(
+    `SELECT b.id, b.bag_code, b.batch_no, b.base_weight_kg, b.qty, b.status, b.created_at
+     FROM bags b
+     WHERE b.machine_id = $1 AND b.entry_date = $2 AND b.shift = $3 AND b.bag_type = 'PART'
+     ORDER BY b.created_at ASC`,
+    [machine_id, entry_date, shift]
+  );
+
   res.json({
     current_hour_qty,
     shift_cumulative_qty: production_qty,
@@ -159,6 +168,7 @@ router.get('/production-visibility', async (req, res) => {
     tolerance_qty,
     max_allowed_qty,
     is_completed,
+    existing_bags: existingBags,
     part_name: part?.part_name || '',
     shrp_part_code: part?.shrp_part_code || part?.part_code || '',
     customer_part_no: part?.customer_part_no || part?.part_code || '',
@@ -1327,6 +1337,7 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
     calculated_part_wt_g,
     packets_count = 1,
     balance_qty = 0,
+    is_partial = false,
     confirm,
     fifo_override,
     fifo_override_reason,
@@ -1345,8 +1356,8 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
   const part = await getPart(bag.part_id);
   const requiresTrim = Boolean(part.trim_required || bag.weighed_with_runner);
   const requiredStatuses = part.inspection_required
-    ? ['INSPECTED']
-    : (requiresTrim ? ['TRIMMED', 'INSPECTED'] : ['OPEN', 'TRIMMED', 'INSPECTED']);
+    ? ['INSPECTED', 'PARTIAL_PACK']
+    : (requiresTrim ? ['TRIMMED', 'INSPECTED', 'PARTIAL_PACK'] : ['OPEN', 'TRIMMED', 'INSPECTED', 'PARTIAL_PACK']);
 
   // FIFO check
   const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
@@ -1389,19 +1400,21 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
     );
   }
 
+  const targetStatus = is_partial ? 'PARTIAL_PACK' : 'PACKED';
+
   if (!confirm) {
     return res.json({
       needsConfirmation: true,
-      message: `Bag packed into ${packets_count} packets (${packed_qty} pcs total) with ${balance_qty} balance pcs logged. Mark status as PACKED?`,
+      message: `Bag packed into ${packets_count} packets (${packed_qty} pcs total) with ${balance_qty} balance pcs logged. Mark status as ${targetStatus}?`,
     });
   }
 
-  if (!isLegitimateStatusAdvance(bag.status, 'PACKED', part.trim_required, part.inspection_required)) {
-    return res.status(409).json({ error: `Bag is currently '${bag.status}' - not ready to advance to PACKED` });
+  if (!isLegitimateStatusAdvance(bag.status, targetStatus, part.trim_required, part.inspection_required)) {
+    return res.status(409).json({ error: `Bag is currently '${bag.status}' - not ready to advance to ${targetStatus}` });
   }
 
-  await pool.query(`UPDATE bags SET status = 'PACKED' WHERE id = $1`, [id]);
-  await logHistory(pool, id, bag.status, 'PACKED', `Packing completed (${packets_count} pkts, ${balance_qty} balance)`);
+  await pool.query(`UPDATE bags SET status = $1 WHERE id = $2`, [targetStatus, id]);
+  await logHistory(pool, id, bag.status, targetStatus, `Packing ${is_partial ? 'partial' : 'completed'} (${packets_count} pkts, ${balance_qty} balance)`);
 
   await logAudit(pool, {
     process: 'packing',
@@ -1414,12 +1427,12 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
     qty: packed_qty,
     weight_kg: packed_wt_kg,
     status_from: bag.status,
-    status_to: 'PACKED',
+    status_to: targetStatus,
     is_fifo_override: isFifoOverride,
     oldest_bag_code: older?.bag_code || null,
   });
 
-  res.json({ bag: { ...bag, status: 'PACKED' }, closed: true });
+  res.json({ bag: { ...bag, status: targetStatus }, closed: !is_partial });
 });
 
 // --- Rework Pending Pool ---

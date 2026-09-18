@@ -180,11 +180,11 @@ router.post('/', async (req, res) => {
       `INSERT INTO production_entries
         (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
          start_count, end_count, good_qty, reject_qty, downtime_minutes, downtime_reason_id, remarks,
-         start_time, end_time, efficiency_pct, session_id, target_qty, below_target)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+         start_time, end_time, period_start_at, period_end_at, efficiency_pct, session_id, target_qty, below_target)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
       [session.machine_id, session.part_id, req.user.id, currentShift(now), istDateString(now), hourSlot(now),
         startCount, end_count, goodQty, rejectQty, downtimeMinutes, rejectRows[0]?.reason_id || null, remarks || null,
-        startTime.toISOString(), endTime.toISOString(), efficiencyPct, session_id,
+        startTime.toISOString(), endTime.toISOString(), startTime.toISOString(), endTime.toISOString(), efficiencyPct, session_id,
         targetQty != null ? Math.round(targetQty * 100) / 100 : null, belowTarget]
     );
     const entry = rows[0];
