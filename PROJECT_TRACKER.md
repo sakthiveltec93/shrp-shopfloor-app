@@ -3,7 +3,7 @@
 > **Strategic Goal**: **Zero-Audit Preparation** for IATF 16949 certification + Complete Tier-2 Automotive Operations ERP.  
 > **Last Updated**: 18-Sep-2026  
 > **Production Branch**: `main` (Live on Railway)  
-> **Latest Deployment**: FPA two-tier gates, live shot counters, PM alerts, gauge calibration vault active
+> **Latest Deployment**: Customer master consolidation (SHRP/C-01 to 08), FPA two-tier gates, mould change audit trail, live shot counters active
 
 ---
 
@@ -12,7 +12,7 @@
 | Pillar | Focus Area | Completion | Target Clauses | Status |
 |---|---|:---:|---|:---:|
 | **Pillar 1** | **IATF Shopfloor Quality & MES** | **90%** | Clauses 7.1.5, 7.2, 8.5.1, 8.5.2 | 🟡 Active Sprint |
-| **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **45%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
+| **Pillar 2** | **Supply Chain, Inward Stores & Logistics** | **50%** | Clause 8.4.2 (Supplier Quality) | 🟡 In Progress |
 | **Pillar 3** | **HR, Attendance & Operator Performance** | **60%** | Clause 7.2 (Competence & Training) | 🟡 In Progress |
 | **Pillar 4** | **Accounts, Finance & "Zero-Audit" Dossier** | **15%** | Statutory, GSTR-1, Financials | 🔴 Upcoming |
 
@@ -91,7 +91,13 @@
 - [ ] **Mandatory CoA Quality Gate**: Attach manufacturer Certificate of Analysis & record MFI/Moisture before GRN release.
 - [ ] **Resin Lot-to-Bag Linkage**: Issue specific raw material lots to machines so every finished bag has raw material batch traceability.
 
-### 2.2 Customer PO, Invoicing & Logistics
+### 2.2 Customer Master & Data Quality
+- [x] **Customer Duplicate Consolidation**: Eliminated 5 duplicate customer entries (CUST-002, CUST-001, CUST-005, CUST-010, SHRP/CUS-002).
+- [x] **Sequential Customer Code Renumbering**: Standardized to `SHRP/C-01` through `SHRP/C-08` format (clean, sequential).
+- [x] **Data Migration**: Migrated all parts & dispatch references from deleted duplicates to master records.
+- [x] **Audit Trail**: Logged all deletions with consolidation reasons in deletion_audit_log.
+
+### 2.3 Customer PO, Invoicing & Logistics
 - [ ] **Customer Purchase Order Management**: Track open PO quantities & delivery schedules (Hanon, Avadh, Wonjin, etc.).
 - [ ] **Automotive GST Tax Invoice Generation**: HSN 39269099, CGST/SGST/IGST, P&F charges, and PDF invoice printing.
 - [ ] **E-Way Bill Integration**: Generate standardized JSON for government E-Way bill portal.
