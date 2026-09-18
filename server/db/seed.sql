@@ -6,10 +6,10 @@ ON CONFLICT (item_name, category) DO NOTHING;
 
 -- Seed SHRP real machine list (10 machines initial baseline)
 INSERT INTO machines (machine_code) VALUES
-  ('VIM - 01'), ('VIM - 02'), ('VIM - 03'),
-  ('RUB - 01'),
-  ('HSIM - 01'), ('HSIM - 02'), ('HSIM - 03'), ('HSIM - 04'), ('HSIM - 05'),
-  ('VSIM - 01')
+  ('VIM-01'), ('VIM-02'), ('VIM-03'),
+  ('RUB-01'),
+  ('HSIM-01'), ('HSIM-02'), ('HSIM-03'), ('HSIM-04'), ('HSIM-05'),
+  ('VSIM-01')
 ON CONFLICT (machine_code) DO NOTHING;
 
 -- Default admin user - PIN is '0000', CHANGE THIS after first login
