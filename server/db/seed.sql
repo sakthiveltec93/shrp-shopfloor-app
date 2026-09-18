@@ -18,11 +18,11 @@ INSERT INTO users (username, pin_hash, full_name, role) VALUES
 ON CONFLICT (username) DO NOTHING;
 
 -- Process parameters and critical dimensions for sample parts
-INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-1', '135-145', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
-INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-2', '165-175', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
-INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-3', '155-165', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
-INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-4', '140-150', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
-INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-5', '135-145', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
+INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-1', '135-145', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
+INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-2', '165-175', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
+INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-3', '155-165', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
+INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-4', '140-150', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
+INSERT INTO part_process_parameters (part_id, parameter_name, value, unit) SELECT id, 'Zone-5', '135-145', 'C' FROM parts WHERE part_code = 'F364-CB5AA-01' ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit;
 
 -- Daily machine check sheet items
 INSERT INTO daily_check_items (item_name, local_label, specification, icon, category, sort_order) VALUES
