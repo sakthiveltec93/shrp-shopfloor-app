@@ -47,6 +47,17 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
     }).catch(() => {});
   }, []);
 
+  // Auto-calculate Good Qty = End Count - Start Count
+  useEffect(() => {
+    if (startCount !== '' && endCount !== '') {
+      const start = Number(startCount);
+      const end = Number(endCount);
+      if (!isNaN(start) && !isNaN(end)) {
+        setGoodQty(end - start);
+      }
+    }
+  }, [startCount, endCount]);
+
   // VBA Auto-lookup on Machine + Date change for backdating
   useEffect(() => {
     if (mode === 'backdate_production' && machineId && entryDate) {
@@ -271,8 +282,8 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="good">Good Qty *</label>
-                  <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} required />
+                  <label htmlFor="good">Good Qty * (Auto-calculated)</label>
+                  <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} required disabled style={{ background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' }} />
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label htmlFor="rej">Reject Qty</label>
@@ -310,8 +321,8 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="good">Good Qty</label>
-                  <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} />
+                  <label htmlFor="good">Good Qty {startCount && endCount ? '(Auto)' : ''}</label>
+                  <input id="good" type="number" value={goodQty} onChange={(e) => setGoodQty(e.target.value)} style={startCount && endCount ? { background: 'rgba(0,0,0,0.2)', cursor: 'not-allowed' } : {}} disabled={startCount && endCount ? true : false} />
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label htmlFor="rej">Reject Qty</label>
