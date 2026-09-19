@@ -176,18 +176,20 @@ async function executeCorrection(client, { entityType, entityId, entityCode, act
     if (action === 'BACKDATED_CREATE') {
       const {
         bag_code, batch_no, entry_date, shift, machine_id, part_id, bag_type = 'PART',
-        base_weight_kg, qty, status = 'OPEN', weighed_with_runner = false, remarks, created_at
+        base_weight_kg, qty, status = 'OPEN', weighed_with_runner = false, remarks, created_at,
+        operator_user_id
       } = payload;
 
       const { rows } = await client.query(`
         INSERT INTO bags 
           (bag_code, batch_no, entry_date, shift, machine_id, part_id, bag_type,
-           base_weight_kg, qty, status, weighed_with_runner, remarks, is_backdated, created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, TRUE, COALESCE($13, now()))
+           base_weight_kg, qty, status, weighed_with_runner, remarks, is_backdated, created_at, operator_user_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, TRUE, COALESCE($13, now()), $14)
         RETURNING *
       `, [
         bag_code, batch_no, entry_date, shift, machine_id, part_id, bag_type,
-        base_weight_kg, qty, status, weighed_with_runner, remarks || null, created_at || null
+        base_weight_kg, qty, status, weighed_with_runner, remarks || null, created_at || null,
+        operator_user_id || user.id
       ]);
       const created = rows[0];
 

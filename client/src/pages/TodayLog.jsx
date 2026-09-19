@@ -394,7 +394,6 @@ export default function TodayLog() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span className="shrp-code-pill">{e.shrp_part_code || e.part_code}</span>
-                          <span style={{ fontSize: 12 }}>{e.part_name}</span>
                         </div>
                       </td>
                       <td>{e.start_count} → {e.end_count}</td>
@@ -549,7 +548,7 @@ export default function TodayLog() {
                 <thead>
                   <tr>
                     <th>Bag Barcode</th>
-                    <th>Part Name</th>
+                    <th>Part Code</th>
                     <th>Base Wt (kg)</th>
                     <th>Qty (pcs)</th>
                     <th>Status</th>
@@ -589,9 +588,9 @@ export default function TodayLog() {
                           <div className="muted" style={{ fontSize: 10 }}>Batch: {b.batch_no}</div>
                         </td>
                         <td>
-                          <strong style={{ fontSize: 13, color: 'var(--text)' }}>
-                            {b.part_name || b.shrp_part_code || b.part_code}
-                          </strong>
+                          <span className="shrp-code-pill" style={{ fontSize: 12 }}>
+                            {b.shrp_part_code || b.part_code}
+                          </span>
                         </td>
                         <td>{b.base_weight_kg} kg</td>
                         <td><strong>{b.qty}</strong></td>
@@ -831,7 +830,7 @@ export default function TodayLog() {
             </div>
 
             <div className="readout" style={{ marginBottom: 14, fontSize: 12 }}>
-              <div>Part: <strong>[{selectedBagDetail.shrp_part_code || selectedBagDetail.part_code}] {selectedBagDetail.customer_part_no || selectedBagDetail.part_name}</strong></div>
+              <div>Part Code: <strong>{selectedBagDetail.shrp_part_code || selectedBagDetail.part_code}</strong></div>
               <div>Batch: <strong>{selectedBagDetail.batch_no}</strong> · Machine: <strong>{selectedBagDetail.machine_code}</strong></div>
               <div>Base Weight: <strong>{selectedBagDetail.base_weight_kg} kg</strong> · Qty: <strong>{selectedBagDetail.qty} Nos</strong></div>
               <div>Current Status: <strong style={{ color: getStatusColor(selectedBagDetail.status) }}>{selectedBagDetail.status}</strong></div>

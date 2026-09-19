@@ -370,11 +370,11 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
                     onChange={(_, val) => setPartId(val)}
                     options={parts}
                     getOptionValue={(p) => String(p.id)}
-                    getOptionLabel={(p) => p.part_name}
-                    getOptionBadge={(p) => p.shrp_part_code || p.part_code}
-                    getOptionSublabel={(p) => p.customer_part_no ? `Cust: ${p.customer_part_no}` : ''}
+                    getOptionLabel={(p) => p.shrp_part_code || p.part_code}
+                    getOptionBadge={() => ''}
+                    getOptionSublabel={() => ''}
                     placeholder="🔍 Select Part..."
-                    searchPlaceholder="Search part code, name, customer no..."
+                    searchPlaceholder="Search part code..."
                     required
                   />
                 </div>

@@ -24,9 +24,14 @@ router.get('/active', async (req, res) => {
   const session = rows[0];
   if (!session) return res.json(null);
 
+  const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const lastEntry = await pool.query(
-    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    [session.id]
+    `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
+     FROM production_entries
+     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND (entry_date = $4::date OR created_at::date = $4::date)))
+     ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
+     LIMIT 1`,
+    [session.id, session.machine_id, session.part_id, sessionDate]
   );
   session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
   session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
@@ -48,9 +53,14 @@ router.get('/mine', async (req, res) => {
   const session = rows[0];
   if (!session) return res.json(null);
 
+  const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const lastEntry = await pool.query(
-    `SELECT end_count, end_time FROM production_entries WHERE session_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    [session.id]
+    `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
+     FROM production_entries
+     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND (entry_date = $4::date OR created_at::date = $4::date)))
+     ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
+     LIMIT 1`,
+    [session.id, session.machine_id, session.part_id, sessionDate]
   );
   session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
   session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;

@@ -339,11 +339,10 @@ export default function ProductionEntry() {
                 )}
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
-                    <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
+                    <span className="shrp-code-pill" style={{ fontSize: 15, padding: '4px 12px' }}>{assigned.shrp_part_code || assigned.part_code}</span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                    Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong> · {assigned.cavity_count} Cavities
+                  <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    {assigned.cavity_count} Cavities · Cycle Time: {assigned.standard_cycle_time_sec || '—'}s
                   </div>
                 </div>
               </div>

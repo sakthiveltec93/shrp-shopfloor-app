@@ -62,20 +62,18 @@ export default function SearchableSelect({
         ? getOptionLabel(opt)
         : opt.label !== undefined
         ? opt.label
-        : opt.part_name || opt.machine_code || opt.name || opt.title || opt.material_name || String(val);
+        : opt.shrp_part_code || opt.part_code || opt.part_name || opt.machine_code || opt.name || opt.title || opt.material_name || String(val);
 
       const badge = getOptionBadge
         ? getOptionBadge(opt)
         : opt.badge !== undefined
         ? opt.badge
-        : opt.shrp_part_code || opt.part_code || opt.code || '';
+        : (opt.shrp_part_code || opt.part_code ? '' : (opt.code || ''));
 
       const sublabel = getOptionSublabel
         ? getOptionSublabel(opt)
         : opt.sublabel !== undefined
         ? opt.sublabel
-        : opt.customer_part_no
-        ? ('Cust: ' + opt.customer_part_no)
         : opt.grade
         ? ('Grade: ' + opt.grade)
         : opt.description || '';

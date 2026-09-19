@@ -285,14 +285,6 @@ export default function BagEntry() {
                 <span className="shrp-code-pill" style={{ fontSize: 16, padding: '5px 14px' }}>
                   {prodVisibility.shrp_part_code || assigned?.shrp_part_code || assigned?.part_code || 'PART'}
                 </span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
-                    {prodVisibility.part_name || assigned?.part_name || 'Assigned Part'}
-                  </div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                    Customer Part No: <strong style={{ color: 'var(--text)' }}>{prodVisibility.customer_part_no || assigned?.customer_part_no || assigned?.part_code || '—'}</strong>
-                  </div>
-                </div>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 6 }}>
                 Unit Weight: {prodVisibility.part_weight_g || batchInfo?.part_weight_g || '—'}g · Cavities: {batchInfo?.cavity_count || 1}
@@ -534,13 +526,7 @@ export default function BagEntry() {
         {machineId && assigned && (
           <div className="shrp-part-badge-card" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span className="shrp-code-pill">{assigned.shrp_part_code || assigned.part_code}</span>
-              <div>
-                <strong style={{ fontSize: 14 }}>{assigned.part_name}</strong>
-                <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                  Customer Part No: <strong>{assigned.customer_part_no || assigned.part_code}</strong>
-                </div>
-              </div>
+              <span className="shrp-code-pill" style={{ fontSize: 15, padding: '4px 12px' }}>{assigned.shrp_part_code || assigned.part_code}</span>
             </div>
           </div>
         )}

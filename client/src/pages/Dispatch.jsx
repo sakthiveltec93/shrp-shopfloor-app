@@ -243,14 +243,14 @@ export default function Dispatch() {
                     const badge = ready > 0 ? ('🟢 [' + ready + ' Ready]') : active > 0 ? '🟡 Active' : '';
                     return {
                       value: p.id,
-                      label: p.part_name,
-                      badge: p.shrp_part_code || p.part_code,
-                      sublabel: [p.customer_part_no ? ('Cust: ' + p.customer_part_no) : '', badge].filter(Boolean).join(' · '),
+                      label: p.shrp_part_code || p.part_code,
+                      badge,
+                      sublabel: '',
                       searchTerms: (p.shrp_part_code || '') + ' ' + (p.part_code || '') + ' ' + (p.part_name || '') + ' ' + (p.customer_part_no || '')
                     };
                   })}
                   placeholder={t('common.selectPart')}
-                  searchPlaceholder="🔍 Type part code, name, customer no..."
+                  searchPlaceholder="🔍 Type part code..."
                 />
               </div>
 
@@ -359,8 +359,7 @@ export default function Dispatch() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, marginBottom: 14 }}>
-                <div>Part Name:</div><strong>{bag.part_name}</strong>
-                <div>Cust Part No:</div><span className="muted">{bag.customer_part_no || bag.part_code}</span>
+                <div>Part Code:</div><strong className="shrp-code-pill" style={{ display: 'inline-block', width: 'fit-content' }}>{bag.shrp_part_code || bag.part_code}</strong>
                 <div>Batch No:</div><strong>{bag.batch_no}</strong>
                 <div>Bag Code:</div><strong>{bag.bag_code}</strong>
                 <div>Prod Date:</div><strong>{new Date(bag.entry_date).toLocaleDateString('en-GB')} (Shift {bag.shift})</strong>

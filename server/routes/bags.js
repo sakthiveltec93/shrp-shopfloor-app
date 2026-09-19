@@ -19,7 +19,38 @@ async function logHistory(client, bagId, fromStatus, toStatus, source) {
   );
 }
 
-async function checkFifo(partId, requiredStatuses, currentBagId, entryDate, shift, createdAt) {
+async function checkFifo(partId, requiredStatuses, currentBagId, entryDate, shift, createdAt, stage, currentBagStatus) {
+  // If the scanned bag is itself a partial in-progress bag for this stage, allow it immediately
+  if (
+    (stage === 'trim' && currentBagStatus === 'PARTIAL_TRIM') ||
+    (stage === 'inspect' && currentBagStatus === 'PARTIAL_INSPECT') ||
+    (stage === 'pack' && currentBagStatus === 'PARTIAL_PACK')
+  ) {
+    return null;
+  }
+
+  // If there is ANY partial bag in progress for this stage and part (other than currentBagId), that partial bag MUST be finished first!
+  const partialStatus = stage === 'trim' ? 'PARTIAL_TRIM' : (stage === 'inspect' ? 'PARTIAL_INSPECT' : (stage === 'pack' ? 'PARTIAL_PACK' : null));
+  if (partialStatus) {
+    const { rows: partialRows } = await pool.query(`
+      SELECT b.bag_code, b.entry_date, b.shift, b.id
+      FROM bags b
+      WHERE b.part_id = $1 AND b.bag_type = 'PART'
+        AND b.bag_code NOT ILIKE '%-REJ%'
+        AND b.bag_code NOT ILIKE '%-RUNNER%'
+        AND b.bag_code NOT ILIKE '%-LUMP%'
+        AND b.bag_code NOT ILIKE '%-SCRAP%'
+        AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')
+        AND b.status = $2 AND b.id != $3
+      ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
+      LIMIT 1
+    `, [partId, partialStatus, currentBagId]);
+    if (partialRows.length > 0) {
+      return partialRows[0]; // Point to the in-progress partial bag that must be finished first!
+    }
+  }
+
+  // Standard FIFO by date/shift/created_at
   const statuses = Array.isArray(requiredStatuses) ? requiredStatuses : [requiredStatuses];
   const { rows } = await pool.query(`
     SELECT b.bag_code, b.entry_date, b.shift, b.id
@@ -411,9 +442,22 @@ router.get('/stage-parts', async (req, res) => {
 
 // Comprehensive bag history log with operator details and stage timelines
 router.get('/log/history', async (req, res) => {
-  const { date, shift, stage, part_id, search } = req.query;
+  const { date, shift, stage, part_id, search, operator_user_id } = req.query;
   const clauses = [];
   const params = [];
+
+  // Operator isolation: Operators can only see logs they created or worked on (trim, inspect, pack)
+  const targetOperatorId = req.user.role === 'operator' ? req.user.id : (operator_user_id ? Number(operator_user_id) : null);
+  if (targetOperatorId) {
+    params.push(targetOperatorId);
+    const opIdx = params.length;
+    clauses.push(`(
+      b.operator_user_id = $${opIdx} OR
+      EXISTS (SELECT 1 FROM trim_entries te WHERE te.bag_id = b.id AND te.operator_user_id = $${opIdx}) OR
+      EXISTS (SELECT 1 FROM inspection_entries ie WHERE ie.bag_id = b.id AND ie.operator_user_id = $${opIdx}) OR
+      EXISTS (SELECT 1 FROM packing_entries pe WHERE pe.bag_id = b.id AND pe.operator_user_id = $${opIdx})
+    )`);
+  }
 
   if (date) {
     params.push(date);
@@ -597,6 +641,18 @@ router.get('/', async (req, res) => {
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
+  let orderStageClause = '';
+  if (stage) {
+    params.push(stage);
+    const sIdx = params.length;
+    orderStageClause = `(CASE
+      WHEN $${sIdx} = 'trim' AND b.status = 'PARTIAL_TRIM' THEN 0
+      WHEN $${sIdx} = 'inspect' AND b.status = 'PARTIAL_INSPECT' THEN 0
+      WHEN $${sIdx} = 'pack' AND b.status = 'PARTIAL_PACK' THEN 0
+      ELSE 1
+    END) ASC, `;
+  }
+
   const { rows } = await pool.query(`
     SELECT b.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no,
            p.trim_required, p.inspection_required, p.packing_required, p.dispatch_required
@@ -604,7 +660,7 @@ router.get('/', async (req, res) => {
     JOIN machines m ON m.id = b.machine_id
     JOIN parts p ON p.id = b.part_id
     ${where}
-    ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
+    ORDER BY ${orderStageClause}b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
     LIMIT 300
   `, params);
   res.json(rows);
@@ -644,9 +700,16 @@ router.get('/fifo', async (req, res) => {
       AND b.bag_code NOT ILIKE '%-SCRAP%'
       AND b.bag_type NOT IN ('RUNNER', 'REJECTION', 'LUMP', 'LUMPS', 'SCRAP')
       AND ${statusFilter}
-    ORDER BY b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
+    ORDER BY
+      (CASE
+        WHEN $2 = 'trim' AND b.status = 'PARTIAL_TRIM' THEN 0
+        WHEN $2 = 'inspect' AND b.status = 'PARTIAL_INSPECT' THEN 0
+        WHEN $2 = 'pack' AND b.status = 'PARTIAL_PACK' THEN 0
+        ELSE 1
+      END) ASC,
+      b.entry_date ASC, (CASE b.shift WHEN 'A' THEN 0 ELSE 1 END) ASC, b.created_at ASC
     LIMIT 1
-  `, [part_id]);
+  `, [part_id, stage]);
 
   if (!rows[0]) return res.status(404).json({ error: `No bag ready for ${stage} on this part` });
   res.json(rows[0]);
@@ -762,7 +825,7 @@ router.get('/by-code/:code', async (req, res) => {
     else if (stage === 'dispatch') requiredStatuses = ['PACKED'];
 
     if (requiredStatuses && requiredStatuses.includes(bag.status)) {
-      const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
+      const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at, stage, bag.status);
       if (older) {
         fifoValid = false;
         oldestBag = {
@@ -973,7 +1036,7 @@ router.post('/:id(\\d+)/trim', async (req, res) => {
   const partWeightG = Number(part.part_weight_g || (part.unit_weight_g ? part.unit_weight_g / cavityCount : 0));
 
   // FIFO check
-  const older = await checkFifo(bag.part_id, ['OPEN', 'PARTIAL_TRIM'], bag.id, bag.entry_date, bag.shift, bag.created_at);
+  const older = await checkFifo(bag.part_id, ['OPEN', 'PARTIAL_TRIM'], bag.id, bag.entry_date, bag.shift, bag.created_at, 'trim', bag.status);
   if (older && !fifo_override) {
     return res.status(409).json({
       error: 'FIFO Violation',
@@ -1129,7 +1192,7 @@ router.post('/:id(\\d+)/inspect', async (req, res) => {
   const requiredStatuses = requiresTrim ? ['TRIMMED', 'PARTIAL_INSPECT'] : ['OPEN', 'TRIMMED', 'PARTIAL_INSPECT'];
 
   // FIFO check
-  const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
+  const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at, 'inspect', bag.status);
   if (older && !fifo_override) {
     return res.status(409).json({
       error: 'FIFO Violation',
@@ -1371,7 +1434,7 @@ router.post('/:id(\\d+)/pack', async (req, res) => {
     : (requiresTrim ? ['TRIMMED', 'INSPECTED', 'PARTIAL_PACK'] : ['OPEN', 'TRIMMED', 'INSPECTED', 'PARTIAL_PACK']);
 
   // FIFO check
-  const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at);
+  const older = await checkFifo(bag.part_id, requiredStatuses, bag.id, bag.entry_date, bag.shift, bag.created_at, 'pack', bag.status);
   if (older && !fifo_override) {
     return res.status(409).json({
       error: 'FIFO Violation',
