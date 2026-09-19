@@ -53,7 +53,7 @@ export default function RMStockRegister() {
         api.rawMaterials.stockRegister().catch(() => []),
         api.rawMaterials.list().catch(() => []),
         api.rawMaterials.wipPool().catch(() => []),
-        api.machines().catch(() => []),
+        api.machines('PRODUCTION').catch(() => []),
       ]);
       setStockRows(Array.isArray(stocks) ? stocks : []);
       setMaterials(Array.isArray(mats) ? mats : []);

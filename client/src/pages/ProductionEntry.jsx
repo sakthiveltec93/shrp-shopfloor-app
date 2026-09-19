@@ -67,7 +67,7 @@ export default function ProductionEntry() {
     (async () => {
       try {
         const [m, a, r, rr, ctx, items, mine, ops] = await Promise.all([
-          api.machines(), api.currentAssignments(), api.checkItems('downtime_reason'),
+          api.machines('PRODUCTION'), api.currentAssignments(), api.checkItems('downtime_reason'),
           api.checkItems('reject_reason'), api.entryContext(), api.checkSheetItems(),
           api.mySession(), api.operators(),
         ]);

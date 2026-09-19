@@ -69,7 +69,7 @@ export default function CorrectionModal({ mode, record, initialMachineId, initia
 
   useEffect(() => {
     Promise.all([
-      api.machines(),
+      api.machines('PRODUCTION'),
       api.parts(),
       api.operators().catch(() => []),
       api.checkItems('reject_reason').catch(() => []),

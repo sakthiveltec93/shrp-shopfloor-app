@@ -31,7 +31,7 @@ router.get('/current', async (req, res) => {
       WHERE assignment_id = ma.id
       ORDER BY created_at DESC LIMIT 1
     ) fpa ON true
-    WHERE ma.status = 'approved'
+    WHERE ma.status = 'approved' AND m.category = 'PRODUCTION'
     ORDER BY ma.machine_id, ma.approved_at DESC
   `);
   res.json(rows);
@@ -333,7 +333,7 @@ router.get('/history', async (req, res) => {
     ) fpa ON true
     LEFT JOIN users u_vis ON u_vis.id = fpa.visual_approved_by_user_id
     LEFT JOIN users u_qa ON u_qa.id = COALESCE(fpa.quality_inspector_user_id, fpa.supervisor_user_id)
-    WHERE 1=1
+    WHERE m.category = 'PRODUCTION'
   `;
   const params = [];
   if (machine_id) {
@@ -357,7 +357,7 @@ router.get('/pending', requireRole('supervisor', 'admin'), async (req, res) => {
     JOIN parts p ON p.id = ma.part_id
     JOIN users u ON u.id = ma.set_by_user_id
     LEFT JOIN check_items ci ON ci.id = ma.reason_id
-    WHERE ma.status = 'pending'
+    WHERE ma.status = 'pending' AND m.category = 'PRODUCTION'
     ORDER BY ma.set_at DESC
   `);
   res.json(rows);
@@ -373,6 +373,13 @@ router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res
   } = req.body;
   if (!machine_id || !part_id) {
     return res.status(400).json({ error: 'machine_id and part_id are required' });
+  }
+
+  // Ensure target machine is a PRODUCTION machine
+  const machCheck = await pool.query('SELECT id, machine_code, category FROM machines WHERE id = $1', [machine_id]);
+  if (!machCheck.rows[0]) return res.status(404).json({ error: 'Machine not found' });
+  if (machCheck.rows[0].category !== 'PRODUCTION') {
+    return res.status(400).json({ error: 'Mould setup can only be performed on PRODUCTION machines' });
   }
 
   // Hard Gate: Block requesting a new assignment if current active assignment on machine has incomplete Full FPA

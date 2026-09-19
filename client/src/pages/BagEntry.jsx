@@ -47,7 +47,7 @@ export default function BagEntry() {
     (async () => {
       try {
         const [m, a, ctx, mySess] = await Promise.all([
-          api.machines(),
+          api.machines('PRODUCTION'),
           api.currentAssignments(),
           api.entryContext(),
           api.mySession().catch(() => null),

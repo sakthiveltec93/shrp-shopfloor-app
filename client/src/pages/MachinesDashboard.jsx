@@ -23,6 +23,7 @@ const MOTOR_TYPES = [
 const emptyMachineForm = {
   machine_code: '',
   description: '',
+  category: 'PRODUCTION',
   tonnage: 100,
   make_model: '',
   year_of_commission: new Date().getFullYear(),
@@ -50,6 +51,7 @@ export default function MachinesDashboard() {
   const [loading, setLoading] = useState(true);
   const [machines, setMachines] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [activeCategoryTab, setActiveCategoryTab] = useState('PRODUCTION'); // 'PRODUCTION' | 'AUXILIARY'
 
   // Modals state
   const [breakdownModalMachine, setBreakdownModalMachine] = useState(null);
@@ -88,7 +90,10 @@ export default function MachinesDashboard() {
   function openAddMachineModal() {
     setMachineModalMode('add');
     setEditMachineId(null);
-    setMachineFormData(emptyMachineForm);
+    setMachineFormData({
+      ...emptyMachineForm,
+      category: activeCategoryTab,
+    });
   }
 
   function openEditMachineModal(m) {
@@ -97,6 +102,7 @@ export default function MachinesDashboard() {
     setMachineFormData({
       machine_code: m.machine_code || '',
       description: m.description || '',
+      category: m.category || 'PRODUCTION',
       tonnage: m.tonnage || 100,
       make_model: m.make_model || '',
       year_of_commission: m.year_of_commission || 2020,
@@ -183,7 +189,11 @@ export default function MachinesDashboard() {
   const [sortBy, setSortBy] = useState('code');            // code | output | shots
   const [expandedCard, setExpandedCard] = useState(null);  // machine id with expanded specs
 
-  const filteredMachines = machines
+  const prodMachines = machines.filter((m) => m.category !== 'AUXILIARY');
+  const auxMachines = machines.filter((m) => m.category === 'AUXILIARY');
+  const currentCategoryMachines = activeCategoryTab === 'AUXILIARY' ? auxMachines : prodMachines;
+
+  const filteredMachines = currentCategoryMachines
     .filter((m) => {
       if (filterStatus === 'ALL') return true;
       if (filterStatus === 'RUNNING') return m.status === 'RUNNING';
@@ -197,17 +207,18 @@ export default function MachinesDashboard() {
       return (a.machine_code || '').localeCompare(b.machine_code || '');
     });
 
-  // KPI summary computations
-  const totalMachines = machines.length;
-  const runningMachines = machines.filter((m) => m.status === 'RUNNING').length;
-  const idleMachines = machines.filter((m) => m.status === 'IDLE' || m.status === 'STARTED').length;
-  const totalOkToday = machines.reduce((sum, m) => sum + (m.today?.ok_qty || 0), 0);
-  const totalDowntimeToday = machines.reduce((sum, m) => sum + (m.today?.downtime_minutes || 0), 0);
+  // KPI summary computations for the active category
+  const totalMachines = currentCategoryMachines.length;
+  const runningMachines = currentCategoryMachines.filter((m) => m.status === 'RUNNING').length;
+  const idleMachines = currentCategoryMachines.filter((m) => m.status === 'IDLE' || m.status === 'STARTED').length;
+  const totalOkToday = currentCategoryMachines.reduce((sum, m) => sum + (m.today?.ok_qty || 0), 0);
+  const totalDowntimeToday = currentCategoryMachines.reduce((sum, m) => sum + (m.today?.downtime_minutes || 0), 0);
+  const totalConnectedKw = currentCategoryMachines.reduce((sum, m) => sum + (Number(m.connected_load_kw) || 0), 0);
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '16px' }}>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
@@ -217,7 +228,7 @@ export default function MachinesDashboard() {
               ← Home
             </button>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-              🖥️ Machines
+              🖥️ Machines &amp; Equipment Master
             </h1>
           </div>
         </div>
@@ -233,29 +244,93 @@ export default function MachinesDashboard() {
             onClick={openAddMachineModal}
             style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            ➕ Add Machine
+            ➕ Add {activeCategoryTab === 'AUXILIARY' ? 'Auxiliary Unit' : 'Production Machine'}
           </button>
         </div>
       </div>
 
-      {/* KPI Summary Cards — Compact 2-5 per row */}
+      {/* Primary Category Switcher Tabs */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 10 }}>
+        <button
+          type="button"
+          onClick={() => setActiveCategoryTab('PRODUCTION')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 18px',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: '1.5px solid',
+            background: activeCategoryTab === 'PRODUCTION' ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface)',
+            color: activeCategoryTab === 'PRODUCTION' ? '#fbbf24' : 'var(--text-muted)',
+            borderColor: activeCategoryTab === 'PRODUCTION' ? '#f59e0b' : 'var(--line)',
+            boxShadow: activeCategoryTab === 'PRODUCTION' ? '0 0 12px rgba(245,158,11,0.2)' : 'none',
+          }}
+        >
+          <span>🏭 Production Machines</span>
+          <span style={{ background: activeCategoryTab === 'PRODUCTION' ? '#f59e0b' : 'var(--line)', color: activeCategoryTab === 'PRODUCTION' ? '#000' : 'var(--text)', fontSize: 11, padding: '2px 8px', borderRadius: 999, fontWeight: 800 }}>
+            {prodMachines.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveCategoryTab('AUXILIARY')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 18px',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: '1.5px solid',
+            background: activeCategoryTab === 'AUXILIARY' ? 'rgba(59, 130, 246, 0.15)' : 'var(--surface)',
+            color: activeCategoryTab === 'AUXILIARY' ? '#60a5fa' : 'var(--text-muted)',
+            borderColor: activeCategoryTab === 'AUXILIARY' ? '#3b82f6' : 'var(--line)',
+            boxShadow: activeCategoryTab === 'AUXILIARY' ? '0 0 12px rgba(59,130,246,0.2)' : 'none',
+          }}
+        >
+          <span>🔌 Auxiliary Equipment</span>
+          <span style={{ background: activeCategoryTab === 'AUXILIARY' ? '#3b82f6' : 'var(--line)', color: activeCategoryTab === 'AUXILIARY' ? '#fff' : 'var(--text)', fontSize: 11, padding: '2px 8px', borderRadius: 999, fontWeight: 800 }}>
+            {auxMachines.length}
+          </span>
+        </button>
+      </div>
+
+      {/* KPI Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Fleet</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{totalMachines} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>M/C</span></div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+            {activeCategoryTab === 'AUXILIARY' ? 'Total Auxiliary' : 'Total Fleet'}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>
+            {totalMachines} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>Units</span>
+          </div>
         </div>
         <div style={{ background: 'var(--surface)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 8, padding: '8px 10px' }}>
-          <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase', fontWeight: 600 }}>🟢 Running</div>
+          <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase', fontWeight: 600 }}>🟢 Running / Active</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#34d399', marginTop: 2 }}>{runningMachines}</div>
         </div>
         <div style={{ background: 'var(--surface)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 10px' }}>
-          <div style={{ fontSize: 10, color: '#fbbf24', textTransform: 'uppercase', fontWeight: 600 }}>🟡 Idle/Setup</div>
+          <div style={{ fontSize: 10, color: '#fbbf24', textTransform: 'uppercase', fontWeight: 600 }}>🟡 Idle / Standby</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#fbbf24', marginTop: 2 }}>{idleMachines}</div>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Output Today</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa', marginTop: 2 }}>{totalOkToday.toLocaleString()} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span></div>
-        </div>
+        {activeCategoryTab === 'PRODUCTION' ? (
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Output Today</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa', marginTop: 2 }}>{totalOkToday.toLocaleString()} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>pcs</span></div>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Connected Load</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa', marginTop: 2 }}>{totalConnectedKw.toFixed(1)} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>kW</span></div>
+          </div>
+        )}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }}>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Downtime</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: totalDowntimeToday > 60 ? '#f87171' : 'var(--text)', marginTop: 2 }}>{totalDowntimeToday} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>min</span></div>
@@ -276,21 +351,25 @@ export default function MachinesDashboard() {
               borderColor: filterStatus === f ? 'transparent' : 'var(--line)',
             }}
           >
-            {f === 'ALL' ? 'All' : f === 'RUNNING' ? '🟢 Running' : f === 'IDLE' ? '🟡 Idle/Setup' : '🔴 Breakdown'}
+            {f === 'ALL' ? 'All' : f === 'RUNNING' ? '🟢 Running' : f === 'IDLE' ? '🟡 Idle/Standby' : '🔴 Breakdown'}
           </button>
         ))}
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 12 }}>Sort:</span>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          style={{ padding: '5px 10px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6 }}
-        >
-          <option value="code">Machine Code</option>
-          <option value="output">Output Today ↓</option>
-          <option value="shots">Shots Today ↓</option>
-        </select>
+        {activeCategoryTab === 'PRODUCTION' && (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginLeft: 12 }}>Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{ padding: '5px 10px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6 }}
+            >
+              <option value="code">Machine Code</option>
+              <option value="output">Output Today ↓</option>
+              <option value="shots">Shots Today ↓</option>
+            </select>
+          </>
+        )}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
-          Showing {filteredMachines.length} of {machines.length}
+          Showing {filteredMachines.length} of {currentCategoryMachines.length}
         </span>
       </div>
 
@@ -298,7 +377,9 @@ export default function MachinesDashboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading machine status...</div>
       ) : filteredMachines.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No machines match the selected filter.</div>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+          No {activeCategoryTab === 'AUXILIARY' ? 'auxiliary equipment' : 'production machines'} found.
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {filteredMachines.map((m) => {
@@ -308,6 +389,7 @@ export default function MachinesDashboard() {
             const statusColor = isRunning ? '#10b981' : isBreakdown ? '#ef4444' : isStarted ? '#f59e0b' : '#6b7280';
             const statusBg = isRunning ? 'rgba(16,185,129,0.1)' : isBreakdown ? 'rgba(239,68,68,0.1)' : isStarted ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.08)';
             const isExpanded = expandedCard === m.id;
+            const isAux = m.category === 'AUXILIARY';
 
             return (
               <div
@@ -322,11 +404,19 @@ export default function MachinesDashboard() {
                   gap: 10,
                 }}
               >
-                {/* Row 1: Code + Tonnage + Status + Edit */}
+                {/* Row 1: Code + Tonnage/Type + Status + Edit */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.02em' }}>{m.machine_code}</span>
-                    <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>{m.tonnage}T</span>
+                    {isAux ? (
+                      <span style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>
+                        🔌 AUXILIARY
+                      </span>
+                    ) : (
+                      <span style={{ background: 'var(--line)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999 }}>
+                        {m.tonnage}T
+                      </span>
+                    )}
                     <button onClick={() => openEditMachineModal(m)} title="Edit specs" style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: 0 }}>✏️</button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: statusBg, color: statusColor, border: `1px solid ${statusColor}44` }}>
@@ -335,9 +425,20 @@ export default function MachinesDashboard() {
                   </div>
                 </div>
 
-                {/* Row 2: Current Mould / Part */}
+                {/* Row 2: Mould/Part or Equipment Info */}
                 <div style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 7, padding: '8px 10px', fontSize: 12 }}>
-                  {m.current_part ? (
+                  {isAux ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                        {m.description || m.make_model || 'Support Equipment'}
+                      </span>
+                      {m.connected_load_kw && (
+                        <span style={{ color: '#fbbf24', fontSize: 11, fontWeight: 700 }}>
+                          ⚡ {m.connected_load_kw} kW
+                        </span>
+                      )}
+                    </div>
+                  ) : m.current_part ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <span style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', padding: '1px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{m.current_part.shrp_part_code}</span>
                       <span style={{ fontWeight: 600, color: 'var(--text)' }}>{m.current_part.part_name}</span>
@@ -348,21 +449,38 @@ export default function MachinesDashboard() {
                   )}
                 </div>
 
-                {/* Row 3: Today's 3-stat row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, textAlign: 'center' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Shots</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{(m.today?.shots || 0).toLocaleString()}</div>
+                {/* Row 3: Stats row */}
+                {isAux ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Power Load</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{m.connected_load_kw ? `${m.connected_load_kw} kW` : '-'}</div>
+                    </div>
+                    <div style={{ background: 'rgba(59,130,246,0.06)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: '#60a5fa', textTransform: 'uppercase' }}>Make / Model</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.make_model || '-'}</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rate / Hr</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>₹{m.hourly_rate_inr || 0}</div>
+                    </div>
                   </div>
-                  <div style={{ background: 'rgba(16,185,129,0.06)', borderRadius: 6, padding: '6px 4px' }}>
-                    <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase' }}>OK Output</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#34d399' }}>{(m.today?.ok_qty || 0).toLocaleString()}</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Shots</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{(m.today?.shots || 0).toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: 'rgba(16,185,129,0.06)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase' }}>OK Output</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#34d399' }}>{(m.today?.ok_qty || 0).toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: m.today?.reject_qty > 0 ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rejects</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: m.today?.reject_qty > 0 ? '#f87171' : 'var(--text-muted)' }}>{m.today?.reject_qty || 0}</div>
+                    </div>
                   </div>
-                  <div style={{ background: m.today?.reject_qty > 0 ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '6px 4px' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rejects</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: m.today?.reject_qty > 0 ? '#f87171' : 'var(--text-muted)' }}>{m.today?.reject_qty || 0}</div>
-                  </div>
-                </div>
+                )}
 
                 {/* Row 4: MTBF / MTTR inline */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -371,22 +489,26 @@ export default function MachinesDashboard() {
                   <span>Breakdowns <strong style={{ color: m.tpm?.total_breakdowns > 0 ? '#fbbf24' : 'var(--text)' }}>{m.tpm?.total_breakdowns || 0}</strong></span>
                 </div>
 
-                {/* Expandable Specs (collapsed by default) */}
-                <button
-                  onClick={() => setExpandedCard(isExpanded ? null : m.id)}
-                  style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 11, cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600 }}
-                >
-                  {isExpanded ? '▲ Hide specs' : '▼ Show specs (Tie Bar, Platen, Shot Wt…)'}
-                </button>
-                {isExpanded && (
-                  <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', color: 'var(--text-muted)' }}>
-                    <div>Tie Bar: <strong style={{ color: 'var(--text)' }}>{m.tie_bar_distance_mm || '-'}</strong> mm</div>
-                    <div>Platen: <strong style={{ color: 'var(--text)' }}>{m.platen_size_mm || '-'}</strong> mm</div>
-                    <div>Mould Ht: <strong style={{ color: 'var(--text)' }}>{m.min_mould_height_mm || 0}–{m.max_mould_height_mm || 0}</strong> mm</div>
-                    <div>Max Shot: <strong style={{ color: 'var(--text)' }}>{m.max_shot_weight_g || '-'}</strong> g</div>
-                    <div>Motor: <strong style={{ color: 'var(--text)' }}>{m.motor_type || '-'}</strong></div>
-                    <div>Rate: <strong style={{ color: '#34d399' }}>₹{m.hourly_rate_inr || 450}/hr</strong></div>
-                  </div>
+                {/* Expandable Specs for Production Machines */}
+                {!isAux && (
+                  <>
+                    <button
+                      onClick={() => setExpandedCard(isExpanded ? null : m.id)}
+                      style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 11, cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600 }}
+                    >
+                      {isExpanded ? '▲ Hide specs' : '▼ Show specs (Tie Bar, Platen, Shot Wt…)'}
+                    </button>
+                    {isExpanded && (
+                      <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px', fontSize: 11, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', color: 'var(--text-muted)' }}>
+                        <div>Tie Bar: <strong style={{ color: 'var(--text)' }}>{m.tie_bar_distance_mm || '-'}</strong> mm</div>
+                        <div>Platen: <strong style={{ color: 'var(--text)' }}>{m.platen_size_mm || '-'}</strong> mm</div>
+                        <div>Mould Ht: <strong style={{ color: 'var(--text)' }}>{m.min_mould_height_mm || 0}–{m.max_mould_height_mm || 0}</strong> mm</div>
+                        <div>Max Shot: <strong style={{ color: 'var(--text)' }}>{m.max_shot_weight_g || '-'}</strong> g</div>
+                        <div>Motor: <strong style={{ color: 'var(--text)' }}>{m.motor_type || '-'}</strong></div>
+                        <div>Rate: <strong style={{ color: '#34d399' }}>₹{m.hourly_rate_inr || 450}/hr</strong></div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Action Buttons */}
@@ -410,48 +532,93 @@ export default function MachinesDashboard() {
         </div>
       )}
 
-      {/* MODAL: Add / Edit Machine with Engineering Specs */}
+      {/* MODAL: Add / Edit Machine with Category-Aware Specs */}
       {machineModalMode && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ background: '#181a1b', border: '1px solid var(--line)', borderRadius: 12, width: '100%', maxWidth: 720, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text)' }}>
-                  {machineModalMode === 'add' ? '➕ Add New Machine to Fleet' : `✏️ Edit Machine Specifications: ${machineFormData.machine_code}`}
+                  {machineModalMode === 'add'
+                    ? (machineFormData.category === 'AUXILIARY' ? '➕ Add New Auxiliary Equipment' : '➕ Add New Production Machine')
+                    : `✏️ Edit ${machineFormData.category === 'AUXILIARY' ? 'Auxiliary Unit' : 'Machine'}: ${machineFormData.machine_code}`}
                 </h3>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  Engineering capacity parameters for quote planning, mould fitting & costing
+                  {machineFormData.category === 'AUXILIARY'
+                    ? 'Support equipment parameters for TPM maintenance, breakdown tracking & power load'
+                    : 'Engineering capacity parameters for quote planning, mould fitting & costing'}
                 </div>
               </div>
               <button onClick={() => setMachineModalMode(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
 
             <form onSubmit={handleMachineFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Category selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, fontWeight: 700 }}>Equipment Classification *</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: machineFormData.category === 'PRODUCTION' ? '#fbbf24' : 'var(--text-muted)', fontWeight: 600 }}>
+                    <input
+                      type="radio"
+                      name="m_category"
+                      value="PRODUCTION"
+                      checked={machineFormData.category === 'PRODUCTION'}
+                      onChange={() => setMachineFormData({ ...machineFormData, category: 'PRODUCTION' })}
+                    />
+                    🏭 Production Machine (Injection / Moulding)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: machineFormData.category === 'AUXILIARY' ? '#60a5fa' : 'var(--text-muted)', fontWeight: 600 }}>
+                    <input
+                      type="radio"
+                      name="m_category"
+                      value="AUXILIARY"
+                      checked={machineFormData.category === 'AUXILIARY'}
+                      onChange={() => setMachineFormData({ ...machineFormData, category: 'AUXILIARY' })}
+                    />
+                    🔌 Auxiliary Equipment (Chiller, Crusher, Compressor, DG, Dryer)
+                  </label>
+                </div>
+              </div>
+
+              {/* Basic Fields */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Machine Code *</label>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Equipment / Machine Code *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. HSIM - 06"
+                    placeholder={machineFormData.category === 'AUXILIARY' ? 'e.g. AC-02, CR-05' : 'e.g. HSIM - 06'}
                     disabled={machineModalMode === 'edit'}
                     value={machineFormData.machine_code}
                     onChange={(e) => setMachineFormData({ ...machineFormData, machine_code: e.target.value })}
                     style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
                   />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Tonnage (T) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="10"
-                    max="3000"
-                    value={machineFormData.tonnage}
-                    onChange={(e) => setMachineFormData({ ...machineFormData, tonnage: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                  />
-                </div>
+                {machineFormData.category === 'PRODUCTION' ? (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Tonnage (T) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="10"
+                      max="3000"
+                      value={machineFormData.tonnage}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, tonnage: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Description / Purpose</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Air Compressor 10HP"
+                      value={machineFormData.description}
+                      onChange={(e) => setMachineFormData({ ...machineFormData, description: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                    />
+                  </div>
+                )}
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Commission Year</label>
                   <input
@@ -470,7 +637,7 @@ export default function MachinesDashboard() {
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Make & Model</label>
                   <input
                     type="text"
-                    placeholder="e.g. L&T Demag Ergotech 100"
+                    placeholder={machineFormData.category === 'AUXILIARY' ? 'e.g. ELGI EG-11, Shini Dryer' : 'e.g. L&T Demag Ergotech 100'}
                     value={machineFormData.make_model}
                     onChange={(e) => setMachineFormData({ ...machineFormData, make_model: e.target.value })}
                     style={{ width: '100%', padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
@@ -490,130 +657,147 @@ export default function MachinesDashboard() {
                 </div>
               </div>
 
-              {/* Physical & Dimensional Specifications */}
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 10 }}>📐 Mould Clamping & Dimensional Limits</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Tie Bar Distance (H x V mm)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 410 x 410"
-                      value={machineFormData.tie_bar_distance_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, tie_bar_distance_mm: e.target.value })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Platen Size (H x V mm)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 600 x 600"
-                      value={machineFormData.platen_size_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, platen_size_mm: e.target.value })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Daylight (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.max_daylight_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, max_daylight_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Min Mould Height (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.min_mould_height_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, min_mould_height_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Mould Height (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.max_mould_height_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, max_mould_height_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Stroke (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.clamping_stroke_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, clamping_stroke_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
+              {/* Power & Maintenance Specs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Connected Load (kW)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={machineFormData.connected_load_kw}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, connected_load_kw: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Hourly Rate (₹/hr)</label>
+                  <input
+                    type="number"
+                    value={machineFormData.hourly_rate_inr}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, hourly_rate_inr: Number(e.target.value) })}
+                    style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Next PM Due Date</label>
+                  <input
+                    type="date"
+                    value={machineFormData.pm_due_date}
+                    onChange={(e) => setMachineFormData({ ...machineFormData, pm_due_date: e.target.value })}
+                    style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                  />
                 </div>
               </div>
 
-              {/* Injection & Power Specs */}
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#34d399', marginBottom: 10 }}>⚡ Injection, Ejector & Hourly Rate</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Screw Diameter (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.screw_diameter_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, screw_diameter_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
+              {/* Physical & Dimensional Specifications (Only for PRODUCTION machines) */}
+              {machineFormData.category === 'PRODUCTION' && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 10 }}>📐 Mould Clamping &amp; Dimensional Limits</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Tie Bar Distance (H x V mm)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 410 x 410"
+                          value={machineFormData.tie_bar_distance_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, tie_bar_distance_mm: e.target.value })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Platen Size (H x V mm)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 600 x 600"
+                          value={machineFormData.platen_size_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, platen_size_mm: e.target.value })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Daylight (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.max_daylight_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, max_daylight_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Min Mould Height (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.min_mould_height_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, min_mould_height_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Mould Height (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.max_mould_height_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, max_mould_height_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Stroke (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.clamping_stroke_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, clamping_stroke_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Shot Weight (PS/PP g)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.max_shot_weight_g}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, max_shot_weight_g: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
+
+                  {/* Injection & Clamping Specs */}
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#34d399', marginBottom: 10 }}>⚡ Injection &amp; Clamping Limits</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Screw Diameter (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.screw_diameter_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, screw_diameter_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Max Shot Weight (g)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.max_shot_weight_g}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, max_shot_weight_g: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Force (kN)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.clamping_force_kn}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, clamping_force_kn: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Ejector Stroke (mm)</label>
+                        <input
+                          type="number"
+                          value={machineFormData.ejector_stroke_mm}
+                          onChange={(e) => setMachineFormData({ ...machineFormData, ejector_stroke_mm: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Clamping Force (kN)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.clamping_force_kn}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, clamping_force_kn: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Ejector Stroke (mm)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.ejector_stroke_mm}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, ejector_stroke_mm: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Connected Load (kW)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={machineFormData.connected_load_kw}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, connected_load_kw: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Hourly Rate (₹/hr for costing)</label>
-                    <input
-                      type="number"
-                      value={machineFormData.hourly_rate_inr}
-                      onChange={(e) => setMachineFormData({ ...machineFormData, hourly_rate_inr: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', borderRadius: 6, fontSize: 13 }}
-                    />
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                 <button

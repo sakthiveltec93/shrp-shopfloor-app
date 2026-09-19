@@ -10,7 +10,15 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/machines', async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM machines WHERE active = TRUE ORDER BY machine_code');
+  const { category } = req.query;
+  let query = 'SELECT * FROM machines WHERE active = TRUE';
+  const params = [];
+  if (category) {
+    params.push(category.toUpperCase());
+    query += ` AND category = $${params.length}`;
+  }
+  query += ' ORDER BY machine_code';
+  const { rows } = await pool.query(query, params);
   res.json(rows);
 });
 

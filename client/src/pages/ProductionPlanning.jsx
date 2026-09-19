@@ -65,7 +65,7 @@ export default function ProductionPlanning() {
       try {
         const [partsRes, machRes, mouldRes] = await Promise.all([
           api.parts().catch(() => []),
-          api.machines().catch(() => []),
+          api.machines('PRODUCTION').catch(() => []),
           api.moulds.list().catch(() => []),
         ]);
         setParts(Array.isArray(partsRes) ? partsRes : []);

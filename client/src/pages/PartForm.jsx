@@ -58,7 +58,7 @@ export default function PartForm() {
 
   useEffect(() => {
     api.customers().then(setCustomers);
-    api.machines().then(setMachines);
+    api.machines('PRODUCTION').then(setMachines);
     api.moulds.list().then((data) => setAllMoulds(Array.isArray(data) ? data : [])).catch(console.error);
 
     if (!isNew) {

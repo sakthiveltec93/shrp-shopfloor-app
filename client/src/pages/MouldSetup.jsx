@@ -66,7 +66,7 @@ export default function MouldSetup() {
   async function loadData() {
     try {
       const [m, p, c, r] = await Promise.all([
-        api.machines(),
+        api.machines('PRODUCTION'),
         api.parts(),
         api.currentAssignments(),
         api.checkItems ? api.checkItems('mould_change_reason').catch(() => []) : Promise.resolve([]),

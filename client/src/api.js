@@ -147,7 +147,7 @@ export const api = {
   userActivityReport: (date) => request(`/users/activity-report${date ? `?date=${date}` : ''}`),
   userActivityDetail: (id, date) => request(`/users/${id}/activity${date ? `?date=${date}` : ''}`),
   masters: {
-    machines: () => request('/masters/machines'),
+    machines: (category) => request(`/masters/machines${category ? `?category=${encodeURIComponent(category)}` : ''}`),
     parts: () => request('/masters/parts'),
     partDetail: (id) => request(`/masters/parts/${id}/detail`),
     customers: () => request('/masters/customers'),
@@ -161,7 +161,7 @@ export const api = {
     delete: (id) => request(`/masters/document-sequences/${id}`, { method: 'DELETE' }),
     next: (type) => request(`/masters/document-sequences/${encodeURIComponent(type)}/next`, { method: 'POST' }),
   },
-  machines: () => request('/masters/machines'),
+  machines: (category) => request(`/masters/machines${category ? `?category=${encodeURIComponent(category)}` : ''}`),
   parts: () => request('/masters/parts'),
   partDetail: (id) => request(`/masters/parts/${id}/detail`),
   createPart: (payload) => request('/masters/parts', { method: 'POST', body: payload }),
@@ -372,7 +372,12 @@ export const api = {
   },
 
   machines_mgmt: {
-    overview: (date) => request(`/machines/overview${date ? `?date=${date}` : ''}`),
+    overview: (date, category) => {
+      const params = [];
+      if (date) params.push(`date=${encodeURIComponent(date)}`);
+      if (category) params.push(`category=${encodeURIComponent(category)}`);
+      return request(`/machines/overview${params.length ? `?${params.join('&')}` : ''}`);
+    },
     history: (id) => request(`/machines/${id}/history`),
     logBreakdown: (id, payload) => request(`/machines/${id}/breakdown`, { method: 'POST', body: payload }),
     update: (id, payload) => request(`/machines/${id}`, { method: 'PUT', body: payload }),

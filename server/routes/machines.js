@@ -13,14 +13,22 @@ function todayIST() {
 // 1. Machine Live Overview & TPM Status
 router.get('/overview', async (req, res) => {
   const date = req.query.date || todayIST();
+  const category = req.query.category;
 
-  // Fetch all active machines with specs
+  let where = 'm.active = TRUE';
+  const params = [];
+  if (category) {
+    params.push(category.toUpperCase());
+    where += ` AND m.category = $${params.length}`;
+  }
+
+  // Fetch machines with specs
   const { rows: machines } = await pool.query(`
     SELECT m.*
     FROM machines m
-    WHERE m.active = TRUE
+    WHERE ${where}
     ORDER BY m.machine_code
-  `);
+  `, params);
 
   // Fetch active sessions
   const { rows: sessions } = await pool.query(`
@@ -255,9 +263,10 @@ router.post('/:id/breakdown', requireRole('supervisor', 'admin'), async (req, re
 });
 
 // 4. Update Machine Specifications
-router.put('/:id', requireRole('admin'), async (req, res) => {
+router.put('/:id', requireRole('admin', 'supervisor'), async (req, res) => {
   const { id } = req.params;
   const {
+    category,
     description,
     tonnage,
     make_model,
@@ -281,28 +290,30 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
 
   const { rows } = await pool.query(`
     UPDATE machines
-    SET description = COALESCE($1, description),
-        tonnage = COALESCE($2, tonnage),
-        make_model = COALESCE($3, make_model),
-        year_of_commission = COALESCE($4, year_of_commission),
-        screw_diameter_mm = COALESCE($5, screw_diameter_mm),
-        clamping_force_kn = COALESCE($6, clamping_force_kn),
-        pm_due_date = COALESCE($7, pm_due_date),
-        tie_bar_distance_mm = COALESCE($8, tie_bar_distance_mm),
-        platen_size_mm = COALESCE($9, platen_size_mm),
-        min_mould_height_mm = COALESCE($10, min_mould_height_mm),
-        max_mould_height_mm = COALESCE($11, max_mould_height_mm),
-        clamping_stroke_mm = COALESCE($12, clamping_stroke_mm),
-        max_daylight_mm = COALESCE($13, max_daylight_mm),
-        ejector_stroke_mm = COALESCE($14, ejector_stroke_mm),
-        ejector_force_kn = COALESCE($15, ejector_force_kn),
-        max_shot_weight_g = COALESCE($16, max_shot_weight_g),
-        motor_type = COALESCE($17, motor_type),
-        connected_load_kw = COALESCE($18, connected_load_kw),
-        hourly_rate_inr = COALESCE($19, hourly_rate_inr)
-    WHERE id = $20
+    SET category = COALESCE($1, category),
+        description = COALESCE($2, description),
+        tonnage = COALESCE($3, tonnage),
+        make_model = COALESCE($4, make_model),
+        year_of_commission = COALESCE($5, year_of_commission),
+        screw_diameter_mm = COALESCE($6, screw_diameter_mm),
+        clamping_force_kn = COALESCE($7, clamping_force_kn),
+        pm_due_date = COALESCE($8, pm_due_date),
+        tie_bar_distance_mm = COALESCE($9, tie_bar_distance_mm),
+        platen_size_mm = COALESCE($10, platen_size_mm),
+        min_mould_height_mm = COALESCE($11, min_mould_height_mm),
+        max_mould_height_mm = COALESCE($12, max_mould_height_mm),
+        clamping_stroke_mm = COALESCE($13, clamping_stroke_mm),
+        max_daylight_mm = COALESCE($14, max_daylight_mm),
+        ejector_stroke_mm = COALESCE($15, ejector_stroke_mm),
+        ejector_force_kn = COALESCE($16, ejector_force_kn),
+        max_shot_weight_g = COALESCE($17, max_shot_weight_g),
+        motor_type = COALESCE($18, motor_type),
+        connected_load_kw = COALESCE($19, connected_load_kw),
+        hourly_rate_inr = COALESCE($20, hourly_rate_inr)
+    WHERE id = $21
     RETURNING *
   `, [
+    category ? category.toUpperCase() : null,
     description,
     tonnage != null ? Number(tonnage) : null,
     make_model,
@@ -333,6 +344,7 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
 router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
   const {
     machine_code,
+    category = 'PRODUCTION',
     description,
     tonnage = 100,
     make_model = 'Injection Moulding Machine',
@@ -361,14 +373,15 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
   try {
     const { rows } = await pool.query(`
       INSERT INTO machines
-        (machine_code, description, tonnage, make_model, year_of_commission, screw_diameter_mm, clamping_force_kn, pm_due_date,
+        (machine_code, category, description, tonnage, make_model, year_of_commission, screw_diameter_mm, clamping_force_kn, pm_due_date,
          tie_bar_distance_mm, platen_size_mm, min_mould_height_mm, max_mould_height_mm, clamping_stroke_mm, max_daylight_mm,
          ejector_stroke_mm, ejector_force_kn, max_shot_weight_g, motor_type, connected_load_kw, hourly_rate_inr, active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE + INTERVAL '30 days'),
-              $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, TRUE)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, CURRENT_DATE + INTERVAL '30 days'),
+              $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, TRUE)
       RETURNING *
     `, [
       machine_code.trim().toUpperCase(),
+      (category || 'PRODUCTION').toUpperCase(),
       description || '',
       Number(tonnage) || 100,
       make_model || '',
@@ -394,7 +407,7 @@ router.post('/', requireRole('admin', 'supervisor'), async (req, res) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: `Machine code '${machine_code}' already exists` });
     }
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 });
 
