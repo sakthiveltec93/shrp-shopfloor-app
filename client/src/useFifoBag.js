@@ -127,9 +127,13 @@ export function useFifoBag(stage) {
     }
   }
 
-  function selectSpecificBag(selectedBag) {
-    if (!selectedBag) return;
-    loadBagByCode(selectedBag.bag_code);
+  function selectSpecificBag(selectedBagId) {
+    if (!selectedBagId) return;
+    // Find the bag object from batchBags using the ID
+    const foundBag = batchBags.find((b) => String(b.id) === String(selectedBagId));
+    if (foundBag) {
+      loadBagByCode(foundBag.bag_code);
+    }
   }
 
   function refetch() {
