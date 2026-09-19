@@ -26,7 +26,10 @@ router.get('/active', async (req, res) => {
 
   // Validate that this session's part_id matches the machine's current approved assignment
   const activeAsgn = await pool.query(
-    `SELECT id, part_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    `SELECT id, part_id, first_ok_part_at, approved_at, mould_load_started_at 
+     FROM machine_assignments 
+     WHERE machine_id = $1 AND status = 'approved' 
+     ORDER BY approved_at DESC, id DESC LIMIT 1`,
     [session.machine_id]
   );
   if (activeAsgn.rows[0] && activeAsgn.rows[0].part_id !== session.part_id) {
@@ -38,28 +41,58 @@ router.get('/active', async (req, res) => {
     return res.json(null);
   }
 
-  // If session belongs to the new assignment and has first_ok_part_at, align start_time if no entries logged yet
-  if (activeAsgn.rows[0]?.first_ok_part_at) {
-    const fpaTime = new Date(activeAsgn.rows[0].first_ok_part_at);
-    const entryCount = await pool.query(`SELECT count(*)::int AS cnt FROM production_entries WHERE session_id = $1`, [session.id]);
-    if (entryCount.rows[0]?.cnt === 0 && (session.start_count !== 0 || new Date(session.start_time).getTime() !== fpaTime.getTime())) {
-      session.start_count = 0;
-      session.start_time = fpaTime;
-      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+  // Look up FPA approval / visual approval time
+  let fpaTime = null;
+  if (activeAsgn.rows[0]) {
+    const fpaRes = await pool.query(
+      `SELECT visual_approved_at, approved_at, first_ok_part_at 
+       FROM fpa_submissions 
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [activeAsgn.rows[0].id]
+    );
+    const fpaRow = fpaRes.rows[0];
+    const candidateTime = fpaRow?.visual_approved_at || fpaRow?.first_ok_part_at || fpaRow?.approved_at || activeAsgn.rows[0].first_ok_part_at || activeAsgn.rows[0].mould_load_started_at;
+    if (candidateTime) {
+      fpaTime = new Date(candidateTime);
     }
   }
 
-  const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const lastEntry = await pool.query(
-    `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
-     FROM production_entries
-     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND (entry_date = $4::date OR created_at::date = $4::date)))
-     ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
-     LIMIT 1`,
-    [session.id, session.machine_id, session.part_id, sessionDate]
+  const asgnStartTime = fpaTime || (activeAsgn.rows[0]?.approved_at ? new Date(activeAsgn.rows[0].approved_at) : new Date(session.start_time));
+
+  // If no entries logged yet under this assignment, align session start_time & start_count = 0
+  const entryCountRes = await pool.query(
+    `SELECT count(*)::int AS cnt 
+     FROM production_entries 
+     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND COALESCE(period_start_at, start_time, created_at) >= $4))`,
+    [session.id, session.machine_id, session.part_id, asgnStartTime]
   );
-  session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
-  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
+  const entryCount = entryCountRes.rows[0]?.cnt || 0;
+
+  if (entryCount === 0) {
+    session.start_count = 0;
+    session.last_count = 0;
+    if (fpaTime) {
+      session.start_time = fpaTime;
+      session.last_entry_time = fpaTime;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+    } else {
+      session.last_entry_time = session.start_time;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0 WHERE id = $1`, [session.id]);
+    }
+  } else {
+    // There are entries logged under this assignment: find the true latest entry under this assignment
+    const lastEntry = await pool.query(
+      `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
+       FROM production_entries
+       WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND COALESCE(period_start_at, start_time, created_at) >= $4))
+       ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
+       LIMIT 1`,
+      [session.id, session.machine_id, session.part_id, asgnStartTime]
+    );
+    session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+    session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
+  }
   res.json(session);
 });
 
@@ -80,7 +113,10 @@ router.get('/mine', async (req, res) => {
 
   // Validate that this session's part_id matches the machine's current approved assignment
   const activeAsgn = await pool.query(
-    `SELECT id, part_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    `SELECT id, part_id, first_ok_part_at, approved_at, mould_load_started_at 
+     FROM machine_assignments 
+     WHERE machine_id = $1 AND status = 'approved' 
+     ORDER BY approved_at DESC, id DESC LIMIT 1`,
     [session.machine_id]
   );
   if (activeAsgn.rows[0] && activeAsgn.rows[0].part_id !== session.part_id) {
@@ -92,28 +128,58 @@ router.get('/mine', async (req, res) => {
     return res.json(null);
   }
 
-  // If session belongs to the new assignment and has first_ok_part_at, align start_time if no entries logged yet
-  if (activeAsgn.rows[0]?.first_ok_part_at) {
-    const fpaTime = new Date(activeAsgn.rows[0].first_ok_part_at);
-    const entryCount = await pool.query(`SELECT count(*)::int AS cnt FROM production_entries WHERE session_id = $1`, [session.id]);
-    if (entryCount.rows[0]?.cnt === 0 && (session.start_count !== 0 || new Date(session.start_time).getTime() !== fpaTime.getTime())) {
-      session.start_count = 0;
-      session.start_time = fpaTime;
-      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+  // Look up FPA approval / visual approval time
+  let fpaTime = null;
+  if (activeAsgn.rows[0]) {
+    const fpaRes = await pool.query(
+      `SELECT visual_approved_at, approved_at, first_ok_part_at 
+       FROM fpa_submissions 
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [activeAsgn.rows[0].id]
+    );
+    const fpaRow = fpaRes.rows[0];
+    const candidateTime = fpaRow?.visual_approved_at || fpaRow?.first_ok_part_at || fpaRow?.approved_at || activeAsgn.rows[0].first_ok_part_at || activeAsgn.rows[0].mould_load_started_at;
+    if (candidateTime) {
+      fpaTime = new Date(candidateTime);
     }
   }
 
-  const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const lastEntry = await pool.query(
-    `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
-     FROM production_entries
-     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND (entry_date = $4::date OR created_at::date = $4::date)))
-     ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
-     LIMIT 1`,
-    [session.id, session.machine_id, session.part_id, sessionDate]
+  const asgnStartTime = fpaTime || (activeAsgn.rows[0]?.approved_at ? new Date(activeAsgn.rows[0].approved_at) : new Date(session.start_time));
+
+  // If no entries logged yet under this assignment, align session start_time & start_count = 0
+  const entryCountRes = await pool.query(
+    `SELECT count(*)::int AS cnt 
+     FROM production_entries 
+     WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND COALESCE(period_start_at, start_time, created_at) >= $4))`,
+    [session.id, session.machine_id, session.part_id, asgnStartTime]
   );
-  session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
-  session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
+  const entryCount = entryCountRes.rows[0]?.cnt || 0;
+
+  if (entryCount === 0) {
+    session.start_count = 0;
+    session.last_count = 0;
+    if (fpaTime) {
+      session.start_time = fpaTime;
+      session.last_entry_time = fpaTime;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+    } else {
+      session.last_entry_time = session.start_time;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0 WHERE id = $1`, [session.id]);
+    }
+  } else {
+    // There are entries logged under this assignment: find the true latest entry under this assignment
+    const lastEntry = await pool.query(
+      `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
+       FROM production_entries
+       WHERE (session_id = $1 OR (machine_id = $2 AND part_id = $3 AND COALESCE(period_start_at, start_time, created_at) >= $4))
+       ORDER BY GREATEST(created_at, COALESCE(period_end_at, created_at)) DESC, end_count DESC
+       LIMIT 1`,
+      [session.id, session.machine_id, session.part_id, asgnStartTime]
+    );
+    session.last_count = lastEntry.rows[0] ? lastEntry.rows[0].end_count : session.start_count;
+    session.last_entry_time = lastEntry.rows[0] ? lastEntry.rows[0].end_time : session.start_time;
+  }
   res.json(session);
 });
 
@@ -125,23 +191,32 @@ router.get('/suggested-start-count', async (req, res) => {
 
   // Check current approved assignment on this machine
   const activeAsgn = await pool.query(
-    `SELECT id, part_id, last_shot_count FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    `SELECT id, part_id, first_ok_part_at, approved_at, mould_load_started_at, last_shot_count 
+     FROM machine_assignments 
+     WHERE machine_id = $1 AND status = 'approved' 
+     ORDER BY approved_at DESC, id DESC LIMIT 1`,
     [machine_id]
   );
 
   if (activeAsgn.rows[0]) {
-    // Check if any production entry has been logged for this assignment's part on this machine
+    const asgnStartTime = activeAsgn.rows[0].first_ok_part_at || activeAsgn.rows[0].approved_at || activeAsgn.rows[0].mould_load_started_at;
+    // Check if any production entry has been logged under this active assignment
     const lastEntryForPart = await pool.query(
-      `SELECT end_count FROM production_entries WHERE machine_id = $1 AND part_id = $2 ORDER BY COALESCE(period_end_at, end_time, created_at) DESC, end_count DESC LIMIT 1`,
-      [machine_id, activeAsgn.rows[0].part_id]
+      `SELECT end_count FROM production_entries 
+       WHERE machine_id = $1 AND part_id = $2 AND ($3::timestamptz IS NULL OR COALESCE(period_start_at, start_time, created_at) >= $3)
+       ORDER BY COALESCE(period_end_at, end_time, created_at) DESC, end_count DESC LIMIT 1`,
+      [machine_id, activeAsgn.rows[0].part_id, asgnStartTime || null]
     );
     if (lastEntryForPart.rows[0]) {
       return res.json({ suggested_start_count: lastEntryForPart.rows[0].end_count });
     }
-    // Check if any OFF session exists for this same part
+    // Check if any OFF session exists for this same part under this assignment
     const lastOffForPart = await pool.query(
-      `SELECT off_count FROM machine_sessions WHERE machine_id = $1 AND part_id = $2 AND status = 'OFF' AND off_count IS NOT NULL ORDER BY off_time DESC LIMIT 1`,
-      [machine_id, activeAsgn.rows[0].part_id]
+      `SELECT off_count FROM machine_sessions 
+       WHERE machine_id = $1 AND part_id = $2 AND status = 'OFF' AND off_count IS NOT NULL 
+         AND ($3::timestamptz IS NULL OR start_time >= $3)
+       ORDER BY off_time DESC LIMIT 1`,
+      [machine_id, activeAsgn.rows[0].part_id, asgnStartTime || null]
     );
     if (lastOffForPart.rows[0]) {
       return res.json({ suggested_start_count: lastOffForPart.rows[0].off_count });
@@ -174,7 +249,7 @@ router.post('/start', async (req, res) => {
     }
 
     const assignment = await pool.query(
-      `SELECT id, part_id, mould_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+      `SELECT id, part_id, mould_id, first_ok_part_at, approved_at, mould_load_started_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
       [machine_id]
     );
     if (!assignment.rows[0]) {
@@ -189,8 +264,16 @@ router.post('/start', async (req, res) => {
       [machine_id]
     );
 
-    // If assignment has first_ok_part_at or approved_at, use that for start_time if no entries logged yet
-    const startTime = assignment.rows[0].first_ok_part_at || new Date();
+    // Look up FPA visual approval time if available
+    const fpaSub = await pool.query(
+      `SELECT visual_approved_at, approved_at, first_ok_part_at 
+       FROM fpa_submissions 
+       WHERE assignment_id = $1 
+       ORDER BY created_at DESC LIMIT 1`,
+      [assignment.rows[0].id]
+    );
+    const fpaRow = fpaSub.rows[0];
+    const startTime = fpaRow?.visual_approved_at || fpaRow?.first_ok_part_at || fpaRow?.approved_at || assignment.rows[0].first_ok_part_at || new Date();
 
     const { rows } = await pool.query(
       `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)

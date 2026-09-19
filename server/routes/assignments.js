@@ -175,7 +175,7 @@ router.get('/campaign-performance', async (req, res) => {
     JOIN machines m ON m.id = mch.machine_id
     JOIN parts p ON p.id = mch.part_id
     LEFT JOIN moulds mo ON mo.id = mch.mould_id
-    WHERE 1=1
+    WHERE m.category = 'PRODUCTION'
   `;
   const histParams = [];
   if (machine_id && machine_id !== 'ALL') {
@@ -209,7 +209,7 @@ router.get('/campaign-performance', async (req, res) => {
     JOIN machines m ON m.id = ma.machine_id
     JOIN parts p ON p.id = ma.part_id
     LEFT JOIN moulds mo ON mo.id = ma.mould_id
-    WHERE ma.status = 'approved'
+    WHERE ma.status = 'approved' AND m.category = 'PRODUCTION'
   `;
   const activeParams = [];
   if (machine_id && machine_id !== 'ALL') {
