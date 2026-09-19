@@ -1,6 +1,7 @@
 import { cacheStorage } from './offline/cacheStorage';
 import { offlineQueue } from './offline/offlineQueue';
 import safeStorage from './utils/safeStorage';
+import { getOrCreateDeviceId } from './utils/deviceFingerprint';
 
 const BASE = '/api';
 
@@ -23,18 +24,7 @@ function isQueueable(path, method) {
   );
 }
 
-export function getOrCreateDeviceId() {
-  let deviceId = safeStorage.getItem('shrp_device_id');
-  if (!deviceId) {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      deviceId = crypto.randomUUID();
-    } else {
-      deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    }
-    safeStorage.setItem('shrp_device_id', deviceId);
-  }
-  return deviceId;
-}
+export { getOrCreateDeviceId };
 
 async function request(path, { method = 'GET', body, isOfflineReplay = false, description, headers: customHeaders } = {}) {
   const headers = { 'Content-Type': 'application/json', ...(customHeaders || {}) };
