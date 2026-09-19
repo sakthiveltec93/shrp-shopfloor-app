@@ -1,25 +1,31 @@
 -- Seed: Machine Process Parameter Templates
 -- Defines parameter structure for ACTUAL machine types in use
 
--- Template 1: HSIM & VSIM Machines (4-Zone with complex parameters)
+-- Template 1: HSIM & VSIM Machines (4-Zone Temp + 3-Zone Injection + 2-Zone Holding + Cooling + Charge/Suckback)
 INSERT INTO machine_process_parameter_templates (machine_id, template_name, description, parameters)
 SELECT m.id,
   'HSIM/VSIM - 4-Zone Injection',
-  '4-Zone Temperature, Injection (Pressure/Speed/Position), 2-Zone Holding, Cooling + Charge/Suckback',
+  '4-Zone Temp, 3-Zone Injection (P/S/Pos), 2-Zone Holding (P/S/Pos), Cooling + Charge/Suckback',
   jsonb_build_array(
     jsonb_build_object('name', 'Zone 1 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_1_temp'),
     jsonb_build_object('name', 'Zone 2 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_2_temp'),
     jsonb_build_object('name', 'Zone 3 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_3_temp'),
     jsonb_build_object('name', 'Zone 4 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_4_temp'),
-    jsonb_build_object('name', 'Injection Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'injection_pressure'),
-    jsonb_build_object('name', 'Injection Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'injection_speed'),
-    jsonb_build_object('name', 'Injection Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'injection_position_time'),
-    jsonb_build_object('name', 'Holding Zone 1 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'holding_z1_pressure'),
-    jsonb_build_object('name', 'Holding Zone 1 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z1_speed'),
-    jsonb_build_object('name', 'Holding Zone 1 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z1_position_time'),
-    jsonb_build_object('name', 'Holding Zone 2 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'holding_z2_pressure'),
-    jsonb_build_object('name', 'Holding Zone 2 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z2_speed'),
-    jsonb_build_object('name', 'Holding Zone 2 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z2_position_time'),
+    jsonb_build_object('name', 'Injection Zone 1 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'inj_z1_pressure'),
+    jsonb_build_object('name', 'Injection Zone 1 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z1_speed'),
+    jsonb_build_object('name', 'Injection Zone 1 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z1_position_time'),
+    jsonb_build_object('name', 'Injection Zone 2 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'inj_z2_pressure'),
+    jsonb_build_object('name', 'Injection Zone 2 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z2_speed'),
+    jsonb_build_object('name', 'Injection Zone 2 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z2_position_time'),
+    jsonb_build_object('name', 'Injection Zone 3 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'inj_z3_pressure'),
+    jsonb_build_object('name', 'Injection Zone 3 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z3_speed'),
+    jsonb_build_object('name', 'Injection Zone 3 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'inj_z3_position_time'),
+    jsonb_build_object('name', 'Holding Zone 1 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'hold_z1_pressure'),
+    jsonb_build_object('name', 'Holding Zone 1 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z1_speed'),
+    jsonb_build_object('name', 'Holding Zone 1 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z1_position_time'),
+    jsonb_build_object('name', 'Holding Zone 2 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'hold_z2_pressure'),
+    jsonb_build_object('name', 'Holding Zone 2 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z2_speed'),
+    jsonb_build_object('name', 'Holding Zone 2 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z2_position_time'),
     jsonb_build_object('name', 'Cooling Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cooling_time'),
     jsonb_build_object('name', 'Charge Position 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'charge_position_1'),
     jsonb_build_object('name', 'Suckback 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'suckback_1')
