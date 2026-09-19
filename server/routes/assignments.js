@@ -117,6 +117,8 @@ async function closePreviousCampaignRun(machineId, newLoadedAt, changeReason) {
           startAt, endAt, totalShots, totalProdQty, totalRejectQty, totalNetQty,
           grossRunHours, totalIdleMin, netRunHours, overallEff,
           changeReason || prevAssignment.reason || 'Plan Completed'
+        ]
+      );
     }
 
     // Auto-close any active machine session on this machine from the old mould run
