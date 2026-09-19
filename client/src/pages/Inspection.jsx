@@ -568,7 +568,7 @@ export default function Inspection() {
                       value: p.id,
                       label: p.shrp_part_code || p.part_code,
                       badge,
-                      sublabel: '',
+                      sublabel: p.part_name || p.customer_part_no || '',
                       searchTerms: (p.shrp_part_code || '') + ' ' + (p.part_code || '') + ' ' + (p.part_name || '') + ' ' + (p.customer_part_no || '')
                     };
                   })}
