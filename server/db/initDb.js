@@ -58,17 +58,26 @@ async function initDb() {
     `);
     console.log('[DB-INIT] Schema updated successfully.');
 
-    // Check if database was already initialized
+    // Check if database was already initialized or already has production data
     const initCheck = await pool.query('SELECT initialized FROM db_initialization ORDER BY id DESC LIMIT 1');
     const isInitialized = initCheck.rows.length > 0 && initCheck.rows[0].initialized;
 
-    if (isInitialized) {
-      console.log('[DB-INIT] ✓ Database already initialized. Skipping seed data to preserve production data.');
-      console.log('[DB-INIT] Seed files will NOT run again. Master data is managed through the application UI.');
+    const partsCheck = await pool.query('SELECT count(*) FROM parts');
+    const hasData = parseInt(partsCheck.rows[0]?.count || 0, 10) > 0;
+
+    if (isInitialized || hasData) {
+      console.log('[DB-INIT] ✓ Database already initialized and active with production data. Skipping all seed scripts.');
+      // Ensure db_initialization is populated
+      if (!isInitialized) {
+        await pool.query(`
+          INSERT INTO db_initialization (initialized, initialized_at)
+          VALUES (TRUE, now())
+        `);
+      }
       return;
     }
 
-    console.log('[DB-INIT] ⚠️ First-time initialization detected. Loading seed data...');
+    console.log('[DB-INIT] ⚠️ Empty database detected. First-time initialization loading baseline seed data...');
 
     const reconcileSqlPath = path.join(__dirname, 'seed_reconcile_erp_masters.sql');
     if (fs.existsSync(reconcileSqlPath)) {
