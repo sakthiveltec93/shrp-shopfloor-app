@@ -21,6 +21,13 @@ router.get('/supervisor', async (req, res) => {
     const metrics = calculateSupervisorMetrics(rawData);
 
     res.json({
+      ok: true,
+      data: {
+        date: targetDate,
+        shift: targetShift,
+        timestamp: new Date().toISOString(),
+        ...metrics,
+      },
       date: targetDate,
       shift: targetShift,
       timestamp: new Date().toISOString(),
@@ -28,7 +35,7 @@ router.get('/supervisor', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching supervisor dashboard:', err);
-    res.status(500).json({ error: 'Failed to fetch supervisor dashboard', details: err.message });
+    res.status(500).json({ ok: false, error: 'Failed to fetch supervisor dashboard', details: err.message });
   }
 });
 
@@ -69,6 +76,14 @@ router.get('/management', async (req, res) => {
     const metrics = calculateManagementMetrics(rawData);
 
     res.json({
+      ok: true,
+      data: {
+        period,
+        startDate: startStr,
+        endDate: endStr,
+        timestamp: new Date().toISOString(),
+        ...metrics,
+      },
       period,
       startDate: startStr,
       endDate: endStr,
@@ -77,7 +92,7 @@ router.get('/management', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching management dashboard:', err);
-    res.status(500).json({ error: 'Failed to fetch management dashboard', details: err.message });
+    res.status(500).json({ ok: false, error: 'Failed to fetch management dashboard', details: err.message });
   }
 });
 

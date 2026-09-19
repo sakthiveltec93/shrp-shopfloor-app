@@ -70,8 +70,8 @@ export function useDashboard(initialRole = 'supervisor') {
     setSupervisorError(null);
     try {
       const res = await api.dashboard.supervisor({ date: shiftDate, shift: shiftCode });
-      if (res && res.ok) {
-        setSupervisorData(res.data);
+      if (res && !res.error) {
+        setSupervisorData(res.data || res);
       } else {
         setSupervisorError(res?.error || 'Failed to load supervisor dashboard data');
       }
@@ -90,8 +90,8 @@ export function useDashboard(initialRole = 'supervisor') {
     setManagementError(null);
     try {
       const res = await api.dashboard.management({ startDate: mgmtStartDate, endDate: mgmtEndDate });
-      if (res && res.ok) {
-        setManagementData(res.data);
+      if (res && !res.error) {
+        setManagementData(res.data || res);
       } else {
         setManagementError(res?.error || 'Failed to load management dashboard data');
       }

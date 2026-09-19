@@ -43,25 +43,25 @@ export default function SupervisorView({
     );
   }
 
-  const kpis = data?.kpis || {
-    activeMachinesCount: 0,
-    totalMachinesCount: 21,
-    actualGoodQty: 0,
-    targetQty: 0,
-    rejectionQty: 0,
-    rejectionPct: '0.00%',
-    shiftEfficiencyPct: '0.0%',
-    downtimeMinutes: 0,
-    pendingFpaCount: 0,
+  const kpis = {
+    activeMachinesCount: data?.kpis?.activeMachinesCount ?? data?.activeCount ?? 0,
+    totalMachinesCount: data?.kpis?.totalMachinesCount ?? data?.totalMachines ?? 21,
+    actualGoodQty: data?.kpis?.actualGoodQty ?? data?.actualOutput ?? 0,
+    targetQty: data?.kpis?.targetQty ?? data?.targetOutput ?? 0,
+    rejectionQty: data?.kpis?.rejectionQty ?? data?.rejectionQty ?? 0,
+    rejectionPct: data?.kpis?.rejectionPct ?? (typeof data?.rejectionPct === 'number' ? `${data.rejectionPct.toFixed(2)}%` : `${data?.rejectionPct || '0.00%'}`),
+    shiftEfficiencyPct: data?.kpis?.shiftEfficiencyPct ?? (typeof data?.efficiency === 'number' ? `${data.efficiency.toFixed(1)}%` : `${data?.efficiency || '0.0%'}`),
+    downtimeMinutes: data?.kpis?.downtimeMinutes ?? data?.downtime ?? 0,
+    pendingFpaCount: data?.kpis?.pendingFpaCount ?? data?.pendingActions ?? 0,
   };
 
-  const topPerformers = data?.topPerformers || {
-    topOperator: { name: '—', machine: '—', output: 0, rejection: 0, efficiency: '0%' },
-    topMachine: { name: '—', shots: 0, uptime: '0%', rejections: 0 },
-    topPart: { partNumber: '—', partName: '—', netOK: 0, rejectionPct: '0%' },
+  const topPerformers = {
+    topOperator: data?.topPerformers?.topOperator || data?.topOperator || { name: '—', machine: '—', output: 0, rejection: 0, efficiency: '0%' },
+    topMachine: data?.topPerformers?.topMachine || data?.topMachine || { name: '—', shots: 0, uptime: '0%', rejections: 0 },
+    topPart: data?.topPerformers?.topPart || data?.topPart || { partNumber: '—', partName: '—', netOK: 0, rejectionPct: '0%' },
   };
 
-  const hourlyProgression = data?.hourlyProgression || [
+  const hourlyProgression = data?.hourlyProgression || data?.hourlyOutput || [
     { hour: 1, actual: 0, target: 5400 },
     { hour: 2, actual: 0, target: 5400 },
     { hour: 3, actual: 0, target: 5400 },

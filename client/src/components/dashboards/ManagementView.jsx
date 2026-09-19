@@ -40,30 +40,44 @@ export default function ManagementView({
     );
   }
 
-  const executiveKpis = data?.executiveKpis || {
-    oee: { total: 0, availability: 0, performance: 0, quality: 0 },
-    mpsFulfillmentPct: 0,
-    totalDemandPlan: 0,
-    totalProducedQty: 0,
-    totalShots: 0,
-    totalRmConsumedKg: 0,
-    totalTonnage: 0,
-    scrapPct: '0.00%',
-    scrapPpm: 0,
-    machineUtilizationPct: 0,
-    totalGrossRunHours: 0,
+  const executiveKpis = {
+    oee: data?.executiveKpis?.oee || data?.oee || { total: 0, availability: 0, performance: 0, quality: 0 },
+    mpsFulfillmentPct: data?.executiveKpis?.mpsFulfillmentPct ?? data?.mpsFulfillment ?? 0,
+    totalDemandPlan: data?.executiveKpis?.totalDemandPlan ?? data?.targetQty ?? 0,
+    totalProducedQty: data?.executiveKpis?.totalProducedQty ?? data?.actualQty ?? 0,
+    totalShots: data?.executiveKpis?.totalShots ?? data?.totalShotCount ?? 0,
+    totalRmConsumedKg: data?.executiveKpis?.totalRmConsumedKg ?? data?.rmConsumed_kg ?? 0,
+    totalTonnage: data?.executiveKpis?.totalTonnage ?? data?.rmTonnage ?? 0,
+    scrapPct: data?.executiveKpis?.scrapPct || (typeof data?.scrapPct === 'number' ? `${data.scrapPct.toFixed(2)}%` : `${data?.scrapPct || '0.00%'}`),
+    scrapPpm: data?.executiveKpis?.scrapPpm ?? data?.scrapPPM ?? 0,
+    machineUtilizationPct: data?.executiveKpis?.machineUtilizationPct ?? data?.machineUtilization ?? 0,
+    totalGrossRunHours: data?.executiveKpis?.totalGrossRunHours ?? data?.totalLoggedHrs ?? 0,
   };
 
-  const bestInPlant = data?.bestInPlant || {
-    topMoldingOperator: { name: '—', output: 0, quality: '0%' },
-    topFinishingOperator: { name: '—', output: 0 },
-    topMachine: { name: '—', shots: 0, oee: '0%' },
-    topCustomerPart: { partName: '—', output: 0 },
+  const bestInPlant = {
+    topMoldingOperator: data?.bestInPlant?.topMoldingOperator || (data?.bestOperator ? {
+      name: data.bestOperator.name,
+      output: data.bestOperator.output,
+      quality: data.bestOperator.quality,
+    } : { name: '—', output: 0, quality: '0%' }),
+    topFinishingOperator: data?.bestInPlant?.topFinishingOperator || (data?.bestFinishing ? {
+      name: data.bestFinishing.name,
+      output: data.bestFinishing.processed,
+    } : { name: '—', output: 0 }),
+    topMachine: data?.bestInPlant?.topMachine || (data?.bestMachine ? {
+      name: data.bestMachine.name,
+      shots: data.bestMachine.shots,
+      oee: data.bestMachine.oee,
+    } : { name: '—', shots: 0, oee: '0%' }),
+    topCustomerPart: data?.bestInPlant?.topCustomerPart || (data?.topCustomerPart ? {
+      partName: data.topCustomerPart.name,
+      output: data.topCustomerPart.qty,
+    } : { partName: '—', output: 0 }),
   };
 
-  const customerPlanVsActual = data?.customerPlanVsActual || [];
+  const customerPlanVsActual = data?.customerPlanVsActual || data?.customerWisePlan || [];
   const mouldHealth = data?.mouldHealth || [];
-  const shiftOeeComparison = data?.shiftOeeComparison || [];
+  const shiftOeeComparison = data?.shiftOeeComparison || data?.shiftWiseOEE || [];
 
   // Export Executive MIS CSV
   const handleExportCsv = () => {
