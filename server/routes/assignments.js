@@ -37,6 +37,245 @@ router.get('/current', async (req, res) => {
   res.json(rows);
 });
 
+async function closePreviousCampaignRun(machineId, newLoadedAt, changeReason) {
+  try {
+    const prev = await pool.query(
+      `SELECT ma.*, p.cavity_count, p.standard_cycle_time_sec 
+       FROM machine_assignments ma
+       JOIN parts p ON p.id = ma.part_id
+       WHERE ma.machine_id = $1 AND ma.status = 'approved'
+       ORDER BY ma.approved_at DESC LIMIT 1`,
+      [machineId]
+    );
+    const prevAssignment = prev.rows[0];
+    if (!prevAssignment) return;
+
+    const startAt = prevAssignment.mould_load_started_at || prevAssignment.approved_at || prevAssignment.set_at;
+    const endAt = newLoadedAt || new Date();
+
+    const agg = await pool.query(
+      `SELECT 
+         COUNT(*) as entry_count,
+         COALESCE(SUM(end_count - start_count), 0) as total_shots,
+         COALESCE(SUM(good_qty), 0) as total_good,
+         COALESCE(SUM(reject_qty), 0) as total_rej,
+         COALESCE(SUM(downtime_minutes), 0) as total_idle,
+         COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(period_end_at, end_time, created_at) - COALESCE(period_start_at, start_time, created_at))) / 3600.0), 0) as duration_hrs
+       FROM production_entries
+       WHERE machine_id = $1 AND part_id = $2
+         AND COALESCE(period_start_at, start_time, created_at) >= $3
+         AND COALESCE(period_end_at, end_time, created_at) <= $4`,
+      [machineId, prevAssignment.part_id, startAt, endAt]
+    );
+
+    const r = agg.rows[0] || {};
+    const totalShots = Number(r.total_shots) || 0;
+    const totalRejectQty = Number(r.total_rej) || 0;
+    const totalNetQty = Number(r.total_good) || 0;
+    const totalProdQty = totalNetQty + totalRejectQty;
+    let grossRunHours = Number(Number(r.duration_hrs || r.entry_count || 0).toFixed(2));
+    const totalIdleMin = Number(r.total_idle) || 0;
+    const netRunHours = Number(Math.max(0, grossRunHours - (totalIdleMin / 60)).toFixed(2));
+
+    let overallEff = 0;
+    if (prevAssignment.standard_cycle_time_sec > 0 && netRunHours > 0) {
+      const targetShots = (netRunHours * 3600) / prevAssignment.standard_cycle_time_sec;
+      if (targetShots > 0) {
+        overallEff = Number(((totalShots / targetShots) * 100).toFixed(1));
+      }
+    }
+
+    const existing = await pool.query(
+      `SELECT id FROM mould_campaign_history WHERE assignment_id = $1`,
+      [prevAssignment.id]
+    );
+
+    if (existing.rows.length > 0) {
+      await pool.query(
+        `UPDATE mould_campaign_history
+         SET unloaded_at = $1, total_shots = $2, total_prod_qty = $3, total_reject_qty = $4,
+             total_net_qty = $5, gross_run_hours = $6, total_idle_min = $7, net_run_hours = $8,
+             overall_efficiency_pct = $9, reason = COALESCE($10, reason), updated_at = now()
+         WHERE id = $11`,
+        [
+          endAt, totalShots, totalProdQty, totalRejectQty, totalNetQty,
+          grossRunHours, totalIdleMin, netRunHours, overallEff, changeReason,
+          existing.rows[0].id
+        ]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO mould_campaign_history (
+           machine_id, part_id, mould_id, assignment_id, loaded_at, unloaded_at,
+           total_shots, total_prod_qty, total_reject_qty, total_net_qty,
+           gross_run_hours, total_idle_min, net_run_hours, overall_efficiency_pct,
+           reason, is_historical
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false)`,
+        [
+          machineId, prevAssignment.part_id, prevAssignment.mould_id || null, prevAssignment.id,
+          startAt, endAt, totalShots, totalProdQty, totalRejectQty, totalNetQty,
+          grossRunHours, totalIdleMin, netRunHours, overallEff,
+          changeReason || prevAssignment.reason || 'Plan Completed'
+        ]
+      );
+    }
+  } catch (err) {
+    console.error('Error closing previous campaign run:', err);
+  }
+}
+
+// Combined campaign performance history: historical records + closed runs + live active runs
+router.get('/campaign-performance', async (req, res) => {
+  const { machine_id, limit = 100 } = req.query;
+
+  // 1. Fetch closed / historical campaign records
+  let histQuery = `
+    SELECT 
+      mch.id,
+      mch.machine_id,
+      m.machine_code,
+      mch.part_id,
+      p.part_code,
+      p.part_name,
+      p.shrp_part_code,
+      p.customer_part_no,
+      p.cavity_count,
+      p.standard_cycle_time_sec,
+      mch.mould_id,
+      mo.mould_code,
+      mo.mould_name,
+      mch.assignment_id,
+      mch.loaded_at,
+      mch.unloaded_at,
+      mch.total_shots,
+      mch.total_prod_qty,
+      mch.total_reject_qty,
+      mch.total_net_qty,
+      mch.gross_run_hours,
+      mch.total_idle_min,
+      mch.net_run_hours,
+      mch.overall_efficiency_pct,
+      mch.reason,
+      mch.is_historical,
+      false AS is_active
+    FROM mould_campaign_history mch
+    JOIN machines m ON m.id = mch.machine_id
+    JOIN parts p ON p.id = mch.part_id
+    LEFT JOIN moulds mo ON mo.id = mch.mould_id
+    WHERE 1=1
+  `;
+  const histParams = [];
+  if (machine_id && machine_id !== 'ALL') {
+    histParams.push(machine_id);
+    histQuery += ` AND mch.machine_id = $${histParams.length}`;
+  }
+  histQuery += ` ORDER BY mch.loaded_at DESC LIMIT $${histParams.length + 1}`;
+  histParams.push(Number(limit) || 100);
+
+  const { rows: historyRows } = await pool.query(histQuery, histParams);
+
+  // 2. Fetch currently active assignments to calculate live metrics
+  let activeQuery = `
+    SELECT DISTINCT ON (ma.machine_id)
+      ma.id AS assignment_id,
+      ma.machine_id,
+      m.machine_code,
+      ma.part_id,
+      p.part_code,
+      p.part_name,
+      p.shrp_part_code,
+      p.customer_part_no,
+      p.cavity_count,
+      p.standard_cycle_time_sec,
+      ma.mould_id,
+      mo.mould_code,
+      mo.mould_name,
+      COALESCE(ma.mould_load_started_at, ma.approved_at, ma.set_at) AS loaded_at,
+      ma.reason
+    FROM machine_assignments ma
+    JOIN machines m ON m.id = ma.machine_id
+    JOIN parts p ON p.id = ma.part_id
+    LEFT JOIN moulds mo ON mo.id = ma.mould_id
+    WHERE ma.status = 'approved'
+  `;
+  const activeParams = [];
+  if (machine_id && machine_id !== 'ALL') {
+    activeParams.push(machine_id);
+    activeQuery += ` AND ma.machine_id = $${activeParams.length}`;
+  }
+  activeQuery += ` ORDER BY ma.machine_id, ma.approved_at DESC`;
+
+  const { rows: activeAssignments } = await pool.query(activeQuery, activeParams);
+
+  // Compute real-time stats for each active assignment
+  const activeRows = await Promise.all(activeAssignments.map(async (act) => {
+    const agg = await pool.query(
+      `SELECT 
+         COUNT(*) as entry_count,
+         COALESCE(SUM(end_count - start_count), 0) as total_shots,
+         COALESCE(SUM(good_qty), 0) as total_good,
+         COALESCE(SUM(reject_qty), 0) as total_rej,
+         COALESCE(SUM(downtime_minutes), 0) as total_idle,
+         COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(period_end_at, end_time, created_at) - COALESCE(period_start_at, start_time, created_at))) / 3600.0), 0) as duration_hrs
+       FROM production_entries
+       WHERE machine_id = $1 AND part_id = $2
+         AND COALESCE(period_start_at, start_time, created_at) >= $3`,
+      [act.machine_id, act.part_id, act.loaded_at]
+    );
+    const r = agg.rows[0] || {};
+    const totalShots = Number(r.total_shots) || 0;
+    const totalRejectQty = Number(r.total_rej) || 0;
+    const totalNetQty = Number(r.total_good) || 0;
+    const totalProdQty = totalNetQty + totalRejectQty;
+    const grossRunHours = Number(Number(r.duration_hrs || r.entry_count || 0).toFixed(2));
+    const totalIdleMin = Number(r.total_idle) || 0;
+    const netRunHours = Number(Math.max(0, grossRunHours - (totalIdleMin / 60)).toFixed(2));
+
+    let overallEff = 0;
+    if (act.standard_cycle_time_sec > 0 && netRunHours > 0) {
+      const targetShots = (netRunHours * 3600) / act.standard_cycle_time_sec;
+      if (targetShots > 0) {
+        overallEff = Number(((totalShots / targetShots) * 100).toFixed(1));
+      }
+    }
+
+    return {
+      id: `active-${act.assignment_id}`,
+      machine_id: act.machine_id,
+      machine_code: act.machine_code,
+      part_id: act.part_id,
+      part_code: act.part_code,
+      part_name: act.part_name,
+      shrp_part_code: act.shrp_part_code,
+      customer_part_no: act.customer_part_no,
+      cavity_count: act.cavity_count,
+      standard_cycle_time_sec: act.standard_cycle_time_sec,
+      mould_id: act.mould_id,
+      mould_code: act.mould_code,
+      mould_name: act.mould_name,
+      assignment_id: act.assignment_id,
+      loaded_at: act.loaded_at,
+      unloaded_at: null,
+      total_shots: totalShots,
+      total_prod_qty: totalProdQty,
+      total_reject_qty: totalRejectQty,
+      total_net_qty: totalNetQty,
+      gross_run_hours: grossRunHours,
+      total_idle_min: totalIdleMin,
+      net_run_hours: netRunHours,
+      overall_efficiency_pct: overallEff,
+      reason: act.reason || 'Active Mould Run',
+      is_historical: false,
+      is_active: true,
+    };
+  }));
+
+  // Combine active and history
+  const combined = [...activeRows, ...historyRows];
+  res.json(combined);
+});
+
 // Complete historical audit trail of mould changes and assignments
 router.get('/history', async (req, res) => {
   const { machine_id, limit = 100 } = req.query;
@@ -210,7 +449,13 @@ router.post('/', requireRole('operator', 'supervisor', 'admin'), async (req, res
     pool.query('SELECT part_code FROM parts WHERE id = $1', [part_id]),
   ]);
 
-  if (!autoApprove) {
+  if (autoApprove) {
+    await closePreviousCampaignRun(
+      machine_id,
+      mould_load_started_at || (approved_at ? new Date(approved_at) : new Date()),
+      reason || 'Mould Change'
+    );
+  } else {
     await notifyRoles(
       ['supervisor', 'admin'],
       'mould_setup_pending',
@@ -249,6 +494,11 @@ router.post('/:id/decision', requireRole('supervisor', 'admin'), async (req, res
   );
   const { machine_code, part_code } = info.rows[0] || {};
   if (decision === 'approved') {
+    await closePreviousCampaignRun(
+      assignment.machine_id,
+      assignment.mould_load_started_at || appDate || new Date(),
+      assignment.reason || 'Mould Change'
+    );
     await notifyUser(
       assignment.set_by_user_id,
       'mould_setup_approved',

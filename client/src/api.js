@@ -257,6 +257,10 @@ export const api = {
     const qs = params ? new URLSearchParams(params).toString() : '';
     return request(`/assignments/history${qs ? `?${qs}` : ''}`);
   },
+  mouldCampaignPerformance: (params) => {
+    const qs = params ? new URLSearchParams(params).toString() : '';
+    return request(`/assignments/campaign-performance${qs ? `?${qs}` : ''}`);
+  },
   createAssignment: (payload) => request('/assignments', { method: 'POST', body: payload }),
   decideAssignment: (id, decision, payload) => request(`/assignments/${id}/decision`, { method: 'POST', body: { decision, ...(payload || {}) } }),
   markFirstOkPart: (id, taken_at) => request(`/assignments/${id}/first-ok-part`, { method: 'POST', body: { taken_at } }),
@@ -455,6 +459,35 @@ export const api = {
   gst: {
     verify: (gstin) => request(`/gst/verify/${encodeURIComponent(gstin)}`),
     validate: (gstin) => request(`/gst/validate/${encodeURIComponent(gstin)}`),
+  },
+
+  // Pillar 2: Purchase Order Management & Invoicing
+  purchaseOrders: {
+    list: (query) => {
+      const qs = new URLSearchParams(query).toString();
+      return request(`/purchase-orders${qs ? `?${qs}` : ''}`);
+    },
+    create: (payload) => request('/purchase-orders', { method: 'POST', body: payload }),
+    getDetail: (id) => request(`/purchase-orders/${id}`),
+    update: (id, payload) => request(`/purchase-orders/${id}`, { method: 'PUT', body: payload }),
+    addLineItem: (poId, payload) => request(`/purchase-orders/${poId}/line-items`, { method: 'POST', body: payload }),
+  },
+
+  invoices: {
+    list: (query) => {
+      const qs = new URLSearchParams(query).toString();
+      return request(`/invoices${qs ? `?${qs}` : ''}`);
+    },
+    create: (payload) => request('/invoices', { method: 'POST', body: payload }),
+    getDetail: (id) => request(`/invoices/${id}`),
+    update: (id, payload) => request(`/invoices/${id}`, { method: 'PUT', body: payload }),
+    generatePdf: (id) => `/api/invoices/${id}/pdf?token=${getToken()}`,
+    recordPayment: (invoiceId, payload) => request(`/invoices/${invoiceId}/payment`, { method: 'POST', body: payload }),
+  },
+
+  ewayBill: {
+    generate: (invoiceId, payload) => request(`/invoices/${invoiceId}/eway-bill`, { method: 'POST', body: payload }),
+    getJson: (invoiceId) => request(`/invoices/${invoiceId}/eway-bill/json`),
   },
 
   offlineQueue,
