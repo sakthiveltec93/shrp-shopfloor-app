@@ -96,20 +96,42 @@ export default function Home() {
             {t('home.welcome', { name: user.full_name.split(' ')[0] })}
           </div>
         </div>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            padding: '4px 8px',
-            background: 'rgba(245, 158, 11, 0.12)',
-            color: 'var(--amber)',
-            borderRadius: 4,
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-          }}
-        >
-          {user.role}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isSupervisorOrAdmin && (
+            <Link
+              to="/dashboard"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#0f172a',
+                padding: '6px 12px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 800,
+                textDecoration: 'none',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              }}
+            >
+              <span>⚡</span> Live Dashboard
+            </Link>
+          )}
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              padding: '4px 8px',
+              background: 'rgba(245, 158, 11, 0.12)',
+              color: 'var(--amber)',
+              borderRadius: 4,
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+            }}
+          >
+            {user.role}
+          </span>
+        </div>
       </div>
 
       {/* Compact Search & One-Touch Expand/Collapse Bar */}

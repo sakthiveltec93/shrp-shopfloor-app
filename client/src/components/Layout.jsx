@@ -311,6 +311,32 @@ export default function Layout({ children }) {
               </button>
             )}
 
+            {/* Live Plant Dashboard Quick Action */}
+            {isSupervisorOrAdmin && (
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) => `dashboard-quick-pill ${isActive ? 'active' : ''}`}
+                title="Live Plant Command Dashboard (Supervisor & Management Views)"
+                style={({ isActive }) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                  background: isActive ? 'var(--amber)' : 'rgba(245, 158, 11, 0.15)',
+                  border: '1.5px solid var(--amber)',
+                  color: isActive ? '#0f172a' : 'var(--amber)',
+                })}
+              >
+                <span>⚡</span>
+                <span className="hide-mobile">DASHBOARD</span>
+              </NavLink>
+            )}
+
             {/* 3. Dedicated User Profile & HR Button */}
             <div style={{ position: 'relative' }}>
               <button

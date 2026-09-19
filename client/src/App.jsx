@@ -35,6 +35,7 @@ import Profile from './pages/Profile'
 import MastersHub from './pages/MastersHub'
 import ProductionPlanning from './pages/ProductionPlanning'
 import Alerts from './pages/Alerts'
+import Dashboard from './pages/Dashboard'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function HeartbeatTracker() {
@@ -66,6 +67,7 @@ export default function App() {
           <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute roles={['admin', 'supervisor', 'management']}><Dashboard /></ProtectedRoute>} />
           <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute roles={['admin', 'supervisor']} page="reports"><Reports /></ProtectedRoute>} />
           <Route path="/machines" element={<ProtectedRoute roles={['admin', 'supervisor']}><MachinesDashboard /></ProtectedRoute>} />

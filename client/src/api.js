@@ -490,6 +490,22 @@ export const api = {
     getJson: (invoiceId) => request(`/invoices/${invoiceId}/eway-bill/json`),
   },
 
+  dashboard: {
+    supervisor: (params) => {
+      const qs = new URLSearchParams(params || {}).toString();
+      return request(`/dashboard/supervisor${qs ? `?${qs}` : ''}`);
+    },
+    management: (params) => {
+      const qs = new URLSearchParams(params || {}).toString();
+      return request(`/dashboard/management${qs ? `?${qs}` : ''}`);
+    },
+    shiftHandover: (payload) => request('/dashboard/shift-handover', { method: 'POST', body: payload }),
+    machineDrilldown: (id, params) => {
+      const qs = new URLSearchParams(params || {}).toString();
+      return request(`/dashboard/machine-drilldown/${id}${qs ? `?${qs}` : ''}`);
+    },
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

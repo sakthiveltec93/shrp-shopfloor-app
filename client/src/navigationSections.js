@@ -8,6 +8,7 @@ export const ERP_SECTIONS = [
     accentColor: '#f59e0b', // amber
     badgeBg: 'rgba(245, 158, 11, 0.15)',
     tiles: [
+      { key: 'dashboard', to: '/dashboard', icon: '⚡', label: 'Live Plant Dashboard', hint: 'Real-time floor & management metrics', supervisorOnly: true },
       { key: 'mould_setup', to: '/mould-setup', icon: '⚙', label: 'Mould Setup', hint: 'Assign part & mould to machine', supervisorOnly: true },
       { key: 'entry', to: '/production-entry', icon: '📝', label: 'Hourly Production Entry', hint: 'Log hourly count, scrap & machine runs' },
       { key: 'bag_entry', to: '/bag-entry', icon: '◧', label: 'Bag Entry', hint: 'Log bag weight against active batch' },
@@ -114,6 +115,7 @@ export const ERP_SECTIONS = [
     accentColor: '#f97316', // orange
     badgeBg: 'rgba(249, 115, 22, 0.15)',
     tiles: [
+      { key: 'reports_live_dashboard', to: '/dashboard', icon: '⚡', label: 'Plant Command Center', hint: 'Live supervisor shift & management MIS', supervisorOnly: true },
       { key: 'reports_daily', to: '/reports', icon: '📊', label: 'Daily Reports', hint: 'Shift summary, hourly rates & rejection graphs', supervisorOnly: true },
       { key: 'reports_analytics', to: '/reports', icon: '📈', label: 'Production Analytics', hint: 'OEE, efficiency & monthly exports', supervisorOnly: true },
     ],
