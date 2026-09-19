@@ -653,7 +653,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                             style={{
                               width: '100%', padding: '6px 8px', borderRadius: 4,
                               background: bgColor, border: `1px solid ${borderColor}`,
-                              color: 'var(--text)', fontSize: 11, fontFamily: 'monospace',
+                              color: 'var(--text)', fontSize: 11,
                               fontWeight: 600
                             }}
                           />
@@ -717,7 +717,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                             )}
                             <input
                               type="text"
-                              placeholder={`${param.value || '000.0'}`}
+                              placeholder={`Actual (${param.unit || 'val'})`}
                               value={paramValue}
                               onChange={(e) => {
                                 const v = e.target.value;
@@ -726,7 +726,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                                   [key]: { ...param, value: v }
                                 });
                               }}
-                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: bgColor, border: `1px solid ${borderColor}`, color: 'var(--text)', fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: bgColor, border: `1px solid ${borderColor}`, color: 'var(--text)', fontSize: 11, fontWeight: 600 }}
                             />
                             {param.from_master && <span style={{ fontSize: 8, color: 'var(--green)', marginTop: 2, display: 'block' }}>✓ From Master</span>}
                             {isWithinTolerance === true && (
@@ -882,40 +882,40 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                             <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="text"
-                                placeholder="00.00"
+                                placeholder="Nominal"
                                 value={dim.nominal !== null && dim.nominal !== undefined ? Number(dim.nominal).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
                                   updated[dIdx].nominal = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontFamily: 'monospace' }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="text"
-                                placeholder="00.00"
+                                placeholder="LSL"
                                 value={dim.lsl !== null && dim.lsl !== undefined ? Number(dim.lsl).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
                                   updated[dIdx].lsl = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11, fontFamily: 'monospace' }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <input
                                 type="text"
-                                placeholder="00.00"
+                                placeholder="USL"
                                 value={dim.usl !== null && dim.usl !== undefined ? Number(dim.usl).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
                                   updated[dIdx].usl = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11, fontFamily: 'monospace' }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
@@ -946,7 +946,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                                     placeholder={`#${cIdx + 1}`}
                                     value={val !== '' && val !== null ? Number(val).toFixed(2) : ''}
                                     onChange={(e) => handleDimensionChange(dIdx, cIdx, e.target.value)}
-                                    style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: bgCol, border: `1px solid ${borderCol}`, color: 'var(--text)', fontSize: 11, fontFamily: 'monospace' }}
+                                    style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: bgCol, border: `1px solid ${borderCol}`, color: 'var(--text)', fontSize: 11 }}
                                   />
                                 </td>
                               );
