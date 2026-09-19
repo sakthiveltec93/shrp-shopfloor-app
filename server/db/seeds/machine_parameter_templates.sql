@@ -1,11 +1,11 @@
 -- Seed: Machine Process Parameter Templates
 -- Defines parameter structure for ACTUAL machine types in use
 
--- Template 1: HSIM & VSIM Machines (4-Zone Temp + 3-Zone Injection + 2-Zone Holding + Cooling + Charge/Suckback)
+-- Template 1: HSIM & VSIM Machines (4-Zone Temp + 3-Zone Injection + 2-Zone Holding + Cooling + Cycle Time + Charge/Suckback)
 INSERT INTO machine_process_parameter_templates (machine_id, template_name, description, parameters)
 SELECT m.id,
   'HSIM/VSIM - 4-Zone Injection',
-  '4-Zone Temp, 3-Zone Injection (P/S/Pos), 2-Zone Holding (P/S/Pos), Cooling + Charge/Suckback',
+  '4-Zone Temp, 3-Zone Injection (P/S/Pos), 2-Zone Holding (P/S/Pos), Cycle, Cooling + Charge/Suckback',
   jsonb_build_array(
     jsonb_build_object('name', 'Zone 1 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_1_temp'),
     jsonb_build_object('name', 'Zone 2 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_2_temp'),
@@ -26,6 +26,7 @@ SELECT m.id,
     jsonb_build_object('name', 'Holding Zone 2 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'hold_z2_pressure'),
     jsonb_build_object('name', 'Holding Zone 2 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z2_speed'),
     jsonb_build_object('name', 'Holding Zone 2 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'hold_z2_position_time'),
+    jsonb_build_object('name', 'Cycle Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cycle_time'),
     jsonb_build_object('name', 'Cooling Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cooling_time'),
     jsonb_build_object('name', 'Charge Position 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'charge_position_1'),
     jsonb_build_object('name', 'Suckback 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'suckback_1')
