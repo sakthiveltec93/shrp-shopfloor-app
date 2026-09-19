@@ -1,204 +1,69 @@
 -- Seed: Machine Process Parameter Templates
--- Defines parameter structure for different machine types
+-- Defines parameter structure for ACTUAL machine types in use
 
--- Example 1: 4-Zone Injection Machine (e.g., VSIM-01, CR-01)
+-- Template 1: HSIM & VSIM Machines (4-Zone with complex parameters)
 INSERT INTO machine_process_parameter_templates (machine_id, template_name, description, parameters)
 SELECT m.id,
-  '4-Zone Injection Molding',
-  'Standard 4-zone temperature injection molding machine',
+  'HSIM/VSIM - 4-Zone Injection',
+  '4-Zone Temperature, Injection (Pressure/Speed/Position), 2-Zone Holding, Cooling + Charge/Suckback',
   jsonb_build_array(
-    jsonb_build_object(
-      'name', 'Zone 1 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_1_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Zone 2 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_2_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Zone 3 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_3_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Zone 4 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_4_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Nozzle Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'nozzle_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Injection Pressure',
-      'type', 'numeric',
-      'unit', 'bar',
-      'min_value', 300,
-      'max_value', 1500,
-      'field_key', 'injection_pressure'
-    ),
-    jsonb_build_object(
-      'name', 'Holding Pressure',
-      'type', 'numeric',
-      'unit', 'bar',
-      'min_value', 100,
-      'max_value', 800,
-      'field_key', 'holding_pressure'
-    ),
-    jsonb_build_object(
-      'name', 'Cooling Time',
-      'type', 'numeric',
-      'unit', 's',
-      'min_value', 5,
-      'max_value', 60,
-      'field_key', 'cooling_time'
-    ),
-    jsonb_build_object(
-      'name', 'Cycle Time',
-      'type', 'numeric',
-      'unit', 's',
-      'min_value', 10,
-      'max_value', 120,
-      'field_key', 'cycle_time'
-    )
+    jsonb_build_object('name', 'Zone 1 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_1_temp'),
+    jsonb_build_object('name', 'Zone 2 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_2_temp'),
+    jsonb_build_object('name', 'Zone 3 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_3_temp'),
+    jsonb_build_object('name', 'Zone 4 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_4_temp'),
+    jsonb_build_object('name', 'Injection Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'injection_pressure'),
+    jsonb_build_object('name', 'Injection Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'injection_speed'),
+    jsonb_build_object('name', 'Injection Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'injection_position_time'),
+    jsonb_build_object('name', 'Holding Zone 1 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'holding_z1_pressure'),
+    jsonb_build_object('name', 'Holding Zone 1 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z1_speed'),
+    jsonb_build_object('name', 'Holding Zone 1 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z1_position_time'),
+    jsonb_build_object('name', 'Holding Zone 2 Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'holding_z2_pressure'),
+    jsonb_build_object('name', 'Holding Zone 2 Speed', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z2_speed'),
+    jsonb_build_object('name', 'Holding Zone 2 Position/Time', 'type', 'numeric', 'unit', 'mm/s', 'field_key', 'holding_z2_position_time'),
+    jsonb_build_object('name', 'Cooling Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cooling_time'),
+    jsonb_build_object('name', 'Charge Position 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'charge_position_1'),
+    jsonb_build_object('name', 'Suckback 1', 'type', 'numeric', 'unit', 'mm', 'field_key', 'suckback_1')
   )
 FROM machines m
-WHERE m.machine_code IN ('VSIM-01', 'CR-01', 'CR-02', 'CR-03', 'CR-04')
+WHERE m.machine_code IN ('HSIM-01', 'HSIM-02', 'HSIM-03', 'HSIM-04', 'VSIM-01')
 AND NOT EXISTS (
   SELECT 1 FROM machine_process_parameter_templates t
-  WHERE t.machine_id = m.id AND t.template_name = '4-Zone Injection Molding'
+  WHERE t.machine_id = m.id
 );
 
--- Example 2: Single Zone Machine (e.g., AC-01, HG-01)
+-- Template 2: VIM Machines (Single zone, simple parameters)
 INSERT INTO machine_process_parameter_templates (machine_id, template_name, description, parameters)
 SELECT m.id,
-  'Single Zone Molding',
-  'Simple single-zone injection molding machine',
+  'VIM - Single Zone',
+  'Single Zone Temperature, Pressure, Holding/Injection Times, Cycle Time',
   jsonb_build_array(
-    jsonb_build_object(
-      'name', 'Barrel Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'barrel_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Injection Pressure',
-      'type', 'numeric',
-      'unit', 'bar',
-      'min_value', 300,
-      'max_value', 1500,
-      'field_key', 'injection_pressure'
-    ),
-    jsonb_build_object(
-      'name', 'Cooling Time',
-      'type', 'numeric',
-      'unit', 's',
-      'min_value', 5,
-      'max_value', 60,
-      'field_key', 'cooling_time'
-    )
+    jsonb_build_object('name', 'Zone 1 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_1_temp'),
+    jsonb_build_object('name', 'Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'pressure'),
+    jsonb_build_object('name', 'Holding Time', 'type', 'numeric', 'unit', 's', 'field_key', 'holding_time'),
+    jsonb_build_object('name', 'Injection Time', 'type', 'numeric', 'unit', 's', 'field_key', 'injection_time'),
+    jsonb_build_object('name', 'Cycle Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cycle_time')
   )
 FROM machines m
-WHERE m.machine_code IN ('AC-01', 'HG-01', 'HSIM-02', 'HSIM-04')
+WHERE m.machine_code LIKE 'VIM-%'
 AND NOT EXISTS (
   SELECT 1 FROM machine_process_parameter_templates t
-  WHERE t.machine_id = m.id AND t.template_name = 'Single Zone Molding'
+  WHERE t.machine_id = m.id
 );
 
--- Example 3: Advanced Machine with Speed/Position (e.g., DG-01, HD-01)
+-- Template 3: RUB Machines (2-Zone temperature, 1 pressure, cycle time)
 INSERT INTO machine_process_parameter_templates (machine_id, template_name, description, parameters)
 SELECT m.id,
-  'Advanced Injection with Speed Control',
-  'Machine with multi-parameter control including speed and position',
+  'RUB - 2-Zone Basic',
+  '2-Zone Temperature, 1-Zone Pressure, Cycle Time',
   jsonb_build_array(
-    jsonb_build_object(
-      'name', 'Zone 1 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_1_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Zone 2 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_2_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Zone 3 Temperature',
-      'type', 'numeric',
-      'unit', '°C',
-      'min_value', 150,
-      'max_value', 280,
-      'field_key', 'zone_3_temp'
-    ),
-    jsonb_build_object(
-      'name', 'Injection Pressure',
-      'type', 'numeric',
-      'unit', 'bar',
-      'min_value', 300,
-      'max_value', 1500,
-      'field_key', 'injection_pressure'
-    ),
-    jsonb_build_object(
-      'name', 'Holding Pressure',
-      'type', 'numeric',
-      'unit', 'bar',
-      'min_value', 100,
-      'max_value', 800,
-      'field_key', 'holding_pressure'
-    ),
-    jsonb_build_object(
-      'name', 'Injection Speed',
-      'type', 'numeric',
-      'unit', 'mm/s',
-      'min_value', 10,
-      'max_value', 200,
-      'field_key', 'injection_speed'
-    ),
-    jsonb_build_object(
-      'name', 'Screw Position',
-      'type', 'numeric',
-      'unit', 'mm',
-      'min_value', 0,
-      'max_value', 100,
-      'field_key', 'screw_position'
-    ),
-    jsonb_build_object(
-      'name', 'Cooling Time',
-      'type', 'numeric',
-      'unit', 's',
-      'min_value', 5,
-      'max_value', 60,
-      'field_key', 'cooling_time'
-    )
+    jsonb_build_object('name', 'Zone 1 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_1_temp'),
+    jsonb_build_object('name', 'Zone 2 Temperature', 'type', 'numeric', 'unit', '°C', 'field_key', 'zone_2_temp'),
+    jsonb_build_object('name', 'Pressure', 'type', 'numeric', 'unit', 'bar', 'field_key', 'pressure'),
+    jsonb_build_object('name', 'Cycle Time', 'type', 'numeric', 'unit', 's', 'field_key', 'cycle_time')
   )
 FROM machines m
-WHERE m.machine_code IN ('DG-01', 'HD-01', 'CT-01')
+WHERE m.machine_code LIKE 'RUB-%'
 AND NOT EXISTS (
   SELECT 1 FROM machine_process_parameter_templates t
-  WHERE t.machine_id = m.id AND t.template_name = 'Advanced Injection with Speed Control'
+  WHERE t.machine_id = m.id
 );
