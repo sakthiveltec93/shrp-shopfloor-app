@@ -75,6 +75,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
   });
   const [approvalStatus, setApprovalStatus] = useState('APPROVED');
   const [remarks, setRemarks] = useState('');
+  const [deviationNo, setDeviationNo] = useState('');
   const [customVisualTime, setCustomVisualTime] = useState('');
   const [customApprovalTime, setCustomApprovalTime] = useState('');
 
