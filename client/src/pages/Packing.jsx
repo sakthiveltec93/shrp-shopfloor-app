@@ -22,17 +22,11 @@ export default function Packing() {
   const [holdBags, setHoldBags] = useState([]);
   const [holdLoading, setHoldLoading] = useState(false);
 
-  // Counting scale & packing inputs
-  const [samplePacketWtKg, setSamplePacketWtKg] = useState('');
-  const [customPackQty, setCustomPackQty] = useState('');
+  // Simplified packing inputs
+  const [pktWt, setPktWt] = useState('');
+  const [pktCount, setPktCount] = useState('');
+  const [balanceQty, setBalanceQty] = useState('');
   const [balancePoolData, setBalancePoolData] = useState(null);
-
-  // Manual Override Inputs
-  const [showOverrides, setShowOverrides] = useState(false);
-  const [manualPacketsCount, setManualPacketsCount] = useState('');
-  const [manualPackedQty, setManualPackedQty] = useState('');
-  const [manualPackedWtKg, setManualPackedWtKg] = useState('');
-  const [manualBalanceQty, setManualBalanceQty] = useState('');
   const [isPartialPack, setIsPartialPack] = useState(false);
 
   // Hold quarantine state
@@ -97,34 +91,33 @@ export default function Packing() {
 
   // Derive part standard packing information
   const partObj = parts.find((p) => String(p.id) === String(activePartId));
-  const standardPackQty = Number(customPackQty || partObj?.standard_pack_qty || 500);
-  const historicalPartWeightG = Number(partObj?.part_weight_g || (partObj?.unit_weight_g ? partObj.unit_weight_g / (partObj.cavity_count || 1) : 0));
-  const defaultSamplePacketWt = historicalPartWeightG > 0 ? (standardPackQty * historicalPartWeightG) / 1000 : null;
+  const standardPackQty = Number(partObj?.standard_pack_qty || 500);
 
-  // Real-time Counting Scale calculations:
+  // Simplified calculation based on user input
   const bagWeightKg = Number(bag?.base_weight_kg || 0);
-  const currentSamplePacketWt = Number(samplePacketWtKg || defaultSamplePacketWt || 1.0);
-  const calculatedPartWeightG = standardPackQty > 0 ? (currentSamplePacketWt * 1000) / standardPackQty : historicalPartWeightG;
+  const userPktWt = Number(pktWt || 0);
+  const userPktCount = Number(pktCount || 0);
+  const userBalanceQty = Number(balanceQty || 0);
 
-  let totalPiecesInBag = 0;
-  let autoPacketsCount = 0;
-  let autoPackedQty = 0;
-  let autoPackedWtKg = 0;
-  let autoBalancePieces = 0;
+  // Formula: Total Pkt Wt = (Pkt Wt × No of Pkt) + (Balance Qty × Pkt Wt / Std Pack Qty)
+  const calculatedTotalWtKg = userPktWt > 0 && (userPktCount > 0 || userBalanceQty > 0)
+    ? Number(((userPktWt * userPktCount) + (userBalanceQty * userPktWt / standardPackQty)).toFixed(3))
+    : 0;
 
-  if (calculatedPartWeightG > 0 && bagWeightKg > 0) {
-    totalPiecesInBag = Math.round((bagWeightKg * 1000) / calculatedPartWeightG);
-    autoPacketsCount = Math.floor(totalPiecesInBag / standardPackQty);
-    autoPackedQty = autoPacketsCount * standardPackQty;
-    autoPackedWtKg = Number((autoPacketsCount * currentSamplePacketWt).toFixed(3));
-    autoBalancePieces = Math.max(0, totalPiecesInBag - autoPackedQty);
-  }
+  // Tolerance check: ±0.300 kg
+  const weightTolerance = 0.300;
+  const isWithinTolerance = bagWeightKg > 0 && calculatedTotalWtKg > 0
+    ? Math.abs(calculatedTotalWtKg - bagWeightKg) <= weightTolerance
+    : null;
 
-  // Effective values considering manual overrides
-  const effectivePacketsCount = manualPacketsCount !== '' ? Number(manualPacketsCount) : autoPacketsCount;
-  const effectivePackedQty = manualPackedQty !== '' ? Number(manualPackedQty) : autoPackedQty;
-  const effectivePackedWtKg = manualPackedWtKg !== '' ? Number(manualPackedWtKg) : autoPackedWtKg;
-  const effectiveBalanceQty = manualBalanceQty !== '' ? Number(manualBalanceQty) : autoBalancePieces;
+  // Can change to PACKED if: Balance < 1 packet AND weight within tolerance
+  const canMarkPacked = userBalanceQty < 1 && isWithinTolerance === true;
+
+  // Effective values for submission
+  const effectivePacketsCount = userPktCount;
+  const effectivePackedQty = userPktCount * standardPackQty;
+  const effectivePackedWtKg = calculatedTotalWtKg;
+  const effectiveBalanceQty = userBalanceQty;
 
   async function submit(confirm = false) {
     setError('');
@@ -618,117 +611,70 @@ export default function Packing() {
             <div>Estimated Qty:</div><strong>{bag.qty} Nos</strong>
           </div>
 
-          {/* Counting Scale Calculator Interface */}
+          {/* Simplified Manual Packing Entry */}
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 6, marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: 'var(--amber)' }}>
-              ⚖️ High-Precision Counting Scale (0.5g)
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="pack_qty">Pack Size (Pcs / Packet)</label>
+                <label htmlFor="pkt_wt">Packet Weight (kg) *</label>
                 <input
-                  id="pack_qty"
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={String(partObj?.standard_pack_qty || 500)}
-                  value={customPackQty}
-                  onChange={(e) => setCustomPackQty(e.target.value)}
-                />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="sample_pkt_wt">Sample Packet Wt (kg) *</label>
-                <input
-                  id="sample_pkt_wt"
+                  id="pkt_wt"
                   type="number"
                   step="0.001"
                   inputMode="decimal"
-                  placeholder={defaultSamplePacketWt ? defaultSamplePacketWt.toFixed(3) : 'e.g. 1.186'}
-                  value={samplePacketWtKg}
-                  onChange={(e) => setSamplePacketWtKg(e.target.value)}
+                  placeholder="e.g. 1.186"
+                  value={pktWt}
+                  onChange={(e) => setPktWt(e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="pkt_count">Packet Count *</label>
+                <input
+                  id="pkt_count"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="e.g. 5"
+                  value={pktCount}
+                  onChange={(e) => setPktCount(e.target.value)}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label htmlFor="balance_qty">Balance Qty (Pcs) *</label>
+                <input
+                  id="balance_qty"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="e.g. 50"
+                  value={balanceQty}
+                  onChange={(e) => setBalanceQty(e.target.value)}
                 />
               </div>
             </div>
-
-            <div style={{ fontSize: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 8, color: 'var(--muted)' }}>
-              <div>Calculated Part Wt:</div><strong>{calculatedPartWeightG.toFixed(3)} g / pc</strong>
-              <div>Total Calculated Pcs:</div><strong>{totalPiecesInBag} Nos</strong>
-            </div>
           </div>
 
-          {/* Real-time Packing Calculation Results */}
+          {/* Auto-Calculated Results & Validation */}
           <div className="readout" style={{ marginBottom: 14, background: 'rgba(76,175,125,0.06)', borderColor: 'var(--green)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
-              <div>Full Packets:</div><strong style={{ color: 'var(--green)', fontSize: 16 }}>{effectivePacketsCount} Packets</strong>
-              <div>Packed Good Qty:</div><strong>{effectivePackedQty} Nos ({effectivePackedWtKg} kg)</strong>
-              <div>Balance to Pool:</div><strong style={{ color: 'var(--amber)' }}>{effectiveBalanceQty} Nos</strong>
-              <div>Standard Pack Qty:</div><strong>{standardPackQty} Nos / Pkt</strong>
+              <div>Calculated Total Wt:</div><strong style={{ fontSize: 16, color: isWithinTolerance === true ? 'var(--green)' : isWithinTolerance === false ? 'var(--red)' : 'inherit' }}>
+                {calculatedTotalWtKg} kg
+              </strong>
+              <div>Bag Weight:</div><strong>{bagWeightKg.toFixed(3)} kg</strong>
+              <div>Tolerance (±):</div><strong>{weightTolerance} kg</strong>
+              <div>Status:</div><strong style={{ color: isWithinTolerance === true ? 'var(--green)' : isWithinTolerance === false ? 'var(--red)' : 'inherit' }}>
+                {isWithinTolerance === true ? '✅ Within Tolerance' : isWithinTolerance === false ? '❌ Outside Tolerance' : '—'}
+              </strong>
             </div>
           </div>
 
-          {/* Manual Override Section (Point 8) */}
-          <div style={{ marginBottom: 14, border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 6, padding: 10 }}>
-            <div
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-              onClick={() => setShowOverrides(!showOverrides)}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)' }}>
-                {showOverrides ? '▼ Hide Manual Adjustment Fields' : '▶ ✏️ Manual Adjustment / Override Fields'}
-              </span>
-              <span className="muted" style={{ fontSize: 11 }}>Click to {showOverrides ? 'collapse' : 'customize values'}</span>
-            </div>
-
-            {showOverrides && (
-              <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="ovr_packets">Packets Count</label>
-                  <input
-                    id="ovr_packets"
-                    type="number"
-                    value={manualPacketsCount !== '' ? manualPacketsCount : autoPacketsCount}
-                    onChange={(e) => setManualPacketsCount(e.target.value)}
-                  />
-                </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="ovr_packed_qty">Total Packed Qty (pcs)</label>
-                  <input
-                    id="ovr_packed_qty"
-                    type="number"
-                    value={manualPackedQty !== '' ? manualPackedQty : autoPackedQty}
-                    onChange={(e) => setManualPackedQty(e.target.value)}
-                  />
-                </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="ovr_packed_wt">Total Packed Weight (kg)</label>
-                  <input
-                    id="ovr_packed_wt"
-                    type="number"
-                    step="0.001"
-                    value={manualPackedWtKg !== '' ? manualPackedWtKg : autoPackedWtKg}
-                    onChange={(e) => setManualPackedWtKg(e.target.value)}
-                  />
-                </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="ovr_balance">Balance to Pool (pcs)</label>
-                  <input
-                    id="ovr_balance"
-                    type="number"
-                    value={manualBalanceQty !== '' ? manualBalanceQty : autoBalancePieces}
-                    onChange={(e) => setManualBalanceQty(e.target.value)}
-                  />
-                </div>
-                <div style={{ gridColumn: 'span 2', marginTop: 4 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={isPartialPack}
-                      onChange={(e) => setIsPartialPack(e.target.checked)}
-                    />
-                    <span>Mark as <strong>Partial Pack (PARTIAL_PACK)</strong> — keep bag active for subsequent packing</span>
-                  </label>
-                </div>
-              </div>
-            )}
+          {/* Partial Pack Option */}
+          <div style={{ marginBottom: 14, padding: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={isPartialPack}
+                onChange={(e) => setIsPartialPack(e.target.checked)}
+              />
+              <span>Mark as <strong>Partial Pack</strong> — keep bag active for subsequent packing (Balance qty will move to pool)</span>
+            </label>
           </div>
 
           {/* Stage Completion Confirmation */}
