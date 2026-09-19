@@ -61,6 +61,23 @@ async function executeCorrection(client, { entityType, entityId, entityCode, act
         downtime_minutes = 0, downtime_reason_id, remarks, efficiency_pct, rejects = [], downtimes = []
       } = payload;
 
+      // Duplicate prevention: check if an identical count range or exact matching time slot already exists
+      const dupCheck = await client.query(`
+        SELECT id, start_count, end_count, period_start_at, period_end_at
+        FROM production_entries
+        WHERE machine_id = $1 AND entry_date = $2 AND shift = $3
+          AND (
+            (start_count = $4 AND end_count = $5)
+            OR ($6::timestamptz IS NOT NULL AND $7::timestamptz IS NOT NULL 
+                AND period_start_at = $6::timestamptz AND period_end_at = $7::timestamptz)
+          )
+        LIMIT 1
+      `, [machine_id, entry_date, shift, start_count, end_count, period_start_at || null, period_end_at || null]);
+
+      if (dupCheck.rows.length > 0) {
+        throw new Error(`A production entry for this machine with the same count range (${start_count} - ${end_count}) or time slot already exists (Entry #${dupCheck.rows[0].id}). Duplicate entry blocked.`);
+      }
+
       const { rows } = await client.query(`
         INSERT INTO production_entries 
           (machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
