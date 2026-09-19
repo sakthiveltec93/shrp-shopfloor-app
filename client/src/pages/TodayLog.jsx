@@ -618,11 +618,11 @@ export default function TodayLog() {
                                 <button
                                   type="button"
                                   className="btn btn-secondary"
-                                  style={{ width: 'auto', padding: '4px 8px', fontSize: 11 }}
+                                  style={{ width: 'auto', padding: '4px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}
                                   title="Edit Bag Record"
                                   onClick={() => setCorrectionTarget({ mode: 'edit_bag', record: b })}
                                 >
-                                  ✏️
+                                  <span>✏️</span> <span>Edit</span>
                                 </button>
                                 <button
                                   type="button"
