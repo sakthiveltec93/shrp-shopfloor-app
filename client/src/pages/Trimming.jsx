@@ -533,7 +533,7 @@ export default function Trimming() {
                       value: b.id,
                       label: b.bag_code,
                       badge: idx === 0 ? '⭐ FIFO Next' : '',
-                      sublabel: b.base_weight_kg + ' kg · ' + b.status
+                      sublabel: `${b.base_weight_kg} kg · ${b.status === 'OPEN' ? 'Ready (Molded)' : b.status === 'PARTIAL_TRIM' ? 'Partial Trimmed' : b.status}`
                     }))}
                     placeholder="Select bag…"
                     searchPlaceholder="🔍 Type bag barcode / number..."

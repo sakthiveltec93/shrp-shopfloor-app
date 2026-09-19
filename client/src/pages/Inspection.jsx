@@ -165,6 +165,7 @@ export default function Inspection() {
         setInspectedWt('');
         setRejectRows([]);
         setMandatoryRemarks('');
+        loadCompletedBags();
         if (res.closed) {
           clearBag();
         } else {
@@ -237,7 +238,41 @@ export default function Inspection() {
       <p className="screen-sub">{t('inspection.subtitle')}</p>
 
       {error && <div className="error-banner">{error}</div>}
-      {success && <div className="panel" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>{success}</div>}
+      {success && (
+        <div
+          className="panel"
+          style={{
+            borderColor: 'var(--green)',
+            background: 'rgba(34, 197, 94, 0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+            padding: '12px 16px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ color: 'var(--green)', fontWeight: 600, fontSize: 13 }}>{success}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '5px 12px', fontSize: 12 }}
+              onClick={() => setActiveSubTab('completed')}
+            >
+              View in Completed Bags ({completedBags.length}) →
+            </button>
+            <a
+              href="/log"
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '5px 12px', fontSize: 12, textDecoration: 'none' }}
+            >
+              📋 Shift Log
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Sub-tab switcher: Ready Bags vs Completed Bags vs Quarantined / HOLD Bags */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -515,12 +550,18 @@ export default function Inspection() {
                       const b = batchBags.find((x) => String(x.id) === e.target.value);
                       selectSpecificBag(b);
                     }}
-                    options={batchBags.map((b, idx) => ({
-                      value: b.id,
-                      label: b.bag_code,
-                      badge: idx === 0 ? '⭐ FIFO Next' : '',
-                      sublabel: b.base_weight_kg + ' kg · ' + b.status
-                    }))}
+                    options={batchBags.map((b, idx) => {
+                      let displayStatus = b.status;
+                      if (b.status === 'OPEN') displayStatus = 'Ready (Molded)';
+                      else if (b.status === 'TRIMMED') displayStatus = 'Ready (Trimmed)';
+                      else if (b.status === 'PARTIAL_INSPECT') displayStatus = 'Partial Inspected';
+                      return {
+                        value: b.id,
+                        label: b.bag_code,
+                        badge: idx === 0 ? '⭐ FIFO Next' : '',
+                        sublabel: `${b.base_weight_kg} kg · ${displayStatus}`
+                      };
+                    })}
                     placeholder="Select bag…"
                     searchPlaceholder="🔍 Type bag barcode / number..."
                   />
@@ -630,7 +671,7 @@ export default function Inspection() {
                 </span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span className={`status-pill status-${bag.status.toLowerCase()}`}>
-                    {bag.status}
+                    {bag.status === 'OPEN' ? 'READY (MOLDED)' : bag.status === 'TRIMMED' ? 'READY (TRIMMED)' : bag.status}
                   </span>
                   <button
                     type="button"

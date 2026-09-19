@@ -417,7 +417,14 @@ router.get('/log/history', async (req, res) => {
 
   if (date) {
     params.push(date);
-    clauses.push(`b.entry_date = $${params.length}`);
+    const pIdx = params.length;
+    clauses.push(`(
+      b.entry_date = $${pIdx} OR
+      b.created_at::date = $${pIdx} OR
+      EXISTS (SELECT 1 FROM trim_entries te WHERE te.bag_id = b.id AND te.created_at::date = $${pIdx}) OR
+      EXISTS (SELECT 1 FROM inspection_entries ie WHERE ie.bag_id = b.id AND ie.created_at::date = $${pIdx}) OR
+      EXISTS (SELECT 1 FROM packing_entries pe WHERE pe.bag_id = b.id AND pe.created_at::date = $${pIdx})
+    )`);
   }
   if (shift && shift !== 'ALL') {
     params.push(shift);

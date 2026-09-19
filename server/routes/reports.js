@@ -346,14 +346,14 @@ router.get('/process-summary', async (req, res) => {
   // 2. Inspection Summary by Operator
   const inspRes = await pool.query(`
     SELECT u.full_name AS operator_name,
-           COALESCE(SUM(ie.good_qty), 0) AS accepted_pieces,
-           COALESCE(SUM(ie.reject_qty), 0) AS reject_pieces,
-           COALESCE(SUM(CASE WHEN b.qty > 0 THEN (ie.good_qty::numeric / b.qty) * b.base_weight_kg ELSE 0 END), 0) AS accepted_kg,
-           COALESCE(SUM(CASE WHEN b.qty > 0 THEN (ie.reject_qty::numeric / b.qty) * b.base_weight_kg ELSE 0 END), 0) AS reject_kg
+           COALESCE(SUM(CASE WHEN b.base_weight_kg > 0 THEN ROUND((ie.inspected_wt_kg / b.base_weight_kg) * b.qty) ELSE b.qty END), 0) AS accepted_pieces,
+           COALESCE(SUM(CASE WHEN b.base_weight_kg > 0 THEN ROUND((ie.reject_wt_kg / b.base_weight_kg) * b.qty) ELSE 0 END), 0) AS reject_pieces,
+           COALESCE(SUM(ie.inspected_wt_kg), 0) AS accepted_kg,
+           COALESCE(SUM(ie.reject_wt_kg), 0) AS reject_kg
     FROM inspection_entries ie
     JOIN bags b ON b.id = ie.bag_id
-    JOIN users u ON u.id = ie.inspector_user_id
-    WHERE b.entry_date = $1
+    LEFT JOIN users u ON u.id = ie.operator_user_id
+    WHERE ie.created_at::date = $1 OR b.entry_date = $1
     GROUP BY u.full_name
     ORDER BY accepted_pieces DESC
   `, [date]);
