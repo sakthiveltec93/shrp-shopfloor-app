@@ -561,10 +561,10 @@ router.get('/', async (req, res) => {
   const { batch_no, status, part_id, stage, bag_type } = req.query;
   const clauses = [];
   const params = [];
-  if (batch_no) { params.push(batch_no); clauses.push(`b.batch_no = $${params.length}`); }
-  if (status) { params.push(status); clauses.push(`b.status = $${params.length}`); }
-  if (part_id) { params.push(part_id); clauses.push(`b.part_id = $${params.length}`); }
-  if (bag_type) {
+  if (batch_no && batch_no !== 'undefined') { params.push(batch_no); clauses.push(`b.batch_no = $${params.length}`); }
+  if (status && status !== 'undefined') { params.push(status); clauses.push(`b.status = $${params.length}`); }
+  if (part_id && part_id !== 'undefined' && !isNaN(part_id)) { params.push(parseInt(part_id, 10)); clauses.push(`b.part_id = $${params.length}`); }
+  if (bag_type && bag_type !== 'undefined') {
     params.push(bag_type);
     clauses.push(`b.bag_type = $${params.length}`);
   }
@@ -787,9 +787,13 @@ router.get('/hold-bags', async (req, res) => {
   const { stage, part_id } = req.query;
   const clauses = ["b.status = 'HOLD'"];
   const params = [];
-  if (part_id) {
-    params.push(part_id);
+  if (part_id && part_id !== 'undefined' && !isNaN(part_id)) {
+    params.push(parseInt(part_id, 10));
     clauses.push(`b.part_id = $${params.length}`);
+  }
+  if (stage && stage !== 'undefined') {
+    params.push(stage);
+    clauses.push(`hl.stage = $${params.length}`);
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
