@@ -261,7 +261,37 @@ router.get('/', async (req, res) => {
     where += ` AND pe.operator_user_id = $${params.length}`;
   }
   const { rows } = await pool.query(`
-    SELECT pe.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name
+    SELECT pe.*, m.machine_code, p.part_code, p.part_name, p.shrp_part_code, p.customer_part_no, u.full_name AS operator_name,
+           COALESCE(
+             (
+               SELECT json_agg(json_build_object(
+                 'id', rl.id,
+                 'reason_id', rl.reject_reason_id,
+                 'reason_name', ci.item_name,
+                 'code', ci.code,
+                 'qty', rl.qty
+               ) ORDER BY rl.id)
+               FROM reject_log rl
+               LEFT JOIN check_items ci ON ci.id = rl.reject_reason_id
+               WHERE rl.production_entry_id = pe.id
+             ),
+             '[]'::json
+           ) AS rejects,
+           COALESCE(
+             (
+               SELECT json_agg(json_build_object(
+                 'id', dl.id,
+                 'reason_id', dl.downtime_reason_id,
+                 'reason_name', ci.item_name,
+                 'related_to', ci.related_to,
+                 'minutes', dl.minutes
+               ) ORDER BY dl.id)
+               FROM downtime_log dl
+               LEFT JOIN check_items ci ON ci.id = dl.downtime_reason_id
+               WHERE dl.production_entry_id = pe.id
+             ),
+             '[]'::json
+           ) AS downtimes
     FROM production_entries pe
     JOIN machines m ON m.id = pe.machine_id
     JOIN parts p ON p.id = pe.part_id

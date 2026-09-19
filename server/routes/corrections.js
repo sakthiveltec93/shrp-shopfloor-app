@@ -107,10 +107,11 @@ async function executeCorrection(client, { entityType, entityId, entityCode, act
       const oldRecord = oldRes.rows[0];
       if (!oldRecord) throw new Error('Production entry not found.');
 
-      const {
+        const {
         machine_id, part_id, operator_user_id, shift, entry_date, hour_slot,
         period_start_at, period_end_at, start_count, end_count, good_qty, reject_qty,
-        downtime_minutes, downtime_reason_id, remarks, efficiency_pct
+        downtime_minutes, downtime_reason_id, remarks, efficiency_pct,
+        rejects, downtimes
       } = payload;
 
       const { rows } = await client.query(`
@@ -141,6 +142,24 @@ async function executeCorrection(client, { entityType, entityId, entityCode, act
         downtime_minutes, downtime_reason_id, remarks, efficiency_pct, entityId
       ]);
       const updated = rows[0];
+
+      if (Array.isArray(rejects)) {
+        await client.query(`DELETE FROM reject_log WHERE production_entry_id = $1`, [entityId]);
+        for (const r of rejects) {
+          if (r.reason_id && Number(r.qty) > 0) {
+            await client.query(`INSERT INTO reject_log (production_entry_id, reject_reason_id, qty) VALUES ($1,$2,$3)`, [entityId, r.reason_id, r.qty]);
+          }
+        }
+      }
+
+      if (Array.isArray(downtimes)) {
+        await client.query(`DELETE FROM downtime_log WHERE production_entry_id = $1`, [entityId]);
+        for (const d of downtimes) {
+          if (d.reason_id && Number(d.minutes) > 0) {
+            await client.query(`INSERT INTO downtime_log (production_entry_id, downtime_reason_id, minutes) VALUES ($1,$2,$3)`, [entityId, d.reason_id, d.minutes]);
+          }
+        }
+      }
 
       await recordDiffs(client, {
         entityType, entityId, entityCode: entityCode || `PE-${entityId}`,

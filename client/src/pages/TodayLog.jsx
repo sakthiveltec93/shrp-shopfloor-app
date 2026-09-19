@@ -399,8 +399,62 @@ export default function TodayLog() {
                       </td>
                       <td>{e.start_count} → {e.end_count}</td>
                       <td><strong style={{ color: 'var(--green)' }}>{e.good_qty}</strong></td>
-                      <td>{e.reject_qty > 0 ? <strong style={{ color: 'var(--red)' }}>{e.reject_qty}</strong> : 0}</td>
-                      <td>{e.downtime_minutes || 0}</td>
+                      <td>
+                        {e.reject_qty > 0 ? (
+                          <div>
+                            <strong style={{ color: 'var(--red)' }}>{e.reject_qty}</strong>
+                            {e.rejects && e.rejects.length > 0 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                                {e.rejects.map((r, idx) => (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      fontSize: 10,
+                                      background: 'rgba(239, 68, 68, 0.12)',
+                                      color: '#f87171',
+                                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                                      borderRadius: 4,
+                                      padding: '1px 5px',
+                                      whiteSpace: 'nowrap',
+                                      lineHeight: 1.3
+                                    }}
+                                  >
+                                    {r.code ? `[${r.code}] ` : ''}{r.item_name || 'Defect'}: <strong>{r.qty}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          0
+                        )}
+                      </td>
+                      <td>
+                        <div>
+                          <strong>{e.downtime_minutes || 0}</strong>
+                          {e.downtimes && e.downtimes.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                              {e.downtimes.map((d, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    fontSize: 10,
+                                    background: 'rgba(245, 158, 11, 0.12)',
+                                    color: '#fbbf24',
+                                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                                    borderRadius: 4,
+                                    padding: '1px 5px',
+                                    whiteSpace: 'nowrap',
+                                    lineHeight: 1.3
+                                  }}
+                                >
+                                  {d.code ? `[${d.code}] ` : ''}{d.item_name || 'Downtime'}: <strong>{d.minutes}m</strong>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className="muted">{e.operator_name}</td>
                       <td>
                         {e.is_backdated && <span style={{ fontSize: 10, background: 'rgba(59,130,246,0.2)', color: '#60a5fa', padding: '1px 5px', borderRadius: 3, fontWeight: 700, marginRight: 4 }}>BACKDATED</span>}
