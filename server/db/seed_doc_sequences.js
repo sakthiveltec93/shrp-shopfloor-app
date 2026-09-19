@@ -6,7 +6,7 @@ const DEFAULT_DOCUMENT_SEQUENCES = [
   { document_type: 'RFQ', type_label: 'Request For Quotation', prefix: 'SHRP-RFQ-', padding_digits: 4, include_year: true, suffix: '' },
   { document_type: 'BATCH', type_label: 'Production Batch', prefix: 'SHRP-BAT-', padding_digits: 4, include_year: true, suffix: '' },
   { document_type: 'RM_INWARD', type_label: 'Raw Material Inward (GRN)', prefix: 'SHRP-RMI-', padding_digits: 4, include_year: true, suffix: '' },
-  { document_type: 'CUSTOMER', type_label: 'Customer Code', prefix: 'SHRP-CUST-', padding_digits: 3, include_year: false, suffix: '' },
+  { document_type: 'CUSTOMER', type_label: 'Customer Code', prefix: 'SHRP/C-', padding_digits: 2, include_year: false, suffix: '' },
   { document_type: 'SUPPLIER', type_label: 'Supplier Code', prefix: 'SHRP-SUP-', padding_digits: 3, include_year: false, suffix: '' },
   { document_type: 'MOULD', type_label: 'Mould Code', prefix: 'SHRP-MLD-', padding_digits: 3, include_year: false, suffix: '' },
   { document_type: 'MACHINE', type_label: 'Machine Code', prefix: 'SHRP-MCH-', padding_digits: 3, include_year: false, suffix: '' },

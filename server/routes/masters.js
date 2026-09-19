@@ -40,7 +40,25 @@ router.post('/customers', requireRole('admin', 'supervisor'), async (req, res) =
     return res.status(400).json({ error: 'Invalid GSTIN format or checksum digit. Please verify the 15-character GST number.' });
   }
 
-  const code = (customer_code && customer_code.trim()) || ('CUST-' + name.trim().slice(0, 4).toUpperCase());
+  let code = customer_code && customer_code.trim();
+  if (!code) {
+    const seqRes = await pool.query("SELECT * FROM document_sequences WHERE document_type = 'CUSTOMER'");
+    if (seqRes.rows[0]) {
+      const seq = seqRes.rows[0];
+      const nextVal = Number(seq.current_number || 0) + 1;
+      await pool.query('UPDATE document_sequences SET current_number = $1, updated_at = now() WHERE id = $2', [nextVal, seq.id]);
+      code = formatDocumentNumber({
+        prefix: seq.prefix,
+        padding_digits: seq.padding_digits,
+        include_year: seq.include_year,
+        suffix: seq.suffix,
+        number: nextVal,
+      });
+    } else {
+      code = 'SHRP/C-' + String(Math.floor(Math.random() * 90) + 10);
+    }
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO customers (
        customer_code, name, gstin, pan_no, contact_person, phone, email,
