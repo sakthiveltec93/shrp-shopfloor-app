@@ -29,6 +29,7 @@ const gstRoutes = require('./routes/gst');
 const dispatchRoutes = require('./routes/dispatch');
 const dashboardRoutes = require('./routes/dashboard');
 const machineTemplatesRoutes = require('./routes/machine-templates');
+const setupRoutes = require('./routes/setup');
 
 const fs = require('fs');
 
@@ -75,6 +76,7 @@ app.use('/api/gst', gstRoutes);
 app.use('/api/dispatch', dispatchRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/machine-templates', machineTemplatesRoutes);
+app.use('/api/setup', setupRoutes);
 
 // Serve the built React PWA (client/dist) for everything else
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

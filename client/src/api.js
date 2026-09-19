@@ -516,6 +516,10 @@ export const api = {
       }),
   },
 
+  setup: {
+    initMachineTemplates: () => request('/setup/init-machine-templates', { method: 'POST' }),
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };

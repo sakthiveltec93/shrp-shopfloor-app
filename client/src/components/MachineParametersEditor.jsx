@@ -28,6 +28,21 @@ export default function MachineParametersEditor({ partId, machines, selectedMach
       .then(([tpl, spec]) => {
         console.log('Loaded template:', tpl);
         console.log('Loaded specs:', spec);
+
+        // If template not found, try to initialize templates
+        if (!tpl) {
+          console.log('No template found, initializing...');
+          return api.setup.initMachineTemplates()
+            .then((initRes) => {
+              console.log('Templates initialized:', initRes);
+              // Retry loading template
+              return api.machineTemplates.getTemplate(selectedMachine)
+                .then((tpl2) => [tpl2, spec]);
+            });
+        }
+        return [tpl, spec];
+      })
+      .then(([tpl, spec]) => {
         setTemplate(tpl);
         setSpecs(spec?.parameter_specs || {});
       })
