@@ -158,17 +158,45 @@ router.get('/parts', async (req, res) => {
     SELECT p.*,
            c.name AS customer_name,
            c.customer_code,
-           m.mould_code,
-           m.mould_name,
-           COALESCE(mp.cavities_for_part, p.cavity_count, 1) AS cavities_for_part,
+           (
+             SELECT string_agg(m.mould_code, ', ' ORDER BY m.mould_code)
+             FROM mould_parts mp
+             JOIN moulds m ON m.id = mp.mould_id
+             WHERE mp.part_id = p.id
+           ) AS mould_code,
+           (
+             SELECT string_agg(m.mould_name, ', ' ORDER BY m.mould_code)
+             FROM mould_parts mp
+             JOIN moulds m ON m.id = mp.mould_id
+             WHERE mp.part_id = p.id
+           ) AS mould_name,
+           (
+             SELECT COALESCE(
+               json_agg(json_build_object(
+                 'mould_id', m.id,
+                 'mould_code', m.mould_code,
+                 'mould_name', m.mould_name,
+                 'cavities_for_part', mp.cavities_for_part
+               ) ORDER BY m.mould_code),
+               '[]'::json
+             )
+             FROM mould_parts mp
+             JOIN moulds m ON m.id = mp.mould_id
+             WHERE mp.part_id = p.id
+           ) AS linked_moulds,
+           (
+             SELECT mp.cavities_for_part
+             FROM mould_parts mp
+             WHERE mp.part_id = p.id
+             ORDER BY mp.id ASC
+             LIMIT 1
+           ) AS cavities_for_part,
            p.standard_cycle_time_sec AS cycle_time_seconds,
            COALESCE(p.unit_weight_g, p.part_weight_g) AS net_weight_grams,
            COALESCE(p.part_weight_g, p.unit_weight_g) AS gross_weight_grams,
            (SELECT pf.id FROM part_files pf WHERE pf.part_id = p.id AND pf.file_type = 'photo' ORDER BY pf.uploaded_at DESC LIMIT 1) AS photo_file_id
     FROM parts p
     LEFT JOIN customers c ON c.id = p.customer_id
-    LEFT JOIN mould_parts mp ON mp.part_id = p.id
-    LEFT JOIN moulds m ON m.id = mp.mould_id
     WHERE ($1::boolean IS TRUE OR p.active = TRUE)
     ORDER BY p.part_code
   `, [includeInactive]);

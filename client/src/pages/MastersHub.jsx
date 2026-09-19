@@ -854,9 +854,11 @@ export default function MastersHub() {
                 const cycleTime = p.standard_cycle_time_sec || p.cycle_time_seconds;
                 const netWt = p.unit_weight_g || p.net_weight_grams;
                 const grossWt = p.part_weight_g || p.gross_weight_grams;
-                const mouldInfo = p.mould_code
-                  ? `${p.mould_code} (${p.cavities_for_part || p.cavity_count || 1} cav)`
-                  : (p.cavity_count ? `${p.cavity_count} cav` : '—');
+                const mouldInfo = p.linked_moulds && p.linked_moulds.length > 0
+                  ? p.linked_moulds.map((m) => `${m.mould_code} (${m.cavities_for_part || p.cavity_count || 1} cav)`).join(', ')
+                  : (p.mould_code
+                      ? `${p.mould_code} (${p.cavities_for_part || p.cavity_count || 1} cav)`
+                      : (p.cavity_count ? `${p.cavity_count} cav` : '—'));
 
                 return (
                   <div
