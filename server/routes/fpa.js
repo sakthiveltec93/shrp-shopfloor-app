@@ -620,15 +620,70 @@ async function processFpaSubmission(req, res, targetAssignmentId) {
       );
     }
 
-    // If FPA is approved (visual or full), update machine_assignments first_ok_part_at if not set
-    if ((isFullApproved || isVisual) && !assign.first_ok_part_at) {
+    // If FPA is approved (visual or full), update machine_assignments first_ok_part_at
+    if (isFullApproved || isVisual) {
       const okTime = req.body.first_ok_part_at
         ? new Date(req.body.first_ok_part_at)
-        : finalApprovedAt || visualApprovedAt || new Date();
+        : req.body.visual_approved_at
+        ? new Date(req.body.visual_approved_at)
+        : req.body.approved_at
+        ? new Date(req.body.approved_at)
+        : visualApprovedAt || finalApprovedAt || new Date();
+
+      if (!assign.first_ok_part_at || req.body.first_ok_part_at || req.body.visual_approved_at) {
+        await client.query(
+          `UPDATE machine_assignments SET first_ok_part_at = $1 WHERE id = $2`,
+          [okTime, assign.id]
+        );
+      }
+
+      // 1. Close any stale sessions on this machine from the previous mould
       await client.query(
-        `UPDATE machine_assignments SET first_ok_part_at = $1 WHERE id = $2`,
-        [okTime, assign.id]
+        `UPDATE machine_sessions
+         SET status = 'OFF',
+             off_time = $1,
+             off_reason = 'mould_change',
+             off_remarks = 'Closed on FPA approval of new mould'
+         WHERE machine_id = $2 AND status = 'RUNNING' AND part_id != $3`,
+        [okTime, assign.machine_id, assign.part_id]
       );
+
+      // 2. Check if a session already exists for this machine and this new part
+      const currSess = await client.query(
+        `SELECT id, start_count, (SELECT count(*)::int FROM production_entries WHERE session_id = machine_sessions.id) as entry_count
+         FROM machine_sessions
+         WHERE machine_id = $1 AND part_id = $2 AND status = 'RUNNING'`,
+        [assign.machine_id, assign.part_id]
+      );
+
+      if (currSess.rows.length > 0) {
+        // If no entries logged yet, sync start_time with okTime and start_count with 0
+        if (currSess.rows[0].entry_count === 0) {
+          await client.query(
+            `UPDATE machine_sessions SET start_time = $1, start_count = 0 WHERE id = $2`,
+            [okTime, currSess.rows[0].id]
+          );
+        }
+      } else {
+        // Find operator assigned to this machine and auto-start running session with start_count = 0
+        const prevOp = await client.query(
+          `SELECT operator_user_id FROM machine_sessions WHERE machine_id = $1 ORDER BY id DESC LIMIT 1`,
+          [assign.machine_id]
+        );
+        const opId = prevOp.rows[0]?.operator_user_id || assign.set_by_user_id || userId;
+        if (opId) {
+          // Close any other running session for this operator
+          await client.query(
+            `UPDATE machine_sessions SET status = 'OFF', off_time = $1, off_reason = 'mould_change' WHERE operator_user_id = $2 AND status = 'RUNNING'`,
+            [okTime, opId]
+          );
+          await client.query(
+            `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count, status)
+             VALUES ($1, $2, $3, $4, 0, 'RUNNING')`,
+            [assign.machine_id, assign.part_id, opId, okTime]
+          );
+        }
+      }
     }
 
     await client.query('COMMIT');

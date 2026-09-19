@@ -117,9 +117,19 @@ async function closePreviousCampaignRun(machineId, newLoadedAt, changeReason) {
           startAt, endAt, totalShots, totalProdQty, totalRejectQty, totalNetQty,
           grossRunHours, totalIdleMin, netRunHours, overallEff,
           changeReason || prevAssignment.reason || 'Plan Completed'
-        ]
-      );
     }
+
+    // Auto-close any active machine session on this machine from the old mould run
+    await pool.query(
+      `UPDATE machine_sessions
+       SET status = 'OFF',
+           off_time = $1,
+           off_count = COALESCE($2, (SELECT end_count FROM production_entries WHERE session_id = machine_sessions.id ORDER BY end_count DESC LIMIT 1), start_count),
+           off_reason = 'mould_change',
+           off_remarks = 'Closed due to mould change'
+       WHERE machine_id = $3 AND status = 'RUNNING'`,
+      [endAt, prevAssignment.last_shot_count || (totalShots > 0 ? totalShots : null), machineId]
+    );
   } catch (err) {
     console.error('Error closing previous campaign run:', err);
   }
@@ -556,14 +566,34 @@ router.post('/:id/first-ok-part', async (req, res) => {
     return res.status(403).json({ error: '1st OK part time is already set. Ask a supervisor to correct it.' });
   }
 
+  const okTime = taken_at ? new Date(taken_at) : new Date();
+
   const { rows } = await pool.query(
     `UPDATE machine_assignments
-     SET first_ok_part_at = COALESCE($1, now())
+     SET first_ok_part_at = $1
      WHERE id = $2 AND status = 'approved'
      RETURNING *`,
-    [taken_at || null, id]
+    [okTime, id]
   );
-  res.json(rows[0]);
+  const updatedAssign = rows[0];
+
+  // Sync running session on this machine for this part
+  const sessCheck = await pool.query(
+    `SELECT id, (SELECT count(*)::int FROM production_entries WHERE session_id = machine_sessions.id) AS entry_count
+     FROM machine_sessions
+     WHERE machine_id = $1 AND part_id = $2 AND status = 'RUNNING'`,
+    [updatedAssign.machine_id, updatedAssign.part_id]
+  );
+  if (sessCheck.rows.length > 0) {
+    if (sessCheck.rows[0].entry_count === 0) {
+      await pool.query(
+        `UPDATE machine_sessions SET start_time = $1, start_count = 0 WHERE id = $2`,
+        [okTime, sessCheck.rows[0].id]
+      );
+    }
+  }
+
+  res.json(updatedAssign);
 });
 
 module.exports = router;

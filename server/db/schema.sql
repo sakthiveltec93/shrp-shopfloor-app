@@ -333,6 +333,20 @@ CREATE TABLE IF NOT EXISTS machine_process_parameter_templates (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Machine parameter tolerances: standard tolerance ranges per machine per parameter
+CREATE TABLE IF NOT EXISTS machine_parameter_tolerances (
+  id SERIAL PRIMARY KEY,
+  machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  parameter_name TEXT NOT NULL,
+  unit TEXT,
+  tolerance_min NUMERIC,
+  tolerance_max NUMERIC,
+  tolerance_description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(machine_id, parameter_name)
+);
+
 -- Part-specific process parameters per machine with structured data
 CREATE TABLE IF NOT EXISTS part_machine_process_specs (
   id SERIAL PRIMARY KEY,

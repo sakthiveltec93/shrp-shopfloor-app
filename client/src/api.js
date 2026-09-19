@@ -516,6 +516,13 @@ export const api = {
       }),
   },
 
+  machineTolerances: {
+    getMachineTolerances: (machineId) => request(`/machine-tolerances/machine/${machineId}`),
+    getParameterTolerance: (machineId, parameterName) => request(`/machine-tolerances/spec/${machineId}/${encodeURIComponent(parameterName)}`),
+    saveTolerance: (payload) => request('/machine-tolerances', { method: 'POST', body: payload }),
+    deleteTolerance: (id) => request(`/machine-tolerances/${id}`, { method: 'DELETE' }),
+  },
+
   setup: {
     initMachineTemplates: () => request('/setup/init-machine-templates', { method: 'POST' }),
   },

@@ -24,6 +24,31 @@ router.get('/active', async (req, res) => {
   const session = rows[0];
   if (!session) return res.json(null);
 
+  // Validate that this session's part_id matches the machine's current approved assignment
+  const activeAsgn = await pool.query(
+    `SELECT id, part_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    [session.machine_id]
+  );
+  if (activeAsgn.rows[0] && activeAsgn.rows[0].part_id !== session.part_id) {
+    // Stale session from previous mould! Auto-close it
+    await pool.query(
+      `UPDATE machine_sessions SET status = 'OFF', off_time = now(), off_reason = 'mould_change', off_remarks = 'Auto-closed stale session on mould change' WHERE id = $1`,
+      [session.id]
+    );
+    return res.json(null);
+  }
+
+  // If session belongs to the new assignment and has first_ok_part_at, align start_time if no entries logged yet
+  if (activeAsgn.rows[0]?.first_ok_part_at) {
+    const fpaTime = new Date(activeAsgn.rows[0].first_ok_part_at);
+    const entryCount = await pool.query(`SELECT count(*)::int AS cnt FROM production_entries WHERE session_id = $1`, [session.id]);
+    if (entryCount.rows[0]?.cnt === 0 && (session.start_count !== 0 || new Date(session.start_time).getTime() !== fpaTime.getTime())) {
+      session.start_count = 0;
+      session.start_time = fpaTime;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+    }
+  }
+
   const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const lastEntry = await pool.query(
     `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
@@ -53,6 +78,31 @@ router.get('/mine', async (req, res) => {
   const session = rows[0];
   if (!session) return res.json(null);
 
+  // Validate that this session's part_id matches the machine's current approved assignment
+  const activeAsgn = await pool.query(
+    `SELECT id, part_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    [session.machine_id]
+  );
+  if (activeAsgn.rows[0] && activeAsgn.rows[0].part_id !== session.part_id) {
+    // Stale session from previous mould! Auto-close it
+    await pool.query(
+      `UPDATE machine_sessions SET status = 'OFF', off_time = now(), off_reason = 'mould_change', off_remarks = 'Auto-closed stale session on mould change' WHERE id = $1`,
+      [session.id]
+    );
+    return res.json(null);
+  }
+
+  // If session belongs to the new assignment and has first_ok_part_at, align start_time if no entries logged yet
+  if (activeAsgn.rows[0]?.first_ok_part_at) {
+    const fpaTime = new Date(activeAsgn.rows[0].first_ok_part_at);
+    const entryCount = await pool.query(`SELECT count(*)::int AS cnt FROM production_entries WHERE session_id = $1`, [session.id]);
+    if (entryCount.rows[0]?.cnt === 0 && (session.start_count !== 0 || new Date(session.start_time).getTime() !== fpaTime.getTime())) {
+      session.start_count = 0;
+      session.start_time = fpaTime;
+      await pool.query(`UPDATE machine_sessions SET start_count = 0, start_time = $1 WHERE id = $2`, [fpaTime, session.id]);
+    }
+  }
+
   const sessionDate = session.start_time ? new Date(session.start_time).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const lastEntry = await pool.query(
     `SELECT end_count, COALESCE(period_end_at, end_time, created_at) AS end_time
@@ -68,17 +118,45 @@ router.get('/mine', async (req, res) => {
 });
 
 // Suggested start count = the off_count from this machine's most recent
-// closed session (carry the counter forward). Null if never run before.
+// closed session on THIS mould, or 0 if this is a new mould change.
 router.get('/suggested-start-count', async (req, res) => {
   const { machine_id } = req.query;
   if (!machine_id) return res.status(400).json({ error: 'machine_id is required' });
+
+  // Check current approved assignment on this machine
+  const activeAsgn = await pool.query(
+    `SELECT id, part_id, last_shot_count FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
+    [machine_id]
+  );
+
+  if (activeAsgn.rows[0]) {
+    // Check if any production entry has been logged for this assignment's part on this machine
+    const lastEntryForPart = await pool.query(
+      `SELECT end_count FROM production_entries WHERE machine_id = $1 AND part_id = $2 ORDER BY COALESCE(period_end_at, end_time, created_at) DESC, end_count DESC LIMIT 1`,
+      [machine_id, activeAsgn.rows[0].part_id]
+    );
+    if (lastEntryForPart.rows[0]) {
+      return res.json({ suggested_start_count: lastEntryForPart.rows[0].end_count });
+    }
+    // Check if any OFF session exists for this same part
+    const lastOffForPart = await pool.query(
+      `SELECT off_count FROM machine_sessions WHERE machine_id = $1 AND part_id = $2 AND status = 'OFF' AND off_count IS NOT NULL ORDER BY off_time DESC LIMIT 1`,
+      [machine_id, activeAsgn.rows[0].part_id]
+    );
+    if (lastOffForPart.rows[0]) {
+      return res.json({ suggested_start_count: lastOffForPart.rows[0].off_count });
+    }
+    // New mould / newly mounted part: Counter starts from 0!
+    return res.json({ suggested_start_count: 0 });
+  }
+
   const { rows } = await pool.query(
     `SELECT off_count FROM machine_sessions
      WHERE machine_id = $1 AND status = 'OFF' AND off_count IS NOT NULL
      ORDER BY off_time DESC LIMIT 1`,
     [machine_id]
   );
-  res.json({ suggested_start_count: rows[0] ? rows[0].off_count : null });
+  res.json({ suggested_start_count: rows[0] ? rows[0].off_count : 0 });
 });
 
 // Start Machine - creates a new running session.
@@ -96,21 +174,28 @@ router.post('/start', async (req, res) => {
     }
 
     const assignment = await pool.query(
-      `SELECT id, part_id, mould_id FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC LIMIT 1`,
+      `SELECT id, part_id, mould_id, first_ok_part_at, approved_at FROM machine_assignments WHERE machine_id = $1 AND status = 'approved' ORDER BY approved_at DESC, id DESC LIMIT 1`,
       [machine_id]
     );
     if (!assignment.rows[0]) {
       return res.status(409).json({ error: 'No approved mould/part assignment for this machine yet - submit a Mould Setup request first' });
     }
 
-    // No FPA gate here: starting the machine (warm-up/setup) produces nothing by itself.
-    // The IATF 16949 Clause 8.5.1.1 first-piece gate is enforced on the first production
-    // entry instead (see entries.js), since that's the point actual output gets counted.
+    // Close any previous running session on this machine
+    await pool.query(
+      `UPDATE machine_sessions
+       SET status = 'OFF', off_time = now(), off_reason = 'mould_change', off_remarks = 'Closed when starting new session'
+       WHERE machine_id = $1 AND status = 'RUNNING'`,
+      [machine_id]
+    );
+
+    // If assignment has first_ok_part_at or approved_at, use that for start_time if no entries logged yet
+    const startTime = assignment.rows[0].first_ok_part_at || new Date();
 
     const { rows } = await pool.query(
       `INSERT INTO machine_sessions (machine_id, part_id, operator_user_id, start_time, start_count)
-       VALUES ($1,$2,$3,now(),$4) RETURNING *`,
-      [machine_id, assignment.rows[0].part_id, assignedOperatorId, Number(start_count)]
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [machine_id, assignment.rows[0].part_id, assignedOperatorId, startTime, Number(start_count)]
     );
 
     const fullSession = await pool.query(`
