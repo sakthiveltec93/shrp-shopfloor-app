@@ -124,11 +124,16 @@ export default function Packing() {
     setSuccess('');
     setSaving(true);
     try {
+      const samplePacketWtG = userPktWt > 0 ? Number((userPktWt * 1000).toFixed(2)) : 0;
+      const calculatedPartWtG = (userPktWt > 0 && standardPackQty > 0)
+        ? Number(((userPktWt * 1000) / standardPackQty).toFixed(3))
+        : 0;
+
       const res = await api.packBag(bag.id, {
         packed_qty: effectivePackedQty,
         packed_wt_kg: effectivePackedWtKg,
-        sample_packet_wt_g: Number((currentSamplePacketWt * 1000).toFixed(2)),
-        calculated_part_wt_g: Number(calculatedPartWeightG.toFixed(3)),
+        sample_packet_wt_g: samplePacketWtG,
+        calculated_part_wt_g: calculatedPartWtG,
         packets_count: effectivePacketsCount,
         balance_qty: effectiveBalanceQty,
         is_partial: isPartialPack,
@@ -148,13 +153,10 @@ export default function Packing() {
         setSuccess(res.closed
           ? `✅ Bag ${bag.bag_code} packed: ${effectivePacketsCount} packets (${effectivePackedQty} pcs). ${effectiveBalanceQty} balance pcs logged to pool!`
           : `✅ Bag ${bag.bag_code} logged as ${isPartialPack ? 'PARTIAL_PACK' : 'PACKED'}.`);
-        setSamplePacketWtKg('');
-        setManualPacketsCount('');
-        setManualPackedQty('');
-        setManualPackedWtKg('');
-        setManualBalanceQty('');
+        setPktWt('');
+        setPktCount('');
+        setBalanceQty('');
         setIsPartialPack(false);
-        setShowOverrides(false);
         if (res.closed) {
           clearBag();
         } else {
