@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { api } from '../api';
+import safeStorage from '../utils/safeStorage';
 
 export default function BagLabel() {
   const { id } = useParams();
@@ -12,8 +13,8 @@ export default function BagLabel() {
   const canvasRef = useRef(null);
 
   // LAN / Network Thermal Printer settings
-  const [printerIp, setPrinterIp] = useState(() => localStorage.getItem('shrp_lan_printer_ip') || '');
-  const [printerPort, setPrinterPort] = useState(() => localStorage.getItem('shrp_lan_printer_port') || '9100');
+  const [printerIp, setPrinterIp] = useState(() => safeStorage.getItem('shrp_lan_printer_ip') || '');
+  const [printerPort, setPrinterPort] = useState(() => safeStorage.getItem('shrp_lan_printer_port') || '9100');
   const [sendingLan, setSendingLan] = useState(false);
   const [copiedZpl, setCopiedZpl] = useState(false);
 
@@ -57,8 +58,8 @@ export default function BagLabel() {
     setSuccess('');
     setSendingLan(true);
 
-    localStorage.setItem('shrp_lan_printer_ip', printerIp.trim());
-    localStorage.setItem('shrp_lan_printer_port', printerPort.trim() || '9100');
+    safeStorage.setItem('shrp_lan_printer_ip', printerIp.trim());
+    safeStorage.setItem('shrp_lan_printer_port', printerPort.trim() || '9100');
 
     try {
       const res = await api.lanPrintBag(id, {

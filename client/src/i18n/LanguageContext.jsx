@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react';
 import { translations } from './translations';
+import safeStorage from '../utils/safeStorage';
 
 const STORAGE_KEY = 'shrp_lang';
 export const LANGUAGES = [
@@ -26,7 +27,7 @@ function interpolate(str, vars) {
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = safeStorage.getItem(STORAGE_KEY);
       return LANGUAGES.some((l) => l.code === saved) ? saved : 'ta'; // default to Tamil or saved
     } catch {
       return 'ta';
@@ -36,7 +37,7 @@ export function LanguageProvider({ children }) {
   function setLang(code) {
     if (!LANGUAGES.some((l) => l.code === code)) return;
     setLangState(code);
-    try { localStorage.setItem(STORAGE_KEY, code); } catch { /* ignore */ }
+    try { safeStorage.setItem(STORAGE_KEY, code); } catch { /* ignore */ }
   }
 
   const t = useMemo(() => {

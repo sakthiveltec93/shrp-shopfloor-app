@@ -4,6 +4,7 @@ import { useAuth } from '../AuthContext';
 import { api } from '../api';
 import { useLanguage, LANGUAGES } from '../i18n/LanguageContext';
 import { ERP_SECTIONS } from '../navigationSections';
+import safeStorage from '../utils/safeStorage';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -25,7 +26,7 @@ export default function Layout({ children }) {
   // Sync language with user's saved default language if present
   useEffect(() => {
     if (user?.default_language && LANGUAGES.some((l) => l.code === user.default_language)) {
-      const saved = localStorage.getItem('shrp_lang');
+      const saved = safeStorage.getItem('shrp_lang');
       if (!saved) {
         setLang(user.default_language);
       }

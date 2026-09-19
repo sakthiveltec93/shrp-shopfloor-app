@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ERP_SECTIONS } from '../navigationSections';
+import safeStorage from '../utils/safeStorage';
 
 const STORAGE_KEY = 'shrp_erp_expanded_sections';
 
@@ -14,7 +15,7 @@ export default function Home() {
   // Persist expanded state
   const [expanded, setExpanded] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = safeStorage.getItem(STORAGE_KEY);
       if (saved) return JSON.parse(saved);
     } catch { /* ignore */ }
     // Default: first three sections open for quick one-tap access
@@ -34,7 +35,7 @@ export default function Home() {
   const toggleSection = (id) => {
     setExpanded((prev) => {
       const next = { ...prev, [id]: !prev[id] };
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      try { safeStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -43,14 +44,14 @@ export default function Home() {
     const all = {};
     ERP_SECTIONS.forEach((s) => { all[s.id] = true; });
     setExpanded(all);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+    try { safeStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
   };
 
   const collapseAll = () => {
     const all = {};
     ERP_SECTIONS.forEach((s) => { all[s.id] = false; });
     setExpanded(all);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+    try { safeStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
   };
 
   const isSupervisorOrAdmin = user.role === 'admin' || user.role === 'supervisor';

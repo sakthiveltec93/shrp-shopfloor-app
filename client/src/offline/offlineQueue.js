@@ -1,4 +1,5 @@
 // Offline Mutation Queue with FIFO auto-sync
+import safeStorage from '../utils/safeStorage';
 
 const QUEUE_KEY = 'shrp_offline_queue';
 let isSyncing = false;
@@ -16,12 +17,12 @@ function sanitizeQueue(rawQueue) {
 
 function readQueue() {
   try {
-    const raw = localStorage.getItem(QUEUE_KEY);
+    const raw = safeStorage.getItem(QUEUE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     const clean = sanitizeQueue(parsed);
     if (clean.length !== parsed.length) {
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(clean));
+      safeStorage.setItem(QUEUE_KEY, JSON.stringify(clean));
     }
     return clean;
   } catch {
@@ -31,8 +32,10 @@ function readQueue() {
 
 function writeQueue(queue) {
   try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    window.dispatchEvent(new CustomEvent('shrp:offline-queue-updated', { detail: { count: queue.length } }));
+    safeStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shrp:offline-queue-updated', { detail: { count: queue.length } }));
+    }
   } catch (e) {
     console.error('Failed to write offline queue:', e);
   }

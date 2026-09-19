@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import CameraScanner from './CameraScanner';
+import safeStorage from '../utils/safeStorage';
 
 export default function FpaModal({ machine, part, mould, assignment, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
@@ -122,7 +123,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
           setProcessParameters((prev) => ({ ...paramMap, ...prev }));
         }
 
-        const savedDraft = localStorage.getItem(draftKey);
+        const savedDraft = safeStorage.getItem(draftKey);
         if (savedDraft) {
           try {
             const parsed = JSON.parse(savedDraft);
@@ -168,7 +169,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
           dimension_readings: dimensionReadings,
           updated_at: new Date().toISOString(),
         };
-        localStorage.setItem(draftKey, JSON.stringify(draft));
+        safeStorage.setItem(draftKey, JSON.stringify(draft));
       }
     }, 5000);
     return () => clearInterval(timer);
@@ -258,7 +259,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
 
       const res = await api.fpa.submit(payload);
       setSubmittedFpa(res.submission);
-      localStorage.removeItem(draftKey);
+      safeStorage.removeItem(draftKey);
       if (onSuccess) onSuccess(res.submission);
     } catch (err) {
       setError(err.message || 'Failed to submit Visual Approval');
@@ -301,7 +302,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
 
       const res = await api.fpa.submit(payload);
       setSubmittedFpa(res.submission);
-      localStorage.removeItem(draftKey);
+      safeStorage.removeItem(draftKey);
       if (onSuccess) onSuccess(res.submission);
     } catch (err) {
       const submissionType = fpaMode === 'first_off' ? 'First-Off Sign-Off' : 'First-Piece Approval';

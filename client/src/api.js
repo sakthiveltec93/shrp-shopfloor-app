@@ -1,10 +1,11 @@
 import { cacheStorage } from './offline/cacheStorage';
 import { offlineQueue } from './offline/offlineQueue';
+import safeStorage from './utils/safeStorage';
 
 const BASE = '/api';
 
 function getToken() {
-  return localStorage.getItem('shrp_token');
+  return safeStorage.getItem('shrp_token');
 }
 
 function isQueueable(path, method) {
@@ -23,15 +24,14 @@ function isQueueable(path, method) {
 }
 
 export function getOrCreateDeviceId() {
-  if (typeof localStorage === 'undefined') return 'unknown';
-  let deviceId = localStorage.getItem('shrp_device_id');
+  let deviceId = safeStorage.getItem('shrp_device_id');
   if (!deviceId) {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       deviceId = crypto.randomUUID();
     } else {
       deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
-    localStorage.setItem('shrp_device_id', deviceId);
+    safeStorage.setItem('shrp_device_id', deviceId);
   }
   return deviceId;
 }

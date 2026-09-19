@@ -1,24 +1,29 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 import { api } from './api';
+import safeStorage from './utils/safeStorage';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem('shrp_user');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = safeStorage.getItem('shrp_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   });
 
   const login = useCallback(async (username, pin) => {
     const { token, user } = await api.login(username, pin);
-    localStorage.setItem('shrp_token', token);
-    localStorage.setItem('shrp_user', JSON.stringify(user));
+    safeStorage.setItem('shrp_token', token);
+    safeStorage.setItem('shrp_user', JSON.stringify(user));
     setUser(user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('shrp_token');
-    localStorage.removeItem('shrp_user');
+    safeStorage.removeItem('shrp_token');
+    safeStorage.removeItem('shrp_user');
     setUser(null);
   }, []);
 
