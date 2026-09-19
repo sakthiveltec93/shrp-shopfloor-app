@@ -55,8 +55,12 @@ export default function Trimming() {
     setDirectPromptDismissed(false);
   }, [partId]);
 
+  const [completedPartFilter, setCompletedPartFilter] = useState('ALL');
+
   useEffect(() => {
     api.checkItems('reject_reason').then(setReasons).catch(() => {});
+    loadHoldBags();
+    loadCompletedBags('ALL');
   }, []);
 
   // Fetch HOLD bags
@@ -69,10 +73,20 @@ export default function Trimming() {
   };
 
   // Fetch Completed Trim bags
-  const loadCompletedBags = () => {
+  const loadCompletedBags = (targetFilter) => {
     setCompletedLoading(true);
-    api.bagHistoryLog({ stage: 'trim', part_id: partId || undefined })
-      .then((res) => setCompletedBags(res || []))
+    const effectiveFilter = targetFilter !== undefined ? targetFilter : completedPartFilter;
+    const effectivePartId = (effectiveFilter && effectiveFilter !== 'ALL') ? effectiveFilter : (partId && effectiveFilter !== 'ALL' ? partId : undefined);
+    
+    api.bagHistoryLog({ stage: 'trim', part_id: effectivePartId })
+      .then((res) => {
+        const sorted = (res || []).sort((a, b) => {
+          const tA = new Date(a.trim_history?.[a.trim_history.length - 1]?.created_at || a.created_at || 0).getTime();
+          const tB = new Date(b.trim_history?.[b.trim_history.length - 1]?.created_at || b.created_at || 0).getTime();
+          return tB - tA;
+        });
+        setCompletedBags(sorted);
+      })
       .catch(() => setCompletedBags([]))
       .finally(() => setCompletedLoading(false));
   };
@@ -80,7 +94,7 @@ export default function Trimming() {
   useEffect(() => {
     if (activeSubTab === 'hold') loadHoldBags();
     if (activeSubTab === 'completed') loadCompletedBags();
-  }, [partId, activeSubTab]);
+  }, [partId, activeSubTab, completedPartFilter]);
 
   // Fetch previous trim passes when a bag is loaded
   useEffect(() => {
@@ -300,25 +314,47 @@ export default function Trimming() {
       {activeSubTab === 'completed' ? (
         /* COMPLETED TRIMMED BAGS VIEW */
         <div className="panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
-              ✅ Completed Trim Bags ({completedBags.length})
-            </h3>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ width: 'auto', padding: '4px 10px', fontSize: 12 }}
-              onClick={loadCompletedBags}
-              disabled={completedLoading}
-            >
-              ↻ Refresh
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
+                ✅ Completed Trim Bags ({completedBags.length})
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                Showing bags trimmed in production
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                value={completedPartFilter}
+                onChange={(e) => {
+                  setCompletedPartFilter(e.target.value);
+                  loadCompletedBags(e.target.value);
+                }}
+                style={{ padding: '6px 10px', fontSize: 13, minWidth: 160 }}
+              >
+                <option value="ALL">All Parts</option>
+                {parts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.part_name || p.shrp_part_code || p.part_code}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
+                onClick={() => loadCompletedBags()}
+                disabled={completedLoading}
+              >
+                ↻ Refresh
+              </button>
+            </div>
           </div>
 
           {completedLoading ? (
-            <p className="muted">Loading completed trim bags…</p>
+            <p className="muted" style={{ padding: '12px 0' }}>Loading completed trim bags…</p>
           ) : completedBags.length === 0 ? (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
               No completed trim bags found for this selection.
             </div>
           ) : (
@@ -326,6 +362,7 @@ export default function Trimming() {
               {completedBags.map((cb) => {
                 const totalTrimmed = cb.trim_history ? cb.trim_history.reduce((s, x) => s + Number(x.trimmed_wt_kg || 0), 0) : 0;
                 const lastTrim = cb.trim_history && cb.trim_history.length > 0 ? cb.trim_history[cb.trim_history.length - 1] : null;
+                const displayName = cb.part_name || cb.shrp_part_code || cb.part_code;
                 return (
                   <div
                     key={cb.id}
@@ -341,10 +378,10 @@ export default function Trimming() {
                       gap: 10,
                     }}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ flex: 1, minWidth: 260 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span className="shrp-code-pill" style={{ background: 'var(--green)', color: '#000', fontWeight: 700 }}>
-                          {cb.shrp_part_code || cb.part_code}
+                          {displayName}
                         </span>
                         <strong style={{ fontSize: 14 }}>{cb.bag_code}</strong>
                         <span className={`status-pill status-${(cb.status || '').toLowerCase()}`}>
@@ -354,7 +391,7 @@ export default function Trimming() {
                       <div style={{ fontSize: 13, color: 'var(--text)' }}>
                         Base Wt: <strong>{cb.base_weight_kg} kg</strong> · Trimmed Wt: <strong>{totalTrimmed > 0 ? totalTrimmed.toFixed(3) : cb.base_weight_kg} kg</strong> · ({cb.qty} Nos)
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
                         Date: {cb.entry_date ? new Date(cb.entry_date).toLocaleDateString('en-GB') : '-'} (Shift {cb.shift}) ·
                         {lastTrim ? ` Trimmed by ${lastTrim.operator_name || 'Operator'} at ${new Date(lastTrim.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ` Logged as ${cb.status}`}
                       </div>

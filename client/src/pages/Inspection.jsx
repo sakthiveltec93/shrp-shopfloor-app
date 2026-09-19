@@ -51,12 +51,16 @@ export default function Inspection() {
     ? Number(selectedPart.part_weight_g)
     : (selectedPart?.unit_weight_g ? Number(selectedPart.unit_weight_g) / cavityCount : 0);
 
+  const [completedPartFilter, setCompletedPartFilter] = useState('ALL');
+
   useEffect(() => {
     setDirectPromptDismissed(false);
   }, [partId]);
 
   useEffect(() => {
     api.checkItems('reject_reason').then(setReasons).catch(() => {});
+    loadHoldBags();
+    loadCompletedBags('ALL');
   }, []);
 
   // Fetch HOLD bags
@@ -69,10 +73,20 @@ export default function Inspection() {
   };
 
   // Fetch Completed Inspection bags
-  const loadCompletedBags = () => {
+  const loadCompletedBags = (targetFilter) => {
     setCompletedLoading(true);
-    api.bagHistoryLog({ stage: 'inspect', part_id: partId || undefined })
-      .then((res) => setCompletedBags(res || []))
+    const effectiveFilter = targetFilter !== undefined ? targetFilter : completedPartFilter;
+    const effectivePartId = (effectiveFilter && effectiveFilter !== 'ALL') ? effectiveFilter : (partId && effectiveFilter !== 'ALL' ? partId : undefined);
+    
+    api.bagHistoryLog({ stage: 'inspect', part_id: effectivePartId })
+      .then((res) => {
+        const sorted = (res || []).sort((a, b) => {
+          const tA = new Date(a.inspection_history?.[a.inspection_history.length - 1]?.created_at || a.created_at || 0).getTime();
+          const tB = new Date(b.inspection_history?.[b.inspection_history.length - 1]?.created_at || b.created_at || 0).getTime();
+          return tB - tA;
+        });
+        setCompletedBags(sorted);
+      })
       .catch(() => setCompletedBags([]))
       .finally(() => setCompletedLoading(false));
   };
@@ -80,7 +94,7 @@ export default function Inspection() {
   useEffect(() => {
     if (activeSubTab === 'hold') loadHoldBags();
     if (activeSubTab === 'completed') loadCompletedBags();
-  }, [partId, activeSubTab]);
+  }, [partId, activeSubTab, completedPartFilter]);
 
   useEffect(() => {
     if (bag?.id) {
@@ -320,31 +334,54 @@ export default function Inspection() {
       {activeSubTab === 'completed' ? (
         /* COMPLETED INSPECTED BAGS VIEW */
         <div className="panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
-              ✅ Completed Inspected Bags ({completedBags.length})
-            </h3>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ width: 'auto', padding: '4px 10px', fontSize: 12 }}
-              onClick={loadCompletedBags}
-              disabled={completedLoading}
-            >
-              ↻ Refresh
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, color: 'var(--green)' }}>
+                ✅ Completed Inspected Bags ({completedBags.length})
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                Showing bags inspected in production
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                value={completedPartFilter}
+                onChange={(e) => {
+                  setCompletedPartFilter(e.target.value);
+                  loadCompletedBags(e.target.value);
+                }}
+                style={{ padding: '6px 10px', fontSize: 13, minWidth: 160 }}
+              >
+                <option value="ALL">All Parts</option>
+                {parts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.part_name || p.shrp_part_code || p.part_code}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
+                onClick={() => loadCompletedBags()}
+                disabled={completedLoading}
+              >
+                ↻ Refresh
+              </button>
+            </div>
           </div>
 
           {completedLoading ? (
-            <p className="muted">Loading completed inspection bags…</p>
+            <p className="muted" style={{ padding: '12px 0' }}>Loading completed inspection bags…</p>
           ) : completedBags.length === 0 ? (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
               No completed inspected bags found for this selection.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {completedBags.map((cb) => {
                 const lastInsp = cb.inspection_history && cb.inspection_history.length > 0 ? cb.inspection_history[cb.inspection_history.length - 1] : null;
+                const displayName = cb.part_name || cb.shrp_part_code || cb.part_code;
                 return (
                   <div
                     key={cb.id}
@@ -360,10 +397,10 @@ export default function Inspection() {
                       gap: 10,
                     }}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ flex: 1, minWidth: 260 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span className="shrp-code-pill" style={{ background: 'var(--green)', color: '#000', fontWeight: 700 }}>
-                          {cb.shrp_part_code || cb.part_code}
+                          {displayName}
                         </span>
                         <strong style={{ fontSize: 14 }}>{cb.bag_code}</strong>
                         <span className={`status-pill status-${(cb.status || '').toLowerCase()}`}>
@@ -372,10 +409,10 @@ export default function Inspection() {
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text)' }}>
                         Base Wt: <strong>{cb.base_weight_kg} kg</strong> · Inspected Wt: <strong>{lastInsp?.inspected_wt_kg || cb.base_weight_kg} kg</strong> · ({cb.qty} Nos)
-                        {lastInsp?.reject_wt_kg > 0 && <span style={{ color: 'var(--red)', marginLeft: 6 }}>(Rejects: {lastInsp.reject_wt_kg} kg)</span>}
-                        {lastInsp?.sent_to_rework_qty > 0 && <span style={{ color: 'var(--amber)', marginLeft: 6 }}>(Rework: {lastInsp.sent_to_rework_qty} Nos)</span>}
+                        {lastInsp?.reject_wt_kg > 0 && <span style={{ color: 'var(--red)', marginLeft: 6, fontWeight: 600 }}>· Rej: {lastInsp.reject_wt_kg} kg</span>}
+                        {lastInsp?.sent_to_rework_qty > 0 && <span style={{ color: 'var(--amber)', marginLeft: 6, fontWeight: 600 }}>· Rework: {lastInsp.sent_to_rework_qty} Nos</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
                         Date: {cb.entry_date ? new Date(cb.entry_date).toLocaleDateString('en-GB') : '-'} (Shift {cb.shift}) ·
                         {lastInsp ? ` Inspected by ${lastInsp.operator_name || 'Inspector'} at ${new Date(lastInsp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ` Logged as ${cb.status}`}
                       </div>

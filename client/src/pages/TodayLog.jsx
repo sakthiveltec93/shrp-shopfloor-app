@@ -495,84 +495,107 @@ export default function TodayLog() {
                 <thead>
                   <tr>
                     <th>Bag Barcode</th>
-                    <th>Machine</th>
-                    <th>Part Code & Name</th>
+                    <th>Part Name</th>
                     <th>Base Wt (kg)</th>
                     <th>Qty (pcs)</th>
                     <th>Status</th>
-                    <th>Summary</th>
+                    <th>Stage Summary</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBags.map((b) => (
-                    <tr key={b.id}>
-                      <td>
-                        <strong style={{ color: 'var(--amber)' }}>{b.bag_code}</strong>
-                        <div className="muted" style={{ fontSize: 10 }}>Batch: {b.batch_no}</div>
-                      </td>
-                      <td><strong>{b.machine_code || '-'}</strong></td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className="shrp-code-pill">{b.shrp_part_code || b.part_code}</span>
-                          <span style={{ fontSize: 12 }}>{b.part_name}</span>
-                        </div>
-                      </td>
-                      <td>{b.base_weight_kg} kg</td>
-                      <td><strong>{b.qty}</strong></td>
-                      <td>
-                        <span className="status-pill" style={{ background: `${getStatusColor(b.status)}20`, color: getStatusColor(b.status) }}>
-                          {b.status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 11 }} className="muted">
-                        {b.status === 'PACKED' && `Packed ${b.qty} pcs`}
-                        {b.status === 'INSPECTED' && `Inspected ${b.base_weight_kg} kg`}
-                        {b.status === 'TRIMMED' && `Trimmed ${b.base_weight_kg} kg`}
-                        {b.status === 'OPEN' && 'Moulded'}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            style={{ width: 'auto', padding: '3px 8px', fontSize: 11 }}
-                            onClick={() => setSelectedBagDetail(b)}
-                          >
-                            👁️ View
-                          </button>
-                          {isSupervisor && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                style={{ width: 'auto', padding: '3px 8px', fontSize: 11 }}
-                                onClick={() => setCorrectionTarget({ mode: 'edit_bag', record: b })}
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                style={{ width: 'auto', padding: '3px 8px', fontSize: 11, color: 'var(--blue)' }}
-                                onClick={() => setCorrectionTarget({ mode: 'override_bag_status', record: b })}
-                              >
-                                🔄 Status
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                style={{ width: 'auto', padding: '3px 8px', fontSize: 11 }}
-                                onClick={() => setDeleteTarget({ type: 'bag', id: b.id, label: `${b.bag_code} (${b.base_weight_kg} kg, ${b.qty} pcs)` })}
-                              >
-                                🗑️
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredBags.map((b) => {
+                    const lastInsp = b.inspection_history && b.inspection_history.length > 0 ? b.inspection_history[b.inspection_history.length - 1] : null;
+                    const lastTrim = b.trim_history && b.trim_history.length > 0 ? b.trim_history[b.trim_history.length - 1] : null;
+                    const lastPack = b.packing_history && b.packing_history.length > 0 ? b.packing_history[b.packing_history.length - 1] : null;
+
+                    let stageSummary = `Net: ${b.base_weight_kg} kg`;
+                    if (b.status === 'INSPECTED' || b.status === 'PARTIAL_INSPECT' || lastInsp) {
+                      const parts = [];
+                      if (lastInsp?.inspected_wt_kg != null) parts.push(`${lastInsp.inspected_wt_kg} kg OK`);
+                      else parts.push(`${b.base_weight_kg} kg OK`);
+                      if (Number(lastInsp?.reject_wt_kg) > 0) parts.push(`${lastInsp.reject_wt_kg} kg Rej`);
+                      if (Number(lastInsp?.sent_to_rework_qty) > 0) parts.push(`${lastInsp.sent_to_rework_qty} Rework`);
+                      stageSummary = parts.join(' · ');
+                    } else if (b.status === 'TRIMMED' || b.status === 'PARTIAL_TRIM' || lastTrim) {
+                      const parts = [];
+                      if (lastTrim?.trimmed_wt_kg != null) parts.push(`Net: ${lastTrim.trimmed_wt_kg} kg`);
+                      else parts.push(`Net: ${b.base_weight_kg} kg`);
+                      if (Number(lastTrim?.runner_wt_kg) > 0) parts.push(`Runner: ${lastTrim.runner_wt_kg} kg`);
+                      if (Number(lastTrim?.reject_wt_kg) > 0) parts.push(`Rej: ${lastTrim.reject_wt_kg} kg`);
+                      stageSummary = parts.join(' · ');
+                    } else if (b.status === 'PACKED' || b.status === 'PARTIAL_PACK' || lastPack) {
+                      stageSummary = `${lastPack?.packed_qty || b.qty} pcs (${lastPack?.packets_count || 1} pkts)`;
+                    }
+
+                    return (
+                      <tr key={b.id}>
+                        <td>
+                          <strong style={{ color: 'var(--amber)' }}>{b.bag_code}</strong>
+                          <div className="muted" style={{ fontSize: 10 }}>Batch: {b.batch_no}</div>
+                        </td>
+                        <td>
+                          <strong style={{ fontSize: 13, color: 'var(--text)' }}>
+                            {b.part_name || b.shrp_part_code || b.part_code}
+                          </strong>
+                        </td>
+                        <td>{b.base_weight_kg} kg</td>
+                        <td><strong>{b.qty}</strong></td>
+                        <td>
+                          <span className="status-pill" style={{ background: `${getStatusColor(b.status)}20`, color: getStatusColor(b.status) }}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--text)' }}>
+                          {stageSummary}
+                        </td>
+                        <td>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.03)', padding: '2px 4px', borderRadius: 6, border: '1px solid var(--line)' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ width: 'auto', padding: '4px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                              title="View Bag History & Timeline"
+                              onClick={() => setSelectedBagDetail(b)}
+                            >
+                              <span>👁️</span> <span>View</span>
+                            </button>
+                            {isSupervisor && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  style={{ width: 'auto', padding: '4px 8px', fontSize: 11 }}
+                                  title="Edit Bag Record"
+                                  onClick={() => setCorrectionTarget({ mode: 'edit_bag', record: b })}
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  style={{ width: 'auto', padding: '4px 8px', fontSize: 11, color: 'var(--blue)' }}
+                                  title="Override / Advance Bag Status"
+                                  onClick={() => setCorrectionTarget({ mode: 'override_bag_status', record: b })}
+                                >
+                                  🔄 Status
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-danger"
+                                  style={{ width: 'auto', padding: '4px 8px', fontSize: 11 }}
+                                  title="Delete Bag Record"
+                                  onClick={() => setDeleteTarget({ type: 'bag', id: b.id, label: `${b.bag_code} (${b.base_weight_kg} kg, ${b.qty} pcs)` })}
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
