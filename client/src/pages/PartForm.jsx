@@ -1,4 +1,5 @@
 import SearchableSelect from '../components/SearchableSelect';
+import MachineParametersEditor from '../components/MachineParametersEditor';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, getToken } from '../api';
@@ -626,21 +627,12 @@ export default function PartForm() {
             )}
           </div>
 
-          <div className="panel">
-            <h2 style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>Process parameters</h2>
-            {parameters.map((p, i) => (
-              <div key={i} className="btn-row" style={{ marginBottom: 8 }}>
-                <input placeholder="Name" value={p.parameter_name} onChange={(e) => updateParam(i, 'parameter_name', e.target.value)} />
-                <input placeholder="Value" value={p.value} onChange={(e) => updateParam(i, 'value', e.target.value)} />
-                <input placeholder="Unit" style={{ maxWidth: 70 }} value={p.unit} onChange={(e) => updateParam(i, 'unit', e.target.value)} />
-                <button type="button" className="btn btn-secondary" style={{ width: 40 }} onClick={() => removeParam(i)}>✕</button>
-              </div>
-            ))}
-            <div className="btn-row">
-              <button type="button" className="btn btn-secondary" onClick={addParamRow}>+ Add row</button>
-              <button type="button" className="btn btn-primary" onClick={saveParameters}>Save parameters</button>
-            </div>
-          </div>
+          <MachineParametersEditor
+            partId={id ? Number(id) : null}
+            machines={machines}
+            selectedMachines={selectedMachines}
+            onSave={() => setSuccess('Process parameters saved successfully')}
+          />
 
           <div className="panel">
             <h2 style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>Critical dimensions</h2>

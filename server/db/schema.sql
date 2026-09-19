@@ -322,6 +322,28 @@ CREATE TABLE IF NOT EXISTS part_machines (
   PRIMARY KEY (part_id, machine_id)
 );
 
+-- Machine process parameter template: defines what parameters each machine expects
+CREATE TABLE IF NOT EXISTS machine_process_parameter_templates (
+  id SERIAL PRIMARY KEY,
+  machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  template_name TEXT NOT NULL,
+  description TEXT,
+  parameters JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Part-specific process parameters per machine with structured data
+CREATE TABLE IF NOT EXISTS part_machine_process_specs (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  machine_id INTEGER NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+  parameter_specs JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(part_id, machine_id)
+);
+
 -- Photo / SOP / PPAP attachments, stored directly in the database so
 -- there's no separate file-storage service to keep in sync.
 CREATE TABLE IF NOT EXISTS part_files (

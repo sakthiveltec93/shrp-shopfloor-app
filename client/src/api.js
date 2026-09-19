@@ -496,6 +496,21 @@ export const api = {
     },
   },
 
+  machineTemplates: {
+    getTemplate: (machineId) => request(`/machine-templates/template/${machineId}`),
+    getPartSpecs: (partId, machineId) => request(`/machine-templates/part-specs/${partId}/${machineId}`),
+    savePartSpecs: (partId, machineId, parameterSpecs) =>
+      request('/machine-templates/part-specs', {
+        method: 'POST',
+        body: { part_id: partId, machine_id: machineId, parameter_specs: parameterSpecs }
+      }),
+    updateTemplate: (machineId, templateName, description, parameters) =>
+      request('/machine-templates/template', {
+        method: 'POST',
+        body: { machine_id: machineId, template_name: templateName, description, parameters }
+      }),
+  },
+
   offlineQueue,
   syncOffline: () => offlineQueue.syncQueue(request),
 };
