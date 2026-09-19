@@ -93,6 +93,37 @@ export default function Packing() {
   const partObj = parts.find((p) => String(p.id) === String(activePartId));
   const standardPackQty = Number(partObj?.standard_pack_qty || 500);
 
+  // Auto-populate expected packing metrics when a bag is loaded/selected
+  useEffect(() => {
+    if (bag) {
+      const bagQty = Number(bag.qty) || 0;
+      const stdPack = Number(partObj?.standard_pack_qty) || 500;
+      const expectedPktCount = stdPack > 0 ? Math.floor(bagQty / stdPack) : 0;
+      const expectedBalance = stdPack > 0 ? (bagQty % stdPack) : 0;
+
+      // Calculate expected packet weight in kg:
+      // 1. If part has defined part_weight_g -> (stdPack * part_weight_g) / 1000
+      // 2. Fallback: from inspected bag weight -> (stdPack * (bag.base_weight_kg * 1000 / bagQty)) / 1000
+      let expectedPktWt = '';
+      const partWtG = Number(partObj?.part_weight_g) || Number(partObj?.unit_weight_g) || 0;
+      if (partWtG > 0 && stdPack > 0) {
+        expectedPktWt = ((stdPack * partWtG) / 1000).toFixed(3);
+      } else if (Number(bag.base_weight_kg) > 0 && bagQty > 0 && stdPack > 0) {
+        expectedPktWt = ((stdPack * (Number(bag.base_weight_kg) * 1000 / bagQty)) / 1000).toFixed(3);
+      }
+
+      setPktCount(String(expectedPktCount > 0 ? expectedPktCount : ''));
+      setBalanceQty(String(expectedBalance != null ? expectedBalance : '0'));
+      if (expectedPktWt) {
+        setPktWt(String(expectedPktWt));
+      }
+    } else {
+      setPktCount('');
+      setBalanceQty('');
+      setPktWt('');
+    }
+  }, [bag?.id, partObj?.id, partObj?.standard_pack_qty, partObj?.part_weight_g]);
+
   // Simplified calculation based on user input
   const bagWeightKg = Number(bag?.base_weight_kg || 0);
   const userPktWt = Number(pktWt || 0);
