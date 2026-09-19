@@ -794,5 +794,43 @@ async function handleFpaPdf(req, res) {
 router.get('/pdf/:id', handleFpaPdf);
 router.get('/:id/pdf', handleFpaPdf);
 
+// Save process parameters to part master
+router.post('/save-process-params', async (req, res) => {
+  try {
+    const { part_id, parameters } = req.body;
+    if (!part_id || !parameters || !Array.isArray(parameters)) {
+      return res.status(400).json({ error: 'Invalid request: part_id and parameters array required' });
+    }
+
+    const saved = [];
+    for (const param of parameters) {
+      const { parameter_name, value, unit } = param;
+      if (!parameter_name || value === undefined || value === null) continue;
+
+      const result = await pool.query(
+        `INSERT INTO part_process_parameters (part_id, parameter_name, value, unit, sort_order)
+         VALUES ($1, $2, $3, $4, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM part_process_parameters WHERE part_id = $1))
+         ON CONFLICT (part_id, COALESCE(machine_id, -1), parameter_name) DO UPDATE
+         SET value = EXCLUDED.value, unit = EXCLUDED.unit
+         RETURNING id, parameter_name, value, unit`,
+        [part_id, parameter_name, value, unit]
+      );
+      if (result.rows[0]) {
+        saved.push(result.rows[0]);
+      }
+    }
+
+    res.json({
+      success: true,
+      saved_count: saved.length,
+      parameters: saved,
+      message: `${saved.length} process parameter(s) saved to part master`
+    });
+  } catch (err) {
+    console.error('Error saving process parameters:', err);
+    res.status(500).json({ error: 'Failed to save parameters: ' + err.message });
+  }
+});
+
 module.exports = router;
 

@@ -7,6 +7,7 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [submittedFpa, setSubmittedFpa] = useState(null);
 
   const effMachineId = machine?.id || assignment?.machine_id;
@@ -118,7 +119,13 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
           const paramMap = {};
           res.standardProcessParameters.forEach((p) => {
             const k = p.parameter_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            paramMap[k] = p.value;
+            paramMap[k] = {
+              id: p.id,
+              parameter_name: p.parameter_name,
+              value: p.value,
+              unit: p.unit || '',
+              from_master: true
+            };
           });
           setProcessParameters((prev) => ({ ...paramMap, ...prev }));
         }
@@ -279,6 +286,25 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
 
     setSubmitting(true);
     try {
+      // Save any new process parameters to part master
+      const newParams = Object.entries(processParameters)
+        .filter(([, param]) => typeof param === 'object' && param.parameter_name && !param.from_master && param.value)
+        .map(([, param]) => ({
+          parameter_name: param.parameter_name,
+          value: param.value,
+          unit: param.unit || ''
+        }));
+
+      if (newParams.length > 0 && effPartId) {
+        const paramRes = await api.post('/fpa/save-process-params', {
+          part_id: effPartId,
+          parameters: newParams
+        });
+        if (paramRes.success) {
+          setSuccess(`✓ ${paramRes.message}`);
+        }
+      }
+
       const visualPassed = Object.values(visualChecks).every(Boolean);
       const payload = {
         assignment_id: effAssignmentId || null,
@@ -415,6 +441,11 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
               {error && (
                 <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>
                   ⚠ {error}
+                </div>
+              )}
+              {success && (
+                <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.12)', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 13, fontWeight: 600 }}>
+                  {success}
                 </div>
               )}
 
@@ -568,29 +599,37 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-                    {[
-                      { key: 'zone1_temp', label: 'Zone 1 Temp', unit: '°C', range: '180-240' },
-                      { key: 'zone2_temp', label: 'Zone 2 Temp', unit: '°C', range: '200-260' },
-                      { key: 'zone3_temp', label: 'Zone 3 Temp', unit: '°C', range: '190-250' },
-                      { key: 'nozzle_temp', label: 'Nozzle Temp', unit: '°C', range: '210-270' },
-                      { key: 'injection_pressure', label: 'Injection Pressure', unit: 'bar', range: '500-1200' },
-                      { key: 'holding_pressure', label: 'Holding Pressure', unit: 'bar', range: '300-800' },
-                      { key: 'cooling_time_sec', label: 'Cooling Time', unit: 's', range: '5-30' },
-                    ].map((param) => (
-                      <div key={param.key} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6, padding: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{param.label}</label>
-                          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Min-Max: {param.range} {param.unit}</span>
-                        </div>
-                        <input
-                          type="number"
-                          placeholder={`Actual ${param.unit}`}
-                          value={processParameters[param.key] ?? ''}
-                          onChange={(e) => setProcessParameters({ ...processParameters, [param.key]: e.target.value })}
-                          style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontWeight: 600 }}
-                        />
+                    {Object.entries(processParameters).length > 0 ? (
+                      Object.entries(processParameters).map(([key, param]) => {
+                        if (typeof param !== 'object' || !param.parameter_name) return null;
+                        return (
+                          <div key={key} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6, padding: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{param.parameter_name}</label>
+                              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{param.unit}</span>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder={`${param.value || '000.0'}`}
+                              value={param.value || ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setProcessParameters({
+                                  ...processParameters,
+                                  [key]: { ...param, value: v }
+                                });
+                              }}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }}
+                            />
+                            {param.from_master && <span style={{ fontSize: 8, color: 'var(--green)', marginTop: 2, display: 'block' }}>✓ From Master</span>}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ gridColumn: '1 / -1', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--blue)', borderRadius: 6, color: 'var(--blue)', fontSize: 11 }}>
+                        No process parameters defined for this part. Parameters entered here will be saved to the part master.
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -729,41 +768,41 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <input
-                                type="number"
-                                step="any"
-                                value={dim.nominal}
+                                type="text"
+                                placeholder="00.00"
+                                value={dim.nominal !== null && dim.nominal !== undefined ? Number(dim.nominal).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
-                                  updated[dIdx].nominal = Number(e.target.value);
+                                  updated[dIdx].nominal = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontFamily: 'monospace' }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <input
-                                type="number"
-                                step="any"
-                                value={dim.lsl}
+                                type="text"
+                                placeholder="00.00"
+                                value={dim.lsl !== null && dim.lsl !== undefined ? Number(dim.lsl).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
-                                  updated[dIdx].lsl = Number(e.target.value);
+                                  updated[dIdx].lsl = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11, fontFamily: 'monospace' }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <input
-                                type="number"
-                                step="any"
-                                value={dim.usl}
+                                type="text"
+                                placeholder="00.00"
+                                value={dim.usl !== null && dim.usl !== undefined ? Number(dim.usl).toFixed(2) : ''}
                                 onChange={(e) => {
                                   const updated = [...dimensionReadings];
-                                  updated[dIdx].usl = Number(e.target.value);
+                                  updated[dIdx].usl = e.target.value ? Number(e.target.value) : null;
                                   setDimensionReadings(updated);
                                 }}
-                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11 }}
+                                style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: '#60a5fa', fontSize: 11, fontFamily: 'monospace' }}
                               />
                             </td>
                             <td style={{ padding: '6px 8px' }}>
@@ -790,12 +829,11 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                               return (
                                 <td key={cIdx} style={{ padding: '6px 8px' }}>
                                   <input
-                                    type="number"
-                                    step="any"
+                                    type="text"
                                     placeholder={`#${cIdx + 1}`}
-                                    value={val}
+                                    value={val !== '' && val !== null ? Number(val).toFixed(2) : ''}
                                     onChange={(e) => handleDimensionChange(dIdx, cIdx, e.target.value)}
-                                    style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: bgCol, border: `1px solid ${borderCol}`, color: 'var(--text)', fontSize: 11, fontFamily: 'var(--font-num)' }}
+                                    style={{ width: '100%', padding: '4px 6px', textAlign: 'center', borderRadius: 4, background: bgCol, border: `1px solid ${borderCol}`, color: 'var(--text)', fontSize: 11, fontFamily: 'monospace' }}
                                   />
                                 </td>
                               );
