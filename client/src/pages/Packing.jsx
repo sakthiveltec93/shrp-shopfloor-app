@@ -651,10 +651,20 @@ export default function Packing() {
             </div>
           </div>
 
-          {/* Auto-Calculated Results & Validation */}
+          {/* Real-time Packing Calculation Results - MAIN DISPLAY FOR OPERATORS */}
           <div className="readout" style={{ marginBottom: 14, background: 'rgba(76,175,125,0.06)', borderColor: 'var(--green)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
-              <div>Calculated Total Wt:</div><strong style={{ fontSize: 16, color: isWithinTolerance === true ? 'var(--green)' : isWithinTolerance === false ? 'var(--red)' : 'inherit' }}>
+              <div>Full Packets:</div><strong style={{ color: 'var(--green)', fontSize: 16 }}>{effectivePacketsCount} Packets</strong>
+              <div>Packed Good Qty:</div><strong>{effectivePackedQty} Nos ({effectivePackedWtKg} kg)</strong>
+              <div>Balance to Pool:</div><strong style={{ color: 'var(--amber)' }}>{effectiveBalanceQty} Nos</strong>
+              <div>Standard Pack Qty:</div><strong>{standardPackQty} Nos / Pkt</strong>
+            </div>
+          </div>
+
+          {/* Weight Tolerance Validation */}
+          <div style={{ marginBottom: 14, padding: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
+              <div>Calculated Total Wt:</div><strong style={{ color: isWithinTolerance === true ? 'var(--green)' : isWithinTolerance === false ? 'var(--red)' : 'inherit' }}>
                 {calculatedTotalWtKg} kg
               </strong>
               <div>Bag Weight:</div><strong>{bagWeightKg.toFixed(3)} kg</strong>
