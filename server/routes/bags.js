@@ -210,7 +210,7 @@ router.get('/production-visibility', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     machine_id, part_id, batch_no, bag_type, base_weight_kg, qty, remarks,
-    supervisor_pin, approval_reason,
+    supervisor_pin, approval_reason, entry_date, shift: reqShift, operator_user_id,
   } = req.body;
 
   if (!machine_id || !part_id || !batch_no || !base_weight_kg || !qty) {
@@ -218,8 +218,11 @@ router.post('/', async (req, res) => {
   }
   const type = bag_type === 'RUNNER' ? 'RUNNER' : 'PART';
   const now = new Date();
-  const entryDate = istDateString(now);
-  const shift = currentShift(now);
+  const entryDate = (entry_date && String(entry_date).trim()) || istDateString(now);
+  const shift = (reqShift && String(reqShift).trim()) || currentShift(now);
+  const targetOperatorId = (operator_user_id && ['admin', 'supervisor'].includes(req.user.role))
+    ? Number(operator_user_id)
+    : req.user.id;
 
   let isOverTolerance = false;
   let toleranceApprovedBy = null;
@@ -301,7 +304,7 @@ router.post('/', async (req, res) => {
        base_weight_kg, qty, operator_user_id, status, remarks,
        is_over_tolerance, tolerance_approved_by, tolerance_approved_at, tolerance_approval_remarks)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OPEN',$11,$12,$13,$14,$15) RETURNING *`,
-    [bagCode, batch_no, entryDate, shift, machine_id, part_id, type, base_weight_kg, qty, req.user.id,
+    [bagCode, batch_no, entryDate, shift, machine_id, part_id, type, base_weight_kg, qty, targetOperatorId,
       remarks || null, isOverTolerance, toleranceApprovedBy, toleranceApprovedAt, toleranceApprovalRemarks]
   );
   const bag = rows[0];
@@ -314,7 +317,8 @@ router.post('/', async (req, res) => {
     batch_no: bag.batch_no,
     part_id: bag.part_id,
     machine_id: bag.machine_id,
-    user_id: req.user.id,
+    user_id: targetOperatorId,
+    created_by: req.user.id,
     qty,
     weight_kg: base_weight_kg,
     status_from: null,

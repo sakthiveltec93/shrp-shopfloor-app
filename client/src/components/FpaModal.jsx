@@ -26,6 +26,9 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
     recent_fpa: null,
   });
 
+  // Machine parameter tolerances
+  const [tolerances, setTolerances] = useState({});
+
   // Camera scanner modal
   const [showScanner, setShowScanner] = useState(false);
 
@@ -76,6 +79,21 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
   const [customApprovalTime, setCustomApprovalTime] = useState('');
 
   const draftKey = `fpa_draft_${effMachineId}_${effPartId}`;
+
+  // Load machine parameter tolerances
+  useEffect(() => {
+    if (effMachineId) {
+      api.machineTolerances.getMachineTolerances(effMachineId)
+        .then((data) => {
+          const tolMap = {};
+          data.forEach((tol) => {
+            tolMap[tol.parameter_name] = tol;
+          });
+          setTolerances(tolMap);
+        })
+        .catch((err) => console.warn('Failed to load tolerances:', err));
+    }
+  }, [effMachineId]);
 
   // Load initial data
   useEffect(() => {
@@ -578,21 +596,76 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                     {fpaData.standardProcessParameters.map((sp, pIdx) => {
                       const k = sp.parameter_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                      const paramValue = processParameters[k];
+                      const tolerance = tolerances[sp.parameter_name];
+
+                      let inputVal = '';
+                      if (typeof paramValue === 'object' && paramValue?.value) {
+                        inputVal = paramValue.value;
+                      } else if (typeof paramValue === 'string') {
+                        inputVal = paramValue;
+                      }
+
+                      let isWithinTolerance = null;
+                      let borderColor = 'var(--line)';
+                      let bgColor = 'rgba(255,255,255,0.04)';
+
+                      if (tolerance && inputVal) {
+                        const numVal = Number(inputVal);
+                        const minVal = Number(tolerance.tolerance_min);
+                        const maxVal = Number(tolerance.tolerance_max);
+                        const targetVal = Number(sp.value);
+
+                        if (!isNaN(numVal) && !isNaN(minVal) && !isNaN(maxVal)) {
+                          const lowerBound = targetVal + minVal;
+                          const upperBound = targetVal + maxVal;
+                          isWithinTolerance = numVal >= lowerBound && numVal <= upperBound;
+
+                          if (isWithinTolerance) {
+                            borderColor = 'var(--green)';
+                            bgColor = 'rgba(34,197,94,0.12)';
+                          } else {
+                            borderColor = 'var(--red)';
+                            bgColor = 'rgba(239,68,68,0.12)';
+                          }
+                        }
+                      }
+
                       return (
                         <div key={pIdx} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', borderRadius: 6, padding: 8 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 6 }}>
                             <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{sp.parameter_name}</label>
-                            <span style={{ fontSize: 10, color: 'var(--amber)', background: 'rgba(245,158,11,0.1)', padding: '1px 5px', borderRadius: 4 }}>
-                              Target: {sp.value} {sp.unit || ''}
-                            </span>
+                            <div style={{ textAlign: 'right', fontSize: 9, color: 'var(--text-muted)' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--amber)' }}>Target: {sp.value} {sp.unit || ''}</div>
+                              {tolerance && (
+                                <div style={{ marginTop: 1, color: 'var(--text-muted)' }}>
+                                  {tolerance.tolerance_min} to {tolerance.tolerance_max} {tolerance.unit || ''}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <input
                             type="text"
                             placeholder={`Actual (${sp.unit || 'val'})`}
-                            value={processParameters[k] ?? ''}
+                            value={inputVal}
                             onChange={(e) => setProcessParameters({ ...processParameters, [k]: e.target.value })}
-                            style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11 }}
+                            style={{
+                              width: '100%', padding: '6px 8px', borderRadius: 4,
+                              background: bgColor, border: `1px solid ${borderColor}`,
+                              color: 'var(--text)', fontSize: 11, fontFamily: 'monospace',
+                              fontWeight: 600
+                            }}
                           />
+                          {isWithinTolerance === true && (
+                            <div style={{ marginTop: 4, fontSize: 10, color: 'var(--green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                              🟢 Within Spec
+                            </div>
+                          )}
+                          {isWithinTolerance === false && (
+                            <div style={{ marginTop: 4, fontSize: 10, color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                              🔴 Out of Spec
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -602,16 +675,49 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                     {Object.entries(processParameters).length > 0 ? (
                       Object.entries(processParameters).map(([key, param]) => {
                         if (typeof param !== 'object' || !param.parameter_name) return null;
+                        const tolerance = tolerances[param.parameter_name];
+                        const paramValue = param.value || '';
+
+                        let isWithinTolerance = null;
+                        let borderColor = 'var(--line)';
+                        let bgColor = 'rgba(255,255,255,0.04)';
+
+                        if (tolerance && paramValue) {
+                          const numVal = Number(paramValue);
+                          const minVal = Number(tolerance.tolerance_min);
+                          const maxVal = Number(tolerance.tolerance_max);
+                          const targetVal = Number(param.target_value) || 0;
+
+                          if (!isNaN(numVal) && !isNaN(minVal) && !isNaN(maxVal)) {
+                            const lowerBound = targetVal + minVal;
+                            const upperBound = targetVal + maxVal;
+                            isWithinTolerance = numVal >= lowerBound && numVal <= upperBound;
+
+                            if (isWithinTolerance) {
+                              borderColor = 'var(--green)';
+                              bgColor = 'rgba(34,197,94,0.12)';
+                            } else {
+                              borderColor = 'var(--red)';
+                              bgColor = 'rgba(239,68,68,0.12)';
+                            }
+                          }
+                        }
+
                         return (
                           <div key={key} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6, padding: 8 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 4 }}>
                               <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{param.parameter_name}</label>
                               <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{param.unit}</span>
                             </div>
+                            {tolerance && (
+                              <div style={{ fontSize: 8, color: 'var(--text-muted)', marginBottom: 3, paddingBottom: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                {tolerance.tolerance_min} to {tolerance.tolerance_max} {tolerance.unit || ''}
+                              </div>
+                            )}
                             <input
                               type="text"
                               placeholder={`${param.value || '000.0'}`}
-                              value={param.value || ''}
+                              value={paramValue}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setProcessParameters({
@@ -619,9 +725,15 @@ export default function FpaModal({ machine, part, mould, assignment, onClose, on
                                   [key]: { ...param, value: v }
                                 });
                               }}
-                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, background: bgColor, border: `1px solid ${borderColor}`, color: 'var(--text)', fontSize: 11, fontWeight: 600, fontFamily: 'monospace' }}
                             />
                             {param.from_master && <span style={{ fontSize: 8, color: 'var(--green)', marginTop: 2, display: 'block' }}>✓ From Master</span>}
+                            {isWithinTolerance === true && (
+                              <div style={{ marginTop: 2, fontSize: 8, color: 'var(--green)', fontWeight: 700 }}>🟢 Within Spec</div>
+                            )}
+                            {isWithinTolerance === false && (
+                              <div style={{ marginTop: 2, fontSize: 8, color: 'var(--red)', fontWeight: 700 }}>🔴 Out of Spec</div>
+                            )}
                           </div>
                         );
                       })

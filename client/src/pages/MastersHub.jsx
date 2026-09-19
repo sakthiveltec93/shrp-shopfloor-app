@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getLocalizedCheckItem } from '../i18n/checksheetTranslations';
 import { isValidGSTIN, extractPanFromGSTIN } from '../utils/gstinValidator';
 import { getSuggestedDocFormat, formatDocumentNumber } from '../utils/docSequenceHelper';
+import MachineToleranceManager from '../components/MachineTolerananceManager';
 
 const TABS = [
   { key: 'parts', label: 'Parts', icon: '📋' },
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'moulds', label: 'Moulds', icon: '⚙️' },
   { key: 'document_sequences', label: 'Doc Numbering', icon: '🔢' },
   { key: 'defaults', label: 'Checksheets', icon: '📑' },
+  { key: 'tolerances', label: 'Parameter Tolerances', icon: '⚖️' },
 ];
 
 export default function MastersHub() {
@@ -213,6 +215,7 @@ export default function MastersHub() {
     if (activeTab === 'moulds') loadMoulds();
     if (activeTab === 'document_sequences') loadDocSequences();
     if (activeTab === 'defaults') loadDefaults();
+    if (activeTab === 'tolerances') loadMachines();
   }, [activeTab]);
 
   const loadDocSequences = () => {
@@ -3936,6 +3939,19 @@ export default function MastersHub() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 9: PROCESS PARAMETER TOLERANCES */}
+      {activeTab === 'tolerances' && (
+        <div className="panel" style={{ padding: 16 }}>
+          <div style={{ marginBottom: 14 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>⚖️ Process Parameter Tolerances</h3>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              Define standard tolerance ranges for process parameters per machine. Used in FPA checksheets for validation.
+            </p>
+          </div>
+          <MachineToleranceManager machines={machines} />
         </div>
       )}
     </div>
